@@ -1,31 +1,41 @@
-// #!/usr/bin/env node
 
-// /**
-//  * Module dependencies.
-//  */
 
 // var app = require('../app');
 // var debug = require('debug')('ung-dung-mua-thuoc-truc-tuyen-pharmapoly:server');
-// var http = require('http');
+// var https = require('https');
+// var fs = require('fs');
+// var path = require('path');
 
 // /**
 //  * Get port from environment and store in Express.
 //  */
 
-// var port = normalizePort(process.env.PORT || '3000');
+// var port = normalizePort(process.env.PORT || '443');
 // app.set('port', port);
 
 // /**
-//  * Create HTTP server.
+//  * Đọc chứng chỉ SSL
 //  */
 
-// var server = http.createServer(app);
+// var sslOptions = {
+//   key: fs.readFileSync(path.join(__dirname, '../server.key')),
+//   cert: fs.readFileSync(path.join(__dirname, '../server.cert'))
+// };
+
+// /**
+//  * Create HTTPS server.
+//  */
+
+// var server = https.createServer(sslOptions, app);
 
 // /**
 //  * Listen on provided port, on all network interfaces.
 //  */
 
-// server.listen(port);
+// //server.listen(port);
+// //server.listen(port, 'pharmapoly');
+// server.listen(port, '0.0.0.0'); // Hoặc '127.0.0.1' nếu chỉ chạy local
+
 // server.on('error', onError);
 // server.on('listening', onListening);
 
@@ -37,12 +47,10 @@
 //   var port = parseInt(val, 10);
 
 //   if (isNaN(port)) {
-//     // named pipe
 //     return val;
 //   }
 
 //   if (port >= 0) {
-//     // port number
 //     return port;
 //   }
 
@@ -50,7 +58,7 @@
 // }
 
 // /**
-//  * Event listener for HTTP server "error" event.
+//  * Event listener for HTTPS server "error" event.
 //  */
 
 // function onError(error) {
@@ -62,7 +70,6 @@
 //     ? 'Pipe ' + port
 //     : 'Port ' + port;
 
-//   // handle specific listen errors with friendly messages
 //   switch (error.code) {
 //     case 'EACCES':
 //       console.error(bind + ' requires elevated privileges');
@@ -78,7 +85,7 @@
 // }
 
 // /**
-//  * Event listener for HTTP server "listening" event.
+//  * Event listener for HTTPS server "listening" event.
 //  */
 
 // function onListening() {
@@ -87,79 +94,48 @@
 //     ? 'pipe ' + addr
 //     : 'port ' + addr.port;
 //   debug('Listening on ' + bind);
+//   console.log(`Server running at https://localhost`);
 // }
 
 
 var app = require('../app');
 var debug = require('debug')('ung-dung-mua-thuoc-truc-tuyen-pharmapoly:server');
-var https = require('https');
-var fs = require('fs');
-var path = require('path');
+var http = require('http');
 
 /**
  * Get port from environment and store in Express.
  */
-
-var port = normalizePort(process.env.PORT || '443');
+var port = normalizePort(process.env.PORT || '3000'); // Không dùng 443
 app.set('port', port);
 
 /**
- * Đọc chứng chỉ SSL
+ * Create HTTP server (Render tự cấp SSL).
  */
-
-var sslOptions = {
-  key: fs.readFileSync(path.join(__dirname, '../server.key')),
-  cert: fs.readFileSync(path.join(__dirname, '../server.cert'))
-};
-
-/**
- * Create HTTPS server.
- */
-
-var server = https.createServer(sslOptions, app);
+var server = http.createServer(app);
 
 /**
  * Listen on provided port, on all network interfaces.
  */
-
-//server.listen(port);
-//server.listen(port, 'pharmapoly');
-server.listen(port, '0.0.0.0'); // Hoặc '127.0.0.1' nếu chỉ chạy local
-
+server.listen(port, '0.0.0.0'); // Cho phép truy cập từ mọi nơi
 server.on('error', onError);
 server.on('listening', onListening);
 
 /**
  * Normalize a port into a number, string, or false.
  */
-
 function normalizePort(val) {
   var port = parseInt(val, 10);
-
-  if (isNaN(port)) {
-    return val;
-  }
-
-  if (port >= 0) {
-    return port;
-  }
-
+  if (isNaN(port)) return val;
+  if (port >= 0) return port;
   return false;
 }
 
 /**
- * Event listener for HTTPS server "error" event.
+ * Event listener for HTTP server "error" event.
  */
-
 function onError(error) {
-  if (error.syscall !== 'listen') {
-    throw error;
-  }
-
-  var bind = typeof port === 'string'
-    ? 'Pipe ' + port
-    : 'Port ' + port;
-
+  if (error.syscall !== 'listen') throw error;
+  var bind = typeof port === 'string' ? 'Pipe ' + port : 'Port ' + port;
   switch (error.code) {
     case 'EACCES':
       console.error(bind + ' requires elevated privileges');
@@ -175,14 +151,11 @@ function onError(error) {
 }
 
 /**
- * Event listener for HTTPS server "listening" event.
+ * Event listener for HTTP server "listening" event.
  */
-
 function onListening() {
   var addr = server.address();
-  var bind = typeof addr === 'string'
-    ? 'pipe ' + addr
-    : 'port ' + addr.port;
+  var bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port;
   debug('Listening on ' + bind);
-  console.log(`Server running at https://localhost`);
+  console.log(`Server running at http://0.0.0.0:${port}`);
 }
