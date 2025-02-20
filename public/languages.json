@@ -1,0 +1,61 @@
+{
+    "en": {
+      "dashboard": "Dashboard",
+      "product": "Product",
+      "category": "Category",
+      "brand": "Brand",
+      "product_type": "Product Type",
+      "section": "Section",
+      "language": "Language",
+      "name": "Name",
+      "description": "Description",
+
+      "brands": "Brands",
+      "brand_id": "Brand ID",
+      "brand_name": "Brand Name",
+      "brand_description": "Brand Description",
+      "add_new_brand": "Add New Brand",
+      "edit_brand_info": "Edit Brand Information",
+      "confirm_deletion": "Confirm Deletion",
+      "confirm_deletion_message": "Are you sure you want to delete this brand?",
+      "success_add_brand": "Brand added successfully!",
+
+      "category_name": "Category Name",
+      "add_new_category": "Add New Category",
+
+      "save": "Save",
+      "save_changes": "Save Changes",
+      "delete": "Delete",
+      "cancel": "Cancel"
+    },
+    "vi": {
+      "dashboard": "Bảng điều khiển",
+      "product": "Sản phẩm",
+      "category": "Danh mục",
+      "brand": "Thương hiệu",
+      "product_type": "Loại sản phẩm",
+      "section": "Mục nội dung",
+      "language": "Ngôn ngữ",
+      "name": "Tên",
+      "description": "Mô tả",
+
+      "brands": "Thương hiệu",
+      "brand_id": "ID thương hiệu",
+      "brand_name": "Tên thương hiệu",
+      "brand_description": "Mô tả thương hiệu",
+      "add_new_brand": "Thêm thương hiệu mới",
+      "edit_brand_info": "Chỉnh sửa thông tin thương hiệu",
+      "confirm_deletion": "Xác nhận xóa",
+      "confirm_deletion_message": "Bạn có chắc chắn muốn xóa thương hiệu này không?",
+      "success_add_brand": "Đã thêm thương hiệu thành công!",
+
+      "category_name": "Tên danh mục",
+      "add_new_category": "Thêm danh mục mới",
+
+      "save": "Lưu",
+      "save_changes": "Lưu thay đổi",
+      "delete": "Xóa",
+      "cancel": "Hủy"
+    }
+  }
+  

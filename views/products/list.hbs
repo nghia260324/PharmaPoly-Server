@@ -1,0 +1,1076 @@
+<div class="p-4">
+    <div id="productSection" class="product-section">
+
+        <div class="product-header mb-4 p-3 bg-light rounded">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="h5 mb-0">Products</span>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                    <i class="bi bi-plus-circle"></i> Add New Product
+                </button>
+            </div>
+        </div>
+
+        <div id="productList" class="product-list">
+
+            {{#each products}}
+            <div class="product-card p-2" data-id="{{this._id}}">
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div class="col-md-1">
+                        <img src=".{{this.image}}" class="img-fluid rounded"
+                            style="width: 100px; aspect-ratio: 1/1; object-fit: cover;" alt="{{this.name}}">
+                    </div>
+
+                    <div class="col-md-9 p-3">
+                        <h6 class="mb-1"><strong>Name:</strong> {{this.name}}</h6>
+                        <p class="mb-1 small"><strong>Price:</strong> {{this.price}} VND</p>
+                        <p class="mb-0 small"><strong>Rating:</strong> {{this.average_rating}}/5 ({{this.review_count}}
+                            đánh giá)</p>
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-center justify-content-end">
+                        <button class="btn btn-sm btn-warning me-2 edit-product">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger delete-product">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Add Product -->
+<div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addProductModalLabel">Add New Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addProductForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <!-- Product Name -->
+                            <div class="mb-3">
+                                <label for="productName" class="form-label">Product Name</label>
+                                <input type="text" class="form-control" id="productName" required>
+                            </div>
+
+                            <!-- Category -->
+                            <div class="mb-3">
+                                <label for="productCategory" class="form-label">Category</label>
+                                <select class="form-select" id="productCategory" required>
+                                    <option value="" selected disabled>Select Category</option>
+                                    {{#each categories}}
+                                    <option value="{{this._id}}">{{this.name}}</option>
+                                    {{/each}}
+                                </select>
+                            </div>
+
+                            <!-- Brand -->
+                            <div class="mb-3">
+                                <label for="productBrand" class="form-label">Brand</label>
+                                <select class="form-select" id="productBrand" required>
+                                    <option value="" selected disabled>Select Brand</option>
+                                    {{#each brands}}
+                                    <option value="{{this._id}}">{{this.name}}</option>
+                                    {{/each}}
+                                </select>
+                            </div>
+
+                            <!-- Product Type -->
+                            <div class="mb-3">
+                                <label for="productType" class="form-label">Product Type</label>
+                                <select class="form-select" id="productType" required>
+                                    <option value="" selected disabled>Select Product Type</option>
+                                    {{#each productTypes}}
+                                    <option value="{{this._id}}">{{this.name}}</option>
+                                    {{/each}}
+                                </select>
+                            </div>
+
+                            <!-- Price -->
+                            <div class="mb-3">
+                                <label for="productPrice" class="form-label">Price (VND)</label>
+                                <input type="number" class="form-control" id="productPrice" min="1" required>
+                            </div>
+
+                            <!-- Average Rating -->
+                            <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
+                                <label for="averageRating" class="form-label">Average Rating</label>
+                                <input type="number" class="form-control bg-secondary text-white" id="averageRating"
+                                    value="0" readonly>
+                            </div>
+
+                            <!-- Review Count -->
+                            <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
+                                <label for="reviewCount" class="form-label">Review Count</label>
+                                <input type="number" class="form-control bg-secondary text-white" id="reviewCount"
+                                    value="0" readonly>
+                            </div>
+
+                            <!-- Short Description -->
+                            <div class="mb-3">
+                                <label for="shortDescription" class="form-label">Short Description</label>
+                                <textarea class="form-control" id="productShortDescription" rows="3"
+                                    placeholder="Enter a short description"></textarea>
+                            </div>
+
+                            <!-- Specification -->
+                            <div class="mb-3">
+                                <label for="specification" class="form-label">Specification</label>
+                                <input type="text" class="form-control" id="productSpecification"
+                                    placeholder="Enter packaging details (e.g., Box of 10 blisters x 10 tablets)">
+                            </div>
+
+                            <!-- Manufacturer -->
+                            <div class="mb-3">
+                                <label for="manufacturer" class="form-label">Manufacturer</label>
+                                <input type="text" class="form-control" id="productManufacturer"
+                                    placeholder="Enter the manufacturer's name">
+                            </div>
+
+                            <!-- Country of Origin -->
+                            <div class="mb-3">
+                                <label for="originCountry" class="form-label">Country of Origin</label>
+                                <input type="text" class="form-control" id="productOriginCountry"
+                                    placeholder="Enter the country of origin">
+                            </div>
+                        </div>
+
+                        <!-- Column Left -->
+                        <div class="col-md-6">
+                            <!-- Sections -->
+                            <div class="mb-3" id="addSectionContainer">
+                                <label class="form-label">Sections</label>
+                            </div>
+
+                            <!-- Add Section Button -->
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-outline-primary" id="addSectionBtn">
+                                    <i class="bi bi-plus-circle"></i> Add Section
+                                </button>
+                            </div>
+
+
+                            <!-- Add Image Button -->
+                            <div class="mb-3">
+                                <label class="form-label">Product Images</label>
+
+                                <input type="file" id="productImages" accept="image/*" multiple hidden>
+                            </div>
+
+                            <!-- Image Preview Section -->
+                            <div id="addImagePreview" class="gap-3">
+                                <div style="display: inline-block;">
+                                    <button type="button"
+                                        class="btn btn-outline-primary d-flex align-items-center justify-content-center"
+                                        id="addImageBtn"
+                                        style="width: 100%; aspect-ratio: 1/1; font-size: 24px; border-style: dashed; border-width: 2px;">
+                                        <i class="bi bi-image-alt fs-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary w-100 mt-4">Add Product</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit Product -->
+<div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editProductModalLabel">Edit Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editProductForm">
+                    <input type="hidden" id="editProductId">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <!-- Product Name -->
+                            <div class="mb-3">
+                                <label for="editProductName" class="form-label">Product Name</label>
+                                <input type="text" class="form-control" id="editProductName" required>
+                            </div>
+
+                            <!-- Category -->
+                            <div class="mb-3">
+                                <label for="editProductCategory" class="form-label">Category</label>
+                                <select class="form-select" id="editProductCategory" required>
+                                    <option value="" selected disabled>Select Category</option>
+                                    {{#each categories}}
+                                    <option value="{{this._id}}">{{this.name}}</option>
+                                    {{/each}}
+                                </select>
+                            </div>
+
+                            <!-- Brand -->
+                            <div class="mb-3">
+                                <label for="editProductBrand" class="form-label">Brand</label>
+                                <select class="form-select" id="editProductBrand" required>
+                                    <option value="" selected disabled>Select Brand</option>
+                                    {{#each brands}}
+                                    <option value="{{this._id}}">{{this.name}}</option>
+                                    {{/each}}
+                                </select>
+                            </div>
+
+                            <!-- Product Type -->
+                            <div class="mb-3">
+                                <label for="editProductType" class="form-label">Product Type</label>
+                                <select class="form-select" id="editProductType" required>
+                                    <option value="" selected disabled>Select Product Type</option>
+                                    {{#each productTypes}}
+                                    <option value="{{this._id}}">{{this.name}}</option>
+                                    {{/each}}
+                                </select>
+                            </div>
+
+                            <!-- Price -->
+                            <div class="mb-3">
+                                <label for="editProductPrice" class="form-label">Price (VND)</label>
+                                <input type="number" class="form-control" id="editProductPrice" min="1" required>
+                            </div>
+
+                            <!-- Average Rating -->
+                            <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
+                                <label for="editProductAverageRating" class="form-label">Average Rating</label>
+                                <input type="number" class="form-control bg-secondary text-white"
+                                    id="editProductAverageRating" value="0" readonly>
+                            </div>
+
+                            <!-- Review Count -->
+                            <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
+                                <label for="editProductReviewCount" class="form-label">Review Count</label>
+                                <input type="number" class="form-control bg-secondary text-white"
+                                    id="editProductReviewCount" value="0" readonly>
+                            </div>
+
+                            <!-- Short Description -->
+                            <div class="mb-3">
+                                <label for="editProductShortDescription" class="form-label">Short Description</label>
+                                <textarea class="form-control" id="editProductShortDescription" rows="3"></textarea>
+                            </div>
+
+                            <!-- Specification -->
+                            <div class="mb-3">
+                                <label for="editProductSpecification" class="form-label">Specification</label>
+                                <input type="text" class="form-control" id="editProductSpecification"
+                                    placeholder="Enter packaging details (e.g., Box of 10 blisters x 10 tablets)">
+                            </div>
+
+                            <!-- Manufacturer -->
+                            <div class="mb-3">
+                                <label for="editProductManufacturer" class="form-label">Manufacturer</label>
+                                <input type="text" class="form-control" id="editProductManufacturer"
+                                    placeholder="Enter the manufacturer's name">
+                            </div>
+
+                            <!-- Country of Origin -->
+                            <div class="mb-3">
+                                <label for="editProductOriginCountry" class="form-label">Country of Origin</label>
+                                <input type="text" class="form-control" id="editProductOriginCountry"
+                                    placeholder="Enter the country of origin">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <!-- Sections -->
+                            <div class="mb-3" id="editSectionContainer">
+                                <label class="form-label">Sections</label>
+                            </div>
+
+                            <!-- Add Section Button -->
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-outline-primary" id="editSectionBtn">
+                                    <i class="bi bi-plus-circle"></i> Add Section
+                                </button>
+                            </div>
+
+                            <!-- Add Image Button -->
+                            <div class="mb-3">
+                                <label class="form-label">Product Images</label>
+                                <input type="file" id="editProductImages" accept="image/*" multiple hidden>
+                            </div>
+
+                            <!-- Image Preview Section -->
+                            <div id="editImagePreview" class="gap-3">
+
+                                <div style="display: inline-block;">
+                                    <button type="button"
+                                        class="btn btn-outline-primary d-flex align-items-center justify-content-center"
+                                        id="addImageBtn"
+                                        style="width: 100%; aspect-ratio: 1/1; font-size: 24px; border-style: dashed; border-width: 2px;">
+                                        <i class="bi bi-image-alt fs-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary w-100 mt-4">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmationModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this product?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Bootstrap Toast Notification -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                Product added successfully!
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteLoadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static"
+    data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content p-4 d-flex align-items-center justify-content-center">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3">Đang xóa sản phẩm...</p>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let uploadedFiles = [];
+        const addProductModal = document.getElementById('addProductModal');
+        const editProductModal = document.getElementById('editProductModal');
+        const deleteConfirmationModal = document.getElementById('deleteConfirmationModal');
+        const deleteLoadingModal = new bootstrap.Modal(document.getElementById("deleteLoadingModal"));
+        const addImageBtn = addProductModal.querySelector('#addImageBtn');
+        const productImagesInput = document.getElementById('productImages');
+        const addImagePreview = document.getElementById('addImagePreview');
+        addImageBtn.addEventListener('click', function () {
+            productImagesInput.click();
+        });
+
+        handleImageUpload(productImagesInput, addImagePreview, addImageBtn);
+
+        const editImageBtn = editProductModal.querySelector('#addImageBtn');
+        const editProductImagesInput = document.getElementById('editProductImages');
+        const editImagePreview = document.getElementById('editImagePreview');
+
+        editImageBtn.addEventListener('click', function () {
+            editProductImagesInput.click();
+        });
+
+        handleImageUpload(editProductImagesInput, editImagePreview, editImageBtn);
+
+        function handleImageUpload(inputElement, previewContainer, addButton) {
+            uploadedFiles.length = 0;
+            inputElement.addEventListener('change', function (event) {
+                const files = event.target.files;
+
+                for (let file of files) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        uploadedFiles.push(file);
+                        const imgContainer = document.createElement('div');
+                        imgContainer.classList.add('image-container', 'position-relative');
+                        imgContainer.setAttribute('file-index', uploadedFiles.length - 1);
+
+                        const img = document.createElement('img');
+                        img.classList.add('preview-img');
+                        img.src = e.target.result;
+
+
+
+                        const removeBtn = createButton('&minus;', 'remove-image', function () {
+                            imgContainer.remove();
+                            updateAll(previewContainer);
+                        });
+
+                        const prevBtn = createButton('&larr;', 'prev-image', function (event) {
+                            event.preventDefault();
+                            moveImage(previewContainer, imgContainer, -1);
+                        });
+
+                        const nextBtn = createButton('&rarr;', 'next-image', function (event) {
+                            event.preventDefault();
+                            moveImage(previewContainer, imgContainer, 1);
+                        });
+
+                        const indexLabel = document.createElement('span');
+                        indexLabel.classList.add('index-label', 'position-absolute', 'bottom-0', 'start-0', 'm-1', 'badge', 'bg-secondary');
+                        indexLabel.innerText = '1';
+
+                        const buttonContainer = document.createElement('div');
+                        buttonContainer.classList.add('button-overlay');
+                        buttonContainer.appendChild(prevBtn);
+                        buttonContainer.appendChild(removeBtn);
+                        buttonContainer.appendChild(nextBtn);
+
+                        imgContainer.appendChild(img);
+                        imgContainer.appendChild(buttonContainer);
+                        imgContainer.appendChild(indexLabel);
+                        previewContainer.insertBefore(imgContainer, addButton.parentElement);
+
+                        updateAll(previewContainer);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        function createButton(innerHTML, className, onClick) {
+            const button = document.createElement('button');
+            button.classList.add(className);
+            button.innerHTML = innerHTML;
+            button.addEventListener('click', onClick);
+            return button;
+        }
+        function updateAll(imagePreview) {
+            updatePrimaryImage();
+            updateNavigationButtons(imagePreview);
+            updateIndexes(imagePreview);
+        }
+        function moveImage(imagePreview, imgContainer, direction) {
+            const parent = imgContainer.parentElement;
+            const images = Array.from(parent.children).filter(el => el.classList.contains('image-container'));
+            const index = images.indexOf(imgContainer);
+            const newIndex = index + direction;
+
+            if (newIndex >= 0 && newIndex < images.length) {
+                parent.insertBefore(imgContainer, direction === 1 ? images[newIndex].nextSibling : images[newIndex]);
+                //[uploadedFiles[index], uploadedFiles[index + direction]] = [uploadedFiles[index + direction], uploadedFiles[index]];
+                updateAll(imagePreview);
+            }
+        }
+
+        function updatePrimaryImage() {
+            document.querySelectorAll('.image-container .primary-badge').forEach(badge => badge.remove());
+            document.querySelectorAll('.preview-img').forEach(img => img.classList.remove('border', 'border-danger', 'border-2'));
+
+            const imageContainers = document.querySelectorAll('.image-container');
+
+            if (imageContainers.length > 0) {
+                const firstImage = imageContainers[0];
+
+                const primaryBadge = document.createElement('span');
+                primaryBadge.classList.add('badge', 'bg-danger', 'position-absolute', 'top-0', 'start-0', 'm-1', 'primary-badge');
+                primaryBadge.innerText = 'Primary Image';
+
+                firstImage.appendChild(primaryBadge);
+                firstImage.querySelector('.preview-img').classList.add('border', 'border-danger', 'border-2');
+            }
+        }
+        function updateIndexes(imagePreview) {
+            imagePreview.querySelectorAll('.image-container').forEach((container, index) => {
+                const indexLabel = container.querySelector('.index-label');
+                if (indexLabel) {
+                    indexLabel.innerText = index + 1;
+                }
+            });
+        }
+        function updateNavigationButtons(imagePreview) {
+            const imageContainers = imagePreview.querySelectorAll('.image-container');
+
+            imageContainers.forEach((container, index) => {
+                const prevBtn = container.querySelector('.prev-image');
+                const nextBtn = container.querySelector('.next-image');
+
+                prevBtn.style.display = index === 0 ? 'none' : 'inline-block';
+                nextBtn.style.display = index === imageContainers.length - 1 ? 'none' : 'inline-block';
+            });
+        }
+
+        const deletedImageIds = [];
+        function editProduct(button) {
+            deletedImageIds.length = 0;
+
+            const productCard = button.closest('.product-card');
+            const productId = productCard.getAttribute("data-id");
+            fetch(`/products/id/${productId}`)
+                .then(response => response.json())
+                .then(product => {
+                    document.getElementById("editProductId").value = product._id;
+                    document.getElementById("editProductName").value = product.name;
+                    document.getElementById("editProductCategory").value = product.category_id._id;
+                    document.getElementById("editProductBrand").value = product.brand_id._id;
+                    document.getElementById("editProductType").value = product.product_type_id._id;
+                    document.getElementById("editProductPrice").value = product.price;
+                    document.getElementById("editProductAverageRating").value = product.average_rating;
+                    document.getElementById("editProductReviewCount").value = product.review_count;
+                    document.getElementById("editProductShortDescription").value = product.short_description;
+                    document.getElementById("editProductSpecification").value = product.specification;
+                    document.getElementById("editProductOriginCountry").value = product.origin_country;
+                    document.getElementById("editProductManufacturer").value = product.manufacturer;
+
+
+                    const sectionContainer = document.getElementById("editSectionContainer");
+                    sectionContainer.innerHTML = "";
+
+                    if (product.sections && product.sections.length > 0) {
+                        product.sections.forEach(section => {
+                            const sectionItem = document.createElement("div");
+                            sectionItem.classList.add("border", "p-3", "mb-3", "rounded", "section-item");
+
+                            const sectionContent = document.createElement("div");
+                            sectionContent.classList.add("d-flex", "align-items-center", "mb-2");
+
+                            // Label
+                            const label = document.createElement("span");
+                            label.textContent = "Section:";
+                            label.classList.add("me-2");
+
+                            // Select Dropdown
+                            const select = document.createElement("select");
+                            select.classList.add("form-select", "me-2", "d-inline-block", "section-select");
+
+                            select.innerHTML = `
+                        <option value="" disabled>Select Section</option>
+                        {{#each sections}}
+                        <option value="{{this._id}}">{{this.name}}</option>
+                        {{/each}}
+                    `;
+
+                            select.value = section.section_id;
+
+                            // Remove Section Button
+                            const removeSectionBtn = document.createElement("button");
+                            removeSectionBtn.classList.add("btn", "btn-danger", "btn-sm", "ms-2");
+                            removeSectionBtn.innerHTML = '<i class="bi bi-trash"></i>';
+                            removeSectionBtn.addEventListener("click", function (event) {
+                                event.preventDefault();
+                                sectionItem.remove();
+                            });
+
+                            // Container cho Items
+                            const itemsContainer = document.createElement("div");
+                            itemsContainer.classList.add("mt-3");
+
+                            // Thêm section details vào container
+                            if (section.details && section.details.length > 0) {
+                                section.details.forEach(detail => {
+                                    addItemSection(itemsContainer, detail.title, detail.content);
+                                });
+                            }
+
+                            // Add Item Button
+                            const addItemBtn = document.createElement("button");
+                            addItemBtn.classList.add("btn", "btn-outline-primary", "btn-sm", "mt-2");
+                            addItemBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Add Item';
+                            addItemBtn.addEventListener("click", function (event) {
+                                event.preventDefault();
+                                addItem(itemsContainer);
+                            });
+
+                            // Gắn các phần tử vào Section Content
+                            sectionContent.appendChild(label);
+                            sectionContent.appendChild(select);
+                            sectionContent.appendChild(removeSectionBtn);
+
+                            // Thêm vào Section
+                            sectionItem.appendChild(sectionContent);
+                            sectionItem.appendChild(itemsContainer);
+                            sectionItem.appendChild(addItemBtn);
+                            sectionContainer.appendChild(sectionItem);
+                        })
+                    }
+
+                    const images = editImagePreview.querySelectorAll(".image-container");
+                    for (let i = 0; i < images.length; i++) {
+                        images[i].remove();
+                    }
+
+
+                    product.images.forEach((image, index) => {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.classList.add('image-container', 'position-relative');
+                        imgContainer.setAttribute("data-image-id", image._id);
+
+                        const img = document.createElement('img');
+                        img.classList.add('preview-img');
+                        img.src = image.image_url;
+
+                        const removeBtn = createButton('&minus;', 'remove-image', function () {
+                            imgContainer.remove();
+                            deletedImageIds.push(image._id);
+                            updateAll(editImagePreview);
+                        });
+
+                        const prevBtn = createButton('&larr;', 'prev-image', function (event) {
+                            event.preventDefault();
+                            moveImage(editImagePreview, imgContainer, -1);
+                        });
+
+                        const nextBtn = createButton('&rarr;', 'next-image', function (event) {
+                            event.preventDefault();
+                            moveImage(editImagePreview, imgContainer, 1);
+                        });
+
+                        const indexLabel = document.createElement('span');
+                        indexLabel.classList.add('index-label', 'position-absolute', 'bottom-0', 'start-0', 'm-1', 'badge', 'bg-secondary');
+                        indexLabel.innerText = (index + 1).toString();
+
+                        const buttonContainer = document.createElement('div');
+                        buttonContainer.classList.add('button-overlay');
+                        buttonContainer.appendChild(prevBtn);
+                        buttonContainer.appendChild(removeBtn);
+                        buttonContainer.appendChild(nextBtn);
+
+                        imgContainer.appendChild(img);
+                        imgContainer.appendChild(buttonContainer);
+                        imgContainer.appendChild(indexLabel);
+                        editImagePreview.insertBefore(imgContainer, editImageBtn.parentElement);
+                    });
+                    updateAll(editImagePreview);
+                });
+
+            new bootstrap.Modal(editProductModal).show();
+        }
+
+        const addSectionContainer = document.getElementById("addSectionContainer")
+        const editSectionContainer = document.getElementById("editSectionContainer")
+
+        document.getElementById("addSectionBtn").addEventListener("click", function (event) {
+            event.preventDefault();
+            addSection(addSectionContainer);
+        });
+
+        document.getElementById("editSectionBtn").addEventListener("click", function (event) {
+            event.preventDefault();
+            addSection(editSectionContainer);
+        });
+
+        function addSection(sectionContainer) {
+            const sectionItem = document.createElement("div");
+            sectionItem.classList.add("border", "p-3", "mb-3", "rounded", "section-item");
+
+            const sectionContent = document.createElement("div");
+            sectionContent.classList.add("d-flex", "align-items-center", "mb-2");
+
+            const label = document.createElement("span");
+            label.textContent = "Section:";
+            label.classList.add("me-2");
+
+            const select = document.createElement("select");
+            select.classList.add("form-select", "me-2", "section-select");
+            select.innerHTML = `
+                        <option value="" disabled>Select Section</option>
+                        {{#each sections}}
+                        <option value="{{this._id}}">{{this.name}}</option>
+                        {{/each}}
+                    `;
+
+            const removeSectionBtn = document.createElement("button");
+            removeSectionBtn.classList.add("btn", "btn-danger", "btn-sm", "ms-2");
+            removeSectionBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            removeSectionBtn.addEventListener("click", function (event) {
+                event.preventDefault();
+                sectionItem.remove();
+            });
+
+            const itemsContainer = document.createElement("div");
+            itemsContainer.classList.add("mt-3");
+
+            const addItemBtn = document.createElement("button");
+            addItemBtn.classList.add("btn", "btn-outline-primary", "btn-sm", "mt-2");
+            addItemBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Add Item';
+            addItemBtn.addEventListener("click", function (event) {
+                event.preventDefault();
+                addItem(itemsContainer);
+            });
+
+            sectionContent.appendChild(label);
+            sectionContent.appendChild(select);
+            sectionContent.appendChild(removeSectionBtn);
+
+            sectionItem.appendChild(sectionContent);
+            sectionItem.appendChild(itemsContainer);
+            sectionItem.appendChild(addItemBtn);
+            sectionContainer.appendChild(sectionItem);
+        }
+        function addItemSection(container, title = "", content = "") {
+            const itemDiv = document.createElement("div");
+            itemDiv.classList.add("d-flex", "align-items-start", "mb-2", "border", "p-2", "rounded", "section-detail-item");
+
+            const contentCol = document.createElement("div");
+            contentCol.classList.add("flex-grow-1", "me-2");
+
+            const titleInput = document.createElement("input");
+            titleInput.type = "text";
+            titleInput.classList.add("form-control", "mb-2", "item-title");
+            titleInput.placeholder = "Enter Title";
+            titleInput.value = title;
+
+            const contentTextarea = document.createElement("textarea");
+            contentTextarea.classList.add("form-control", "item-content");
+            contentTextarea.rows = 2;
+            contentTextarea.placeholder = "Enter Content";
+            contentTextarea.value = content;
+
+            const buttonCol = document.createElement("div");
+            buttonCol.classList.add("d-flex", "align-items-center");
+
+            const removeItemBtn = document.createElement("button");
+            removeItemBtn.classList.add("btn", "btn-danger", "btn-sm");
+            removeItemBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            removeItemBtn.addEventListener("click", function (event) {
+                event.preventDefault();
+                itemDiv.remove();
+            });
+
+            contentCol.appendChild(titleInput);
+            contentCol.appendChild(contentTextarea);
+
+            buttonCol.appendChild(removeItemBtn);
+
+            itemDiv.appendChild(contentCol);
+            itemDiv.appendChild(buttonCol);
+            container.appendChild(itemDiv);
+        }
+        function addItem(container) {
+            const itemDiv = document.createElement("div");
+            itemDiv.classList.add("d-flex", "align-items-start", "mb-2", "border", "p-2", "rounded", "section-detail-item");
+
+            const contentCol = document.createElement("div");
+            contentCol.classList.add("flex-grow-1", "me-2");
+
+            const titleInput = document.createElement("input");
+            titleInput.type = "text";
+            titleInput.classList.add("form-control", "mb-2", "item-title");
+            titleInput.placeholder = "Enter Title";
+
+            const contentTextarea = document.createElement("textarea");
+            contentTextarea.classList.add("form-control", "item-content");
+            contentTextarea.rows = 2;
+            contentTextarea.placeholder = "Enter Content";
+
+            const buttonCol = document.createElement("div");
+            buttonCol.classList.add("d-flex", "align-items-center");
+
+            const removeItemBtn = document.createElement("button");
+            removeItemBtn.classList.add("btn", "btn-danger", "btn-sm");
+            removeItemBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            removeItemBtn.addEventListener("click", function (event) {
+                event.preventDefault();
+                itemDiv.remove();
+            });
+
+            contentCol.appendChild(titleInput);
+            contentCol.appendChild(contentTextarea);
+            buttonCol.appendChild(removeItemBtn);
+
+            itemDiv.appendChild(contentCol);
+            itemDiv.appendChild(buttonCol);
+            container.appendChild(itemDiv);
+        }
+
+        const addProductForm = document.getElementById('addProductForm');
+        const editProductForm = document.getElementById('editProductForm');
+        addProductForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('productName').value);
+            formData.append('category_id', document.getElementById('productCategory').value);
+            formData.append('brand_id', document.getElementById('productBrand').value);
+            formData.append('product_type_id', document.getElementById('productType').value);
+            formData.append('price', document.getElementById('productPrice').value);
+            formData.append('short_description', document.getElementById('productShortDescription').value);
+            formData.append('specification', document.getElementById('productSpecification').value);
+            formData.append('origin_country', document.getElementById('productOriginCountry').value);
+            formData.append('manufacturer', document.getElementById('productManufacturer').value);
+
+            const sections = [];
+
+            addProductForm.querySelectorAll('.section-item').forEach((section, index) => {
+                const sectionId = section.querySelector('.section-select').value;
+                const details = [];
+
+                section.querySelectorAll('.section-detail-item').forEach((item) => {
+                    const title = item.querySelector('.item-title').value;
+                    const content = item.querySelector('.item-content').value;
+                    details.push({ title, content });
+                });
+
+                sections.push({ section_id: sectionId, details });
+            });
+
+            formData.append("sections", JSON.stringify(sections));
+
+
+            //const productImages = addProductForm.querySelector('#productImages').files;
+            //for (let i = 0; i < productImages.length; i++) {
+            //formData.append('images', productImages[i]);
+            //}
+            uploadedFiles.forEach((file, index) => {
+                formData.append('images', file);
+            });
+
+
+            //console.log("📌 FormData trước khi gửi:");
+            //console.table(Array.from(formData.entries()));
+
+            try {
+                const response = await fetch('/products/add', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status === 200) {
+                    showToast(result.message, "success");
+
+                    addProductForm.reset();
+
+                    addProductToDOM(result.data.product, result.data.images);
+
+                    const images = addImagePreview.querySelectorAll(".image-container");
+                    for (let i = 0; i < images.length; i++) {
+                        images[i].remove();
+                    }
+                    const modal = bootstrap.Modal.getInstance(addProductModal);
+                    modal.hide();
+                    addProductForm.querySelectorAll('.section-item').forEach(section => section.remove());
+                } else {
+                    showToast(result.message, 'danger');
+                }
+            }
+            catch (error) {
+                console.log(error)
+                showToast('An error occurred!', 'danger');
+            }
+        });
+        function addProductToDOM(product, images) {
+            const productListContainer = document.getElementById("productList");
+            const productCard = document.createElement("div");
+            productCard.classList.add("product-card");
+            productCard.classList.add("p-2");
+            productCard.setAttribute("data-id", product._id);
+            productCard.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+ 
+                    <div class="col-md-1">
+                        <img src=".${images[0].image_url}" class="img-fluid rounded"
+                            style="width: 100px; aspect-ratio: 1/1; object-fit: cover;" alt="{{this.name}}">
+                    </div>
+
+                    <div class="col-md-9 p-3">
+                        <h6 class="mb-1"><strong>Name:</strong> ${product.name}</h6>
+                        <p class="mb-1 small"><strong>Price:</strong> ${product.price} VND</p>
+                        <p class="mb-0 small"><strong>Rating:</strong> ${product.average_rating}/5 (${product.review_count} đánh giá)</p>
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-center justify-content-end">
+                        <button class="btn btn-sm btn-warning me-2 edit-product">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger delete-product">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+        `;
+            productListContainer.appendChild(productCard);
+
+            const editButton = productCard.querySelector(".edit-product");
+            editButton.addEventListener('click', function () {
+                editProduct(editButton);
+            });
+
+            const deleteButton = productCard.querySelector(".delete-product");
+            deleteButton.addEventListener("click", function () {
+                deleteProduct(deleteButton);
+            });
+
+        }
+        editProductForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const productId = document.getElementById('editProductId').value;
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('editProductName').value);
+            formData.append('category_id', document.getElementById('editProductCategory').value);
+            formData.append('brand_id', document.getElementById('editProductBrand').value);
+            formData.append('product_type_id', document.getElementById('editProductType').value);
+            formData.append('price', document.getElementById('editProductPrice').value);
+            formData.append('short_description', document.getElementById('editProductShortDescription').value);
+            formData.append('specification', document.getElementById('editProductSpecification').value);
+            formData.append('origin_country', document.getElementById('editProductOriginCountry').value);
+            formData.append('manufacturer', document.getElementById('editProductManufacturer').value);
+
+
+            const imageContainers = editImagePreview.querySelectorAll('.image-container');
+            const imageData = [];
+            const newImages = [];
+
+            imageContainers.forEach((imgContainer, index) => {
+                const imageId = imgContainer.getAttribute('data-image-id');
+                const imageFileIndex = imgContainer.getAttribute('file-index');
+                const isPrimary = index === 0;
+
+                if (imageId) {
+                    imageData.push({ id: imageId, is_primary: isPrimary, sort_order: index });
+                } else {
+                    newImages.push({ file: uploadedFiles[imageFileIndex], sort_order: index });
+                }
+            });
+
+            formData.append('updateImages', JSON.stringify(imageData));
+
+            const sortOrders = [];
+            newImages.forEach((image) => {
+                formData.append('images', image.file);
+                sortOrders.push(image.sort_order);
+            });
+
+            formData.append('new_images_sort_order', JSON.stringify(sortOrders));
+
+
+            formData.append('deleted_images', JSON.stringify(deletedImageIds));
+
+            const sections = [];
+
+            editProductForm.querySelectorAll('.section-item').forEach((section, index) => {
+                const sectionId = section.querySelector('.section-select').value;
+                const details = [];
+
+                section.querySelectorAll('.section-detail-item').forEach((item) => {
+                    const title = item.querySelector('.item-title').value;
+                    const content = item.querySelector('.item-content').value;
+                    details.push({ title, content });
+                });
+
+
+                sections.push({ section_id: sectionId, details });
+            });
+
+            formData.append("sections", JSON.stringify(sections));
+
+
+            console.table(Array.from(formData.entries()));
+
+            try {
+                const response = await fetch(`/products/edit/${productId}`, {
+                    method: 'PUT',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status === 200) {
+                    showToast(result.message, "success");
+
+                    editProductForm.reset();
+
+                    window.location.reload();
+                } else {
+                    showToast(result.message, 'danger');
+                }
+            } catch (error) {
+                console.log(error);
+                showToast('An error occurred!', 'danger');
+            }
+
+        });
+
+        function showToast(message, type) {
+            const toastEl = document.getElementById("toastMessage");
+            toastEl.classList.remove("bg-success", "bg-danger");
+            toastEl.classList.add(`bg-${type}`);
+            toastEl.querySelector(".toast-body").innerText = message;
+
+            const toast = new bootstrap.Toast(toastEl);
+            toast.show();
+        }
+
+        function deleteProduct(button) {
+            const productCard = button.closest('.product-card');
+            const productId = productCard.getAttribute("data-id");
+
+            if (!productId) {
+                showToast("Product ID is required!", "danger");
+                return;
+            }
+
+            const modal = new bootstrap.Modal(deleteConfirmationModal);
+            modal.show();
+
+            document.getElementById("confirmDeleteBtn").onclick = function () {
+                modal.hide();
+
+                deleteLoadingModal.show();
+
+                fetch(`/products/delete/${productId}`, {
+                    method: "DELETE"
+                })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.status === 200) {
+                            showToast(result.message, "success");
+                            productCard.remove();
+                        } else {
+                            showToast(result.message, "danger");
+                        }
+                    })
+                    .catch(error => {
+                        showToast("An error occurred!", "danger");
+                        deleteLoadingModal.hide();
+                        modal.hide();
+                    })
+                    .finally(() => {
+                        deleteLoadingModal.hide();
+                    });
+            };
+        }
+
+
+        document.querySelectorAll('.edit-product').forEach(button => {
+            button.addEventListener('click', function () {
+                editProduct(button);
+            });
+        });
+        document.querySelectorAll('.delete-product').forEach(button => {
+            button.addEventListener('click', function () {
+                deleteProduct(button);
+            });
+        });
+
+    });
+</script>

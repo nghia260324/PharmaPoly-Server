@@ -1,0 +1,179 @@
+{{!--
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>{{title}}</title>
+  <link rel='stylesheet' href='/stylesheets/style.css' />
+</head>
+
+<body>
+  {{{body}}}
+</body>
+
+</html> --}}
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>{{title}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css"
+    integrity="sha256-tXJfXfp6Ewt1ilPzLDtQnJV4hclT9XuaZUKyUvmyr+Q=" crossorigin="anonymous" />
+  <!--end::Fonts-->
+  <!--begin::Third Party Plugin(OverlayScrollbars)-->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.10.1/styles/overlayscrollbars.min.css"
+    integrity="sha256-tZHrRjVqNSRyWg2wbppGnT833E/Ys0DHWGwT04GiqQg=" crossorigin="anonymous" />
+  <!--end::Third Party Plugin(OverlayScrollbars)-->
+  <!--begin::Third Party Plugin(Bootstrap Icons)-->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI=" crossorigin="anonymous" />
+  <!--end::Third Party Plugin(Bootstrap Icons)-->
+  <!--begin::Required Plugin(AdminLTE)-->
+  {{!--
+  <link rel="stylesheet" href="../../dist/css/adminlte.css" /> --}}
+  <link rel="stylesheet" href="/stylesheets/style.css">
+  <link rel="stylesheet" href="/stylesheets/categoryStyle.css">
+  <link rel="stylesheet" href="/stylesheets/sectionStyle.css">
+  <link rel="stylesheet" href="/stylesheets/productTypeStyle.css">
+  <link rel="stylesheet" href="/stylesheets/brandStyle.css">
+  <link rel="stylesheet" href="/stylesheets/productStyle.css">
+
+  <!--end::Required Plugin(AdminLTE)-->
+  <!-- apexcharts -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.css"
+    integrity="sha256-4MX+61mt9NVvvuPjUWdUdyfZfxSB1/Rf9WtqRHgG5S0=" crossorigin="anonymous" />
+  <!-- jsvectormap -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/css/jsvectormap.min.css"
+    integrity="sha256-+uGLJmmTKOqBr+2E6KDYs/NRsHxSkONXFHUL0fy2O/4=" crossorigin="anonymous" />
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  {{!--
+  <link rel="stylesheet" href="/stylesheets/reset.css">
+  <link rel="stylesheet" href="/stylesheets/base.css">
+  <link rel="stylesheet" href="/stylesheets/style.css"> --}}
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,500;0,700;0,900;1,100;1,200;1,300;1,500;1,700;1,900&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,300;1,400;1,500;1,700;1,900&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  {{!--
+  <link rel="shortcut icon" type="image/png" href="/images/domino.svg"> --}}
+
+
+</head>
+
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary sidebar-open app-loaded">
+  <div class="app-wrapper">
+    <nav class="app-header navbar navbar-expand bg-body">{{> header}}</nav>
+    <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">{{> sidebar}}</aside>
+    <main class="app-main">{{{body}}}</main>
+    <footer class="app-footer">{{> footer}}</footer>
+  </div>
+  <script src="/javascripts/main.js"></script>
+  {{!--
+  <script>
+    window.languageData = {};
+    document.addEventListener("DOMContentLoaded", function () {
+      const languageLinks = document.querySelectorAll("#language-menu a");
+      const savedLang = localStorage.getItem("language") || "en";
+
+      window.loadLanguage = function (lang) {
+        fetch("/languages.json")
+          .then(response => response.json())
+          .then(data => {
+            languageData = data;
+            localStorage.setItem("language", lang);
+            document.querySelectorAll("[data-lang]").forEach(el => {
+              const key = el.getAttribute("data-lang");
+              if (data[lang] && data[lang][key]) {
+                el.textContent = data[lang][key];
+              }
+            });
+          })
+          .catch(error => console.error("Lỗi tải ngôn ngữ:", error));
+      }
+
+      languageLinks.forEach(link => {
+        link.addEventListener("click", function (event) {
+          event.preventDefault();
+          const selectedLang = this.getAttribute("href").split("=")[1];
+          loadLanguage(selectedLang);
+        });
+      });
+
+      window.loadLanguage(savedLang);
+    });
+  </script> --}}
+
+  <script>
+    window.languageData = {};
+
+    window.loadLanguage = function (lang) {
+      fetch("/languages.json")
+        .then(response => response.json())
+        .then(data => {
+          window.languageData = data;
+          localStorage.setItem("language", lang);
+          document.querySelectorAll("[data-lang]").forEach(el => {
+            const key = el.getAttribute("data-lang");
+            if (data[lang] && data[lang][key]) {
+              el.textContent = data[lang][key];
+            }
+          });
+          document.querySelectorAll("[data-lang-placeholder]").forEach(el => {
+            const key = el.getAttribute("data-lang-placeholder");
+            if (data[lang] && data[lang][key]) {
+              el.setAttribute("placeholder", data[lang][key]);
+            }
+          });
+        })
+        .catch(error => console.error("Error: ", error));
+    };
+
+    window.loadLanguageForItem = function (item) {
+      if (!window.languageData || Object.keys(window.languageData).length === 0) {
+        return;
+      }
+
+      const lang = localStorage.getItem("language") || "en";
+
+      item.querySelectorAll("[data-lang]").forEach(el => {
+        const key = el.getAttribute("data-lang");
+        if (window.languageData[lang] && window.languageData[lang][key]) {
+          el.textContent = window.languageData[lang][key];
+        }
+      });
+
+      item.querySelectorAll("[data-lang-placeholder]").forEach(el => {
+        const key = el.getAttribute("data-lang-placeholder");
+        if (window.languageData[lang] && window.languageData[lang][key]) {
+          el.setAttribute("placeholder", window.languageData[lang][key]);
+        }
+      });
+    };
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const languageLinks = document.querySelectorAll("#language-menu a");
+      const savedLang = localStorage.getItem("language") || "en";
+
+      languageLinks.forEach(link => {
+        link.addEventListener("click", function (event) {
+          event.preventDefault();
+          const selectedLang = this.getAttribute("href").split("=")[1];
+          window.loadLanguage(selectedLang);
+        });
+      });
+
+      window.loadLanguage(savedLang);
+    });
+  </script>
+
+
+</body>
+
+</html>

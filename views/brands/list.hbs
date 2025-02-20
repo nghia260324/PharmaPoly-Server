@@ -1,0 +1,388 @@
+<div class="p-4">
+    <div id="brandSection" class="brand-section">
+
+        <div class="brand-header mb-4 p-3 bg-light rounded">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="h5 mb-0"><span data-lang="brands">Brands</span></span>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addBrandModal">
+                    <i class="bi bi-plus-circle"></i> <span data-lang="add_new_brand">Add New Brand</span>
+                </button>
+            </div>
+        </div>
+
+
+        <div id="brandList" class="brand-list">
+            {{#each brands}}
+            <div class="brand-card p-2" data-id="{{this._id}}" data-name="{{this.name}}"
+                data-description="{{this.description}}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="brand-info flex-grow-1">
+                        <small class="text-muted brand-id">ID: {{this._id}}</small>
+                        <h5 class="brand-name mt-0"><span data-lang="name">Name</span>: {{this.name}}</h5>
+                        <p class="card-text text-muted brand-description"><span
+                                data-lang="description">Description</span>: {{this.description}}</p>
+                    </div>
+                    <div class="d-flex flex-row ms-3">
+                        <button class="btn btn-sm btn-warning me-2" onclick="editBrand(this)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteBrand(this)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="addBrandModal" tabindex="-1" aria-labelledby="addBrandModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addBrandModalLabel"><span data-lang="add_new_brand">Add New Brand</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBrandForm" class="row g-3">
+                    <div class="col-md-12">
+                        <input type="text" class="form-control" id="brandName" data-lang-placeholder="brand_name" placeholder="Brand Name" required>
+                    </div>
+                    <div class="col-md-12">
+                        <textarea class="form-control" id="brandDescription" data-lang-placeholder="brand_description" placeholder="Brand Description" rows="5"
+                            required></textarea>
+                    </div>
+
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-primary w-100" onclick="saveBrand(this)">
+                            <i class="bi bi-save"></i> <span data-lang="save">Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="editBrandModal" tabindex="-1" aria-labelledby="editBrandModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editBrandModalLabel"><span data-lang="edit_brand_info">Edit Brand Infomation</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editBrandForm">
+                    <input type="hidden" id="editBrandId">
+
+                    <div class="mb-3">
+                        <label for="editBrandIdDisplay" class="form-label"><span data-lang="brand_id">Brand ID</span></label>
+                        <input type="text" class="form-control" id="editBrandIdDisplay" disabled>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editBrandName" class="form-label"><span data-lang="brand_name">Brand Name</span></label>
+                        <input type="text" class="form-control" id="editBrandName" data-lang-placeholder="brand_name" placeholder="Brand Name" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editBrandDescription" class="form-label"><span data-lang="brand_description">Brand Description</span></label>
+                        <textarea class="form-control" id="editBrandDescription" data-lang-placeholder="brand_description" placeholder="Brand Description"
+                            rows="5" required></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i>
+                        <span data-lang="save_changes">Save Changes</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmationModalLabel"><span data-lang="confirm_deletion">Confirm Deletion</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p data-lang="confirm_deletion_message">Are you sure you want to delete this brand?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-lang="cancel">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn" data-lang="delete">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Bootstrap Toast Notification -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" data-lang="success_add_brand">
+                Brand added successfully!
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+{{!-- document.addEventListener("DOMContentLoaded", function () {
+document.querySelector(".btn-primary").addEventListener("click", saveBrand);
+}); --}}
+
+<script>
+
+
+    async function saveBrand(button) {
+        event.preventDefault();
+
+        const nameInput = document.getElementById('brandName');
+        const descriptionInput = document.getElementById('brandDescription');
+
+        const name = nameInput.value.trim();
+        const description = descriptionInput.value.trim();
+
+        if (!name || !description) {
+            showToast('Please fill all fields', 'danger');
+            return;
+        }
+
+        try {
+            const response = await fetch('/brands/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description })
+            });
+
+            const result = await response.json();
+            if (result.status === 200) {
+                showToast(result.message, "success");
+
+                addBrandToDOM(result.data);
+
+                nameInput.value = '';
+                descriptionInput.value = '';
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addBrandModal'));
+                modal.hide();
+
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            showToast('An error occurred!', 'danger');
+        }
+    }
+
+    function addBrandToDOM(brand) {
+        const brandListContainer = document.getElementById("brandList");
+        const brandCard = document.createElement("div");
+        brandCard.classList.add("brand-card");
+        brandCard.classList.add("p-2");
+        brandCard.setAttribute("data-id", brand._id);
+        brandCard.setAttribute("data-name", brand.name);
+        brandCard.setAttribute("data-description", brand.description);
+        brandCard.innerHTML = `
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="brand-info flex-grow-1">
+                        <small class="text-muted brand-id">ID: ${brand._id}</small>
+                        <h5 class="brand-name mt-0"><span data-lang="name">Name</span>: ${brand.name}</h5>
+                        <p class="card-text text-muted brand-description"><span
+                                data-lang="description">Description</span>: ${brand.description}</p>
+                    </div>
+                    <div class="d-flex flex-row ms-3">
+                        <button class="btn btn-sm btn-warning me-2" onclick="editBrand(this)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteBrand(this)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+        `;
+        brandListContainer.appendChild(brandCard);
+        window.loadLanguageForItem(brandCard)
+    }
+
+
+    function deleteBrand(button) {
+        const brandCard = button.closest('.brand-card');
+        const brandId = brandCard.getAttribute("data-id");
+
+        if (!brandId) {
+            showToast("Brand ID is required!", "danger");
+            return;
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('deleteConfirmationModal'));
+        modal.show();
+
+        document.getElementById("confirmDeleteBtn").onclick = function () {
+            fetch(`/brands/delete/${brandId}`, {
+                method: "DELETE"
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 200) {
+                        showToast(result.message, "success");
+                        brandCard.remove(); // Remove category from DOM
+                        modal.hide(); // Close the modal
+                    } else {
+                        showToast(result.message, "danger");
+                    }
+                })
+                .catch(error => {
+                    showToast("An error occurred!", "danger");
+                    modal.hide(); // Close the modal on error
+                });
+        };
+    }
+
+    function editBrand(button) {
+        const brandCard = button.closest('.brand-card');
+        const brandId = brandCard.getAttribute("data-id");
+        const brandName = brandCard.getAttribute("data-name");
+        const brandDescription = brandCard.getAttribute("data-description");
+
+        document.getElementById("editBrandId").value = brandId;
+        document.getElementById("editBrandIdDisplay").value = brandId;
+        document.getElementById("editBrandName").value = brandName;
+        document.getElementById("editBrandDescription").value = brandDescription;
+
+        new bootstrap.Modal(document.getElementById('editBrandModal')).show();
+    }
+
+    document.getElementById("editBrandForm").addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const brandId = document.getElementById("editBrandId").value;
+        const brandName = document.getElementById("editBrandName").value.trim();
+        const brandDescription = document.getElementById("editBrandDescription").value.trim();
+
+
+        if (!brandName || !brandDescription) {
+            showToast("Brand name and description is required!", "danger");
+            return;
+        }
+
+        try {
+            const response = await fetch(`/brands/update/${brandId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ name: brandName, description: brandDescription })
+            });
+
+            const result = await response.json();
+            if (result.status === 200) {
+                showToast(result.message, "success");
+                updateBrandInDOM(result.data);
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editBrandModal'));
+                modal.hide();
+            } else {
+                showToast(result.message, "danger");
+            }
+        } catch (error) {
+            showToast("An error occurred!", "danger");
+        }
+    });
+
+
+    function updateBrandInDOM(brand) {
+        const brandCard = document.querySelector(`[data-id="${brand._id}"]`);
+
+        brandCard.querySelector(".brand-name").textContent = `Name: ${brand.name}`;
+        brandCard.querySelector(".brand-description").textContent = `Description: ${brand.description}`;
+
+        brandCard.setAttribute("data-name", brand.name);
+        brandCard.setAttribute("data-description", brand.description);
+    }
+
+
+    function showToast(message, type) {
+        const toastEl = document.getElementById("toastMessage");
+        toastEl.classList.remove("bg-success", "bg-danger");
+        toastEl.classList.add(`bg-${type}`);
+        toastEl.querySelector(".toast-body").innerText = message;
+
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+</script>
+{{!--
+function updateBrandInDOM(brands) {
+const brandListContainer = document.getElementById("brandList");
+brandListContainer.innerHTML = '';
+
+brands.forEach(brand => {
+const brandCard = document.createElement("div");
+brandCard.classList.add("brand-card p-2");
+brandCard.innerHTML = `
+<div class="card-body">
+    <div class="d-flex justify-content-between">
+        <div class="d-flex flex-column flex-grow-1">
+            <small class="text-muted">ID: ${brand._id}</small>
+            <h5 class="card-title mb-1">${brand.name}</h5>
+            <p class="card-text mt-2 mb-0 text-muted brand-description">
+                ${brand.description}
+            </p>
+        </div>
+        <div class="d-flex flex-column">
+            <button class="btn btn-sm btn-warning mb-2" onclick="editBrand(this)">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="deleteBrand(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+</div>
+`;
+brandListContainer.appendChild(brandCard);
+});
+} --}}
+
+{{!-- card mb-3 --}}
+
+{{!--
+
+function updateCategoryInDOM(categories) {
+const categoryListContainer = document.getElementById("categoryList");
+categoryListContainer.innerHTML = '';
+
+categories.forEach(category => {
+const categoryCard = document.createElement("div");
+categoryCard.classList.add("category-card");
+
+categoryCard.innerHTML = `
+<div class="d-flex justify-content-between align-items-center">
+    <div>
+        <small class="text-muted category-id">ID: ${category._id}</small>
+        <h5 class="category-name mb-0">Name: ${category.name}</h5>
+    </div>
+    <div>
+        <button class="btn btn-sm btn-warning me-2" onclick="editCategory(this)">
+            <i class="bi bi-pencil"></i>
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="deleteCategory(this)">
+            <i class="bi bi-trash"></i>
+        </button>
+    </div>
+</div>
+`;
+categoryListContainer.appendChild(categoryCard);
+});
+} --}}

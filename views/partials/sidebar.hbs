@@ -1,0 +1,148 @@
+<aside class="app-sidebar bg-body-secondary shadow sidebar">
+  <div class="sidebar-header text-center py-3">
+    <h5 class="mb-0 text-white">Admin Panel</h5>
+  </div>
+  <ul class="nav flex-column">
+    <li class="nav-item">
+      <a class="nav-link text-white" href="#">
+        <i class="bi bi-kanban"></i> <span data-lang="dashboard">Dashboard</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/products">
+        <i class="bi bi-box"></i> <span data-lang="product">Product</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/categories">
+        <i class="bi bi-list"></i> <span data-lang="category">Category</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/brands">
+        <i class="bi bi-tags"></i> <span data-lang="brand">Brand</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/product-types">
+        <i class="bi bi-box-seam"></i> <span data-lang="product_type">Product Type</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/sections">
+        <i class="bi bi-menu-up"></i></i> <span data-lang="section">Section</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
+        data-bs-toggle="collapse" data-bs-target="#language-menu">
+        <div>
+          <i class="bi bi-translate"></i> <span data-lang="language">Language</span>
+        </div>
+        <i class="bi bi-chevron-right toggle-icon"></i>
+      </a>
+      <ul id="language-menu" class="collapse list-unstyled ps-3">
+        <li>
+          <a class="nav-link text-white" href="?lang=en">English</span></a>
+        </li>
+        <li>
+          <a class="nav-link text-white" href="?lang=vi">VietNamese</span></a>
+        </li>
+      </ul>
+    </li>
+
+
+  </ul>
+</aside>
+
+
+
+<style>
+  .sidebar {
+    width: 250px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding-top: 20px;
+    background-color: #343a40;
+  }
+
+  .nav-link {
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+  }
+
+  .nav-link i {
+    margin-right: 10px;
+  }
+
+  .nav-link:hover {
+    background-color: #495057;
+  }
+
+  .nav-link.active {
+    background-color: #007bff;
+    color: #fff;
+  }
+
+  #language-menu {
+    transition: all 0.3s ease-in-out;
+  }
+
+  .toggle-icon {
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .nav-link.collapsed .toggle-icon {
+    transform: rotate(0deg);
+  }
+
+  .nav-link[aria-expanded="true"] .toggle-icon {
+    transform: rotate(90deg);
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const navLinks = document.querySelectorAll('.nav-link');
+    const currentPath = window.location.pathname;
+
+    navLinks.forEach(link => {
+      if (link.getAttribute('href') === currentPath) {
+        link.classList.add('active');
+      }
+
+      link.addEventListener('click', function () {
+        localStorage.setItem('activeNav', this.getAttribute('href'));
+      });
+    });
+
+    const activeNav = localStorage.getItem('activeNav');
+    if (activeNav) {
+      navLinks.forEach(link => link.classList.remove('active'));
+      const activeLink = document.querySelector(`.nav-link[href="${activeNav}"]`);
+      if (activeLink) {
+        activeLink.classList.add('active');
+      }
+    }
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    const languageLink = document.querySelector('.nav-link[data-bs-toggle="collapse"]');
+    const toggleIcon = languageLink.querySelector(".toggle-icon");
+    const languageMenu = document.getElementById("language-menu");
+
+    languageMenu.addEventListener("shown.bs.collapse", function () {
+      toggleIcon.style.transform = "rotate(90deg)";
+    });
+
+    languageMenu.addEventListener("hidden.bs.collapse", function () {
+      toggleIcon.style.transform = "rotate(0deg)";
+    });
+  });
+
+
+
+
+</script>
