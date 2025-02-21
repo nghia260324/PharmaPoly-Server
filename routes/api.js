@@ -284,14 +284,14 @@ router.post('/user/login', async (req, res) => {
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: '7d' }
         );
-
+        const userObj = user.toObject();
+        delete userObj.password;
         res.status(200).json({
             status: 200,
             message: "Login successful!",
-            data: {
-                token,
-                refreshToken
-            },
+            data: { userObj},
+            token: token,
+            refreshToken: refreshToken
         });
 
     } catch (error) {
