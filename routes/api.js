@@ -25,10 +25,11 @@ const Answers = require('../models/answers');
 const upload = require('../config/common/upload');
 
 function authenticateToken(req, res, next) {
-    if (process.env.NODE_ENV === 'development') {
-        return next();
-    }
+    // if (process.env.NODE_ENV === 'development') {
+    //     return next();
+    // }
     const token = req.headers['authorization']?.split(' ')[1];
+    const authHeader = req.headers['authorization'];
     if (!token) {
         return res.status(401).json({
             status: 401,
@@ -36,14 +37,14 @@ function authenticateToken(req, res, next) {
         });
     }
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
         if (err) {
             return res.status(403).json({
                 status: 403,
                 message: 'Forbidden: Invalid token'
             });
         }
-        req.user = user;
+        req.user_id = decoded._id;
         next();
     });
 }
@@ -167,85 +168,6 @@ router.post('/user/create-account', async (req, res) => {
     }
 });
 
-router.put('/user/update-profile', authenticateToken, upload.single('avatar'), async (req, res) => {
-    try {
-        const { user_id, full_name, date_of_birth, gender, address } = req.body;
-        const file = req.file;
-
-        const requiredFields = ['user_id'];
-
-        const missingFieldsMessage = checkMissingFields(req.body, requiredFields);
-        if (missingFieldsMessage) {
-            return res.status(400).json({
-                status: 400,
-                message: missingFieldsMessage
-            });
-        }
-
-        const user = await Users.findOne({ user_id });
-        if (!user) {
-            return res.status(401).json({
-                status: 401,
-                message: "User not found!"
-            });
-        }
-
-        let updateData = {};
-        if (full_name !== undefined) updateData.full_name = full_name;
-        if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
-        if (gender !== undefined) updateData.gender = gender;
-        if (address !== undefined) updateData.address = address;
-        if (file) {
-            if (user.avatar_url) {
-                const oldImagePath = path.join(__dirname, '../public', user.avatar_url);
-                fs.unlink(oldImagePath, (err) => {
-                    if (err && err.code !== 'ENOENT') {
-                        console.error('Error deleting old avatar:', err);
-                    }
-                });
-            }
-
-            updateData.avatar_url = `/uploads/${file.filename}`;
-        }
-
-        const updatedUser = await Users.findOneAndUpdate(
-            { _id: user_id },
-            { $set: updateData },
-            { new: true }
-        );
-        const formattedUser = {
-            ...updatedUser.toObject(),
-            created_at: updatedUser.createdAt,
-            updated_at: updatedUser.updatedAt
-        };
-
-        delete formattedUser.__v;
-        delete formattedUser.createdAt;
-        delete formattedUser.updatedAt;
-
-        res.status(200).json({
-            status: 200,
-            message: "Profile updated successfully!",
-            data: formattedUser
-        });
-
-    } catch (error) {
-        console.error("Error updating profile:", error);
-        if (req.file) {
-            fs.unlink(req.file.path, (err) => {
-                if (err) {
-                    console.error('Error:', err);
-                }
-            });
-        }
-        res.status(500).json({
-            status: 500,
-            message: "Internal server error",
-            error: error.message
-        });
-    }
-});
-
 router.post('/user/login', async (req, res) => {
     try {
         const { phone_number, password } = req.body;
@@ -274,13 +196,13 @@ router.post('/user/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { uid: user.uid, phone_number: user.phone_number },
+            { _id: user._id, phone_number: user.phone_number },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
         const refreshToken = jwt.sign(
-            { uid: user._id, phone_number: user.phone_number },
+            { _id: user._id, phone_number: user.phone_number },
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: '7d' }
         );
@@ -296,6 +218,132 @@ router.post('/user/login', async (req, res) => {
 
     } catch (error) {
         console.error("Error during login:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error"
+        });
+    }
+});
+
+router.put('/user/update-profile', authenticateToken, upload.single('avatar'), async (req, res) => {
+    try {
+        const { full_name, date_of_birth, gender, address } = req.body;
+        const file = req.file;
+
+        const user = await Users.findById(req.user_id);
+        if (!user) {
+            return res.status(404).json({ status: 404, message: "User not found!" });
+        }
+
+        let updateData = {};
+        if (full_name !== undefined) updateData.full_name = full_name;
+        if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
+        if (gender !== undefined) updateData.gender = gender;
+        if (address !== undefined) updateData.address = address;
+
+        if (file) {
+            if (user.avatar_url) {
+                const oldImagePath = path.join(__dirname, '../public', user.avatar_url);
+                fs.unlink(oldImagePath, (err) => {
+                    if (err && err.code !== 'ENOENT') {
+                        console.error('Error deleting old avatar:', err);
+                    }
+                });
+            }
+            updateData.avatar_url = `/uploads/${file.filename}`;
+        }
+
+        const updatedUser = await Users.findByIdAndUpdate(
+            { _id: req.user_id },
+            { $set: updateData },
+            { new: true }
+        );
+
+        const formattedUser = {
+            ...updatedUser.toObject(),
+            created_at: updatedUser.createdAt,
+            updated_at: updatedUser.updatedAt
+        };
+
+        delete formattedUser.__v;
+        delete formattedUser.password;
+        delete formattedUser.createdAt;
+        delete formattedUser.updatedAt;
+
+        res.status(200).json({
+            status: 200,
+            message: "Profile updated successfully!",
+            data: formattedUser
+        });
+
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        if (req.file) {
+            fs.unlink(req.file.path, (err) => {
+                if (err) {
+                    console.error('Error:', err);
+                }
+            });
+        }
+        res.status(500).json({ status: 500, message: "Internal server error", error: error.message });
+    }
+});
+
+router.put('/user/change-password', authenticateToken, async (req, res) => {
+    try {
+        const { password, new_password, confirm_password } = req.body;
+
+        const requiredFields = ['password', 'new_password', 'confirm_password'];
+        const missingFieldsMessage = checkMissingFields(req.body, requiredFields);
+        if (missingFieldsMessage) {
+            return res.status(400).json({
+                status: 400,
+                message: missingFieldsMessage
+            });
+        }
+
+        const user = await Users.findById(req.user_id);
+        if (!user) {
+            return res.status(404).json({
+                status: 404,
+                message: "User not found!"
+            });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                status: 403,
+                message: "Incorrect current password!"
+            });
+        }
+
+        const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordPattern.test(new_password)) {
+            return res.status(400).json({
+                status: 402,
+                message: "New password must be at least 8 characters long, contain at least one uppercase letter, one number, and one special character."
+            });
+        }
+
+        if (new_password !== confirm_password) {
+            return res.status(400).json({
+                status: 401,
+                message: "New password and confirm password do not match!"
+            });
+        }
+
+        const hashedNewPassword = await bcrypt.hash(new_password, 10);
+        user.password = hashedNewPassword;
+        await user.save();
+
+        res.status(200).json({
+            status: 200,
+            message: "Password changed successfully!"
+        });
+
+    } catch (error) {
+        console.error("Error changing password:", error);
         res.status(500).json({
             status: 500,
             message: "Internal server error"
@@ -338,6 +386,8 @@ router.post('/refresh-token', async (req, res) => {
         return res.status(403).json({ message: 'Invalid refresh token!' });
     }
 });
+
+
 
 // ----- Product ----- //
 
@@ -565,8 +615,8 @@ router.get('/product/:id/images', authenticateToken, async (req, res) => {
         const productImages = await ProductImages.find({ product_id: id }).lean();
 
         if (productImages.length === 0) {
-            return res.status(404).json({
-                status: 404,
+            return res.status(401).json({
+                status: 401,
                 message: 'No images found for this product'
             });
         }
@@ -616,8 +666,8 @@ router.get('/product/:id/image-primary', authenticateToken, async (req, res) => 
         }).lean();
 
         if (!primaryImage) {
-            return res.status(404).json({
-                status: 404,
+            return res.status(401).json({
+                status: 401,
                 message: 'Primary image not found for this product'
             });
         }
@@ -666,8 +716,8 @@ router.get('/product/:id/reviews', authenticateToken, async (req, res) => {
             .lean();
 
         if (productReviews.length === 0) {
-            return res.status(404).json({
-                status: 500,
+            return res.status(401).json({
+                status: 401,
                 message: 'No reviews found for this product'
             });
         }
@@ -723,7 +773,6 @@ router.get('/product/:id/questions', authenticateToken, async (req, res) => {
             });
         }
 
-
         const formattedReviews = questions.map(question => ({
             _id: question._id,
             user_id: question.user_id,
@@ -740,7 +789,7 @@ router.get('/product/:id/questions', authenticateToken, async (req, res) => {
 
         return res.status(200).json({
             status: 200,
-            message: 'Get Product Reviews Success!',
+            message: 'Get Product Questions Success!',
             data: formattedReviews
         });
     } catch (error) {
@@ -1147,7 +1196,7 @@ router.post('/product-review/create', authenticateToken, async (req, res) => {
 
         if (rating < 1 || rating > 5) {
             return res.status(400).json({
-                status: 400,
+                status: 401,
                 message: 'Rating must be between 1 and 5 stars'
             });
         }
@@ -1155,14 +1204,14 @@ router.post('/product-review/create', authenticateToken, async (req, res) => {
         const user = await Users.findById(user_id);
         if (!user) {
             return res.status(404).json({
-                status: 404,
+                status: 402,
                 message: 'User not found'
             });
         }
         const product = await Products.findById(product_id);
         if (!product) {
             return res.status(404).json({
-                status: 404,
+                status: 403,
                 message: 'Product not found'
             });
         }
