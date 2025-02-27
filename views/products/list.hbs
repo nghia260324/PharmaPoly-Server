@@ -17,7 +17,7 @@
                 <div class="d-flex justify-content-between align-items-center">
 
                     <div class="col-md-1">
-                        <img src=".{{this.image}}" class="img-fluid rounded"
+                        <img src="{{this.image}}" class="img-fluid rounded"
                             style="width: 100px; aspect-ratio: 1/1; object-fit: cover;" alt="{{this.name}}">
                     </div>
 
@@ -362,15 +362,16 @@
     </div>
 </div>
 
-<div class="modal fade" id="deleteLoadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static"
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static"
     data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content p-4 d-flex align-items-center justify-content-center">
             <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-3">Đang xóa sản phẩm...</p>
+            <p id="loadingMessage" class="mt-3">Đang xử lý...</p>
         </div>
     </div>
 </div>
+
 
 
 <script>
@@ -379,7 +380,7 @@
         const addProductModal = document.getElementById('addProductModal');
         const editProductModal = document.getElementById('editProductModal');
         const deleteConfirmationModal = document.getElementById('deleteConfirmationModal');
-        const deleteLoadingModal = new bootstrap.Modal(document.getElementById("deleteLoadingModal"));
+        const loadingModal = new bootstrap.Modal(document.getElementById("loadingModal"));
         const addImageBtn = addProductModal.querySelector('#addImageBtn');
         const productImagesInput = document.getElementById('productImages');
         const addImagePreview = document.getElementById('addImagePreview');
@@ -523,6 +524,7 @@
 
             const productCard = button.closest('.product-card');
             const productId = productCard.getAttribute("data-id");
+            showLoadingModal();
             fetch(`/products/id/${productId}`)
                 .then(response => response.json())
                 .then(product => {
@@ -658,6 +660,7 @@
                         editImagePreview.insertBefore(imgContainer, editImageBtn.parentElement);
                     });
                     updateAll(editImagePreview);
+                    hideLoadingModal();
                 });
 
             new bootstrap.Modal(editProductModal).show();
@@ -833,20 +836,12 @@
 
             formData.append("sections", JSON.stringify(sections));
 
-
-            //const productImages = addProductForm.querySelector('#productImages').files;
-            //for (let i = 0; i < productImages.length; i++) {
-            //formData.append('images', productImages[i]);
-            //}
             uploadedFiles.forEach((file, index) => {
                 formData.append('images', file);
             });
 
-
-            //console.log("📌 FormData trước khi gửi:");
-            //console.table(Array.from(formData.entries()));
-
             try {
+                showLoadingModal("add");
                 const response = await fetch('/products/add', {
                     method: 'POST',
                     body: formData
@@ -865,15 +860,19 @@
                     for (let i = 0; i < images.length; i++) {
                         images[i].remove();
                     }
+                    uploadedFiles = [];
+                    document.getElementById('productImages').value = "";
                     const modal = bootstrap.Modal.getInstance(addProductModal);
                     modal.hide();
+                    hideLoadingModal();
                     addProductForm.querySelectorAll('.section-item').forEach(section => section.remove());
                 } else {
+                    hideLoadingModal();
                     showToast(result.message, 'danger');
                 }
             }
             catch (error) {
-                console.log(error)
+                hideLoadingModal();
                 showToast('An error occurred!', 'danger');
             }
         });
@@ -887,7 +886,7 @@
                 <div class="d-flex justify-content-between align-items-center">
  
                     <div class="col-md-1">
-                        <img src=".${images[0].image_url}" class="img-fluid rounded"
+                        <img src="${images[0].image_url}" class="img-fluid rounded"
                             style="width: 100px; aspect-ratio: 1/1; object-fit: cover;" alt="{{this.name}}">
                     </div>
 
@@ -984,9 +983,8 @@
             formData.append("sections", JSON.stringify(sections));
 
 
-            console.table(Array.from(formData.entries()));
-
             try {
+                showLoadingModal("edit");
                 const response = await fetch(`/products/edit/${productId}`, {
                     method: 'PUT',
                     body: formData
@@ -998,13 +996,15 @@
                     showToast(result.message, "success");
 
                     editProductForm.reset();
-
                     window.location.reload();
+                    hideLoadingModal();
                 } else {
                     showToast(result.message, 'danger');
+                    hideLoadingModal();
                 }
             } catch (error) {
                 console.log(error);
+                hideLoadingModal();
                 showToast('An error occurred!', 'danger');
             }
 
@@ -1035,7 +1035,7 @@
             document.getElementById("confirmDeleteBtn").onclick = function () {
                 modal.hide();
 
-                deleteLoadingModal.show();
+                showLoadingModal("delete");
 
                 fetch(`/products/delete/${productId}`, {
                     method: "DELETE"
@@ -1051,13 +1051,28 @@
                     })
                     .catch(error => {
                         showToast("An error occurred!", "danger");
-                        deleteLoadingModal.hide();
+                        hideLoadingModal();
                         modal.hide();
                     })
                     .finally(() => {
-                        deleteLoadingModal.hide();
+                        hideLoadingModal();
                     });
             };
+        }
+        function showLoadingModal(action) {
+            let message = "Đang xử lý...";
+            if (action === "add") message = "Đang thêm sản phẩm...";
+            if (action === "edit") message = "Đang cập nhật sản phẩm...";
+            if (action === "delete") message = "Đang xóa sản phẩm...";
+
+            document.getElementById("loadingMessage").innerText = message;
+            const modal = new bootstrap.Modal(document.getElementById("loadingModal"));
+            modal.show();
+        }
+
+        function hideLoadingModal() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById("loadingModal"));
+            if (modal) modal.hide();
         }
 
 

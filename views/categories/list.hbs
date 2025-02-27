@@ -5,7 +5,8 @@
             <form id="categoryForm" class="row g-3">
                 <input type="hidden" id="categoryId">
                 <div class="col-md-6">
-                    <input type="text" class="form-control" id="categoryName" data-lang-placeholder="category_name" placeholder="Category Name" required>
+                    <input type="text" class="form-control" id="categoryName" data-lang-placeholder="category_name"
+                        placeholder="Category Name" required>
                 </div>
                 <div class="col-md-6">
                     <button type="button" class="btn btn-primary">
@@ -279,32 +280,3 @@
         toast.show();
     }
 </script>
-
-{{!--
-function updateCategoryInDOM(categories) {
-const categoryListContainer = document.getElementById("categoryList");
-categoryListContainer.innerHTML = '';
-
-categories.forEach(category => {
-const categoryCard = document.createElement("div");
-categoryCard.classList.add("category-card");
-categoryCard.setAttribute("data-index", 0);
-categoryCard.innerHTML = `
-<div class="d-flex justify-content-between align-items-center">
-    <div>
-        <small class="text-muted category-id">ID: ${category._id}</small>
-        <h5 class="category-name mb-0">Name: ${category.name}</h5>
-    </div>
-    <div>
-        <button class="btn btn-sm btn-warning me-2" onclick="editCategory(this)">
-            <i class="bi bi-pencil"></i>
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="deleteCategory(this)">
-            <i class="bi bi-trash"></i>
-        </button>
-    </div>
-</div>
-`;
-categoryListContainer.appendChild(categoryCard);
-});
-} --}}

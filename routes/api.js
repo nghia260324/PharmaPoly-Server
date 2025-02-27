@@ -64,7 +64,6 @@ function checkMissingFields(fields, requiredFields) {
     return null;
 }
 
-
 // ----- User ----- //
 
 router.post('/user/check-phone', async (req, res) => {
@@ -915,6 +914,45 @@ router.get('/category/:id', authenticateToken, async (req, res) => {
         });
     }
 });
+
+router.get('/category/:id/products', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { page = 1, limit = 10 } = req.query;
+
+        const pageNumber = parseInt(page);
+        const limitNumber = parseInt(limit);
+        const skip = (pageNumber - 1) * limitNumber;
+
+        const products = await Products.find({ category_id: id })
+            .skip(skip)
+            .limit(limitNumber)
+            .lean();
+
+        const totalProducts = await Products.countDocuments({ category_id: id });
+        const totalPages = Math.ceil(totalProducts / limitNumber);
+
+        res.json({
+            status: 200,
+            message: "Success",
+            data: {
+                products,
+                pagination: {
+                    currentPage: pageNumber,
+                    totalPages,
+                    totalProducts,
+                    hasNextPage: pageNumber < totalPages,
+                    hasPrevPage: pageNumber > 1
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching products:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
+    }
+});
+
 
 // ----- Brand Router ----- //
 
