@@ -424,6 +424,53 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
     }
 });
 
+router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => {
+    try {
+        let limit = parseInt(req.params.limit) || 10;
+        limit = limit > 20 ? 20 : limit;
+        
+        const products = await Products.find()
+            .sort({ average_rating: -1 })
+            .limit(limit); 
+        
+        return res.status(200).json({
+            status: 200,
+            message: 'Get Top Rated Products Success!',
+            data: products
+        });
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({
+            status: 500,
+            message: 'Internal Server Error'
+        });
+    }
+});
+
+router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res) => {
+    try {
+        let limit = parseInt(req.params.limit) || 10;
+        limit = limit > 20 ? 20 : limit;
+        
+        const products = await Products.find()
+            .sort({ review_count: -1 })
+            .limit(limit);
+        
+        return res.status(200).json({
+            status: 200,
+            message: 'Get Most Reviewed Products Success!',
+            data: products
+        });
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({
+            status: 500,
+            message: 'Internal Server Error'
+        });
+    }
+});
+
+
 router.get('/product/:id/details', authenticateToken, async function (req, res, next) {
     try {
         const { id } = req.params;
