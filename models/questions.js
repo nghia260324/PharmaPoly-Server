@@ -6,7 +6,7 @@ const Questions = new Schema({
     product_id: {type: Schema.Types.ObjectId, ref: 'product', required: true},
     content: {type: String, required: true},
     status: {type: Number, required: true, default: 0},
-},{
-    timestamps: true
-})
+}, {
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
 module.exports = mongoose.model('question', Questions, 'questions');

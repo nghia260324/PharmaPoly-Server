@@ -400,10 +400,17 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
                 message: 'Product not found!'
             });
         }
+
+        const primaryImage = await ProductImages.findOne({ product_id: id, is_primary: true })
+        .lean();
+
+        delete primaryImage.__v;
+
         const formattedProduct = {
             ...product.toObject(),
             create_at: product.createdAt,
             update_at: product.updatedAt,
+            images: primaryImage ? [primaryImage] : []
         };
         delete formattedProduct.__v;
         delete formattedProduct.createdAt;
@@ -1668,6 +1675,11 @@ router.post('/answer/create', authenticateToken, async (req, res) => {
         });
     }
 });
+
+
+
+
+// 
 
 
 

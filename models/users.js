@@ -13,7 +13,7 @@ const Users = new Scheme({
     uid: {type : String, unique: true},
     role: {type: Number, default: 1},
     status: {type: Number, default: 1}
-},{
-    timestamps: true
-})
+}, {
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
 module.exports = mongoose.model('user', Users, 'users');

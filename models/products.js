@@ -13,7 +13,7 @@ const Products = new Schema({
     manufacturer: {type: String, required: true},
     average_rating: {type: Number, required: true, default: 0},
     review_count: {type: Number, required: true, default: 0},
-},{
-    timestamps: true
-})
+}, {
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
 module.exports = mongoose.model('product', Products, 'products');
