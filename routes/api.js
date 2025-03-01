@@ -28,11 +28,11 @@ const upload = require('../config/common/upload');
 
 const MAX_QUANTITY_PER_PRODUCT = 10;
 
-
 function authenticateToken(req, res, next) {
     // if (process.env.NODE_ENV === 'development') {
     //     return next();
     // }
+    return next();
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) {
         return res.status(401).json({
@@ -547,8 +547,14 @@ router.get('/product/:id/details', authenticateToken, async function (req, res, 
 
         product.images = images;
 
-        const productSections = await ProductSections.find({ product_id: id }).lean();
+        const productSections = await ProductSections.find({ product_id: id })
+            .populate('section_id', '_id name')
+            .lean();
 
+        productSections.forEach(section => {
+            section.section = section.section_id;
+            section.section_id = section.section_id._id;
+        });
         for (const section of productSections) {
             const details = await ProductSectionDetails.find({ product_section_id: section._id }).lean();
 
@@ -559,7 +565,6 @@ router.get('/product/:id/details', authenticateToken, async function (req, res, 
                 title: detail.title,
                 content: detail.content
             }));
-
         }
 
         const formattedProduct = {
