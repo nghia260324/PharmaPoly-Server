@@ -14,6 +14,7 @@ const productTypeRouter = require("./routes/productTypeRouter");
 const brandRouter = require("./routes/brandRouter");
 const productRouter = require("./routes/productRouter");
 const userRouter = require("./routes/userRouter");
+const dashboardRouter = require("./routes/dashboardRouter");
 const productImageRouter = require("./routes/productImageRouter");
 const authenticateToken = require("./middlewares/authenticateToken"); // Import middleware
 
@@ -45,8 +46,9 @@ app.use("/sections",authenticateToken, sectionRouter);
 app.use("/product-types", authenticateToken,productTypeRouter);
 app.use("/brands",authenticateToken, brandRouter);
 app.use("/products",authenticateToken, productRouter);
-//app.use("/users", userRouter);
-//app.use("/product-images", productImageRouter);
+app.use("/dashboards",authenticateToken, dashboardRouter);
+
+
 
 database.connect();
 // catch 404 and forward to error handler

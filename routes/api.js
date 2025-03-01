@@ -22,14 +22,18 @@ const Sections = require('../models/sections');
 const ProductReviews = require('../models/productReviews');
 const Questions = require('../models/questions');
 const Answers = require('../models/answers');
+const CartItems = require('../models/cartItems');
+const Carts = require('../models/carts');
 const upload = require('../config/common/upload');
+
+const MAX_QUANTITY_PER_PRODUCT = 10;
+
 
 function authenticateToken(req, res, next) {
     // if (process.env.NODE_ENV === 'development') {
     //     return next();
     // }
     const token = req.headers['authorization']?.split(' ')[1];
-    const authHeader = req.headers['authorization'];
     if (!token) {
         return res.status(401).json({
             status: 401,
@@ -386,6 +390,51 @@ router.post('/refresh-token', async (req, res) => {
     }
 });
 
+router.get('/user/cart/items', authenticateToken, async (req, res) => {
+    try {
+        const { user_id } = req.body;
+
+        let cart = await Carts.findOne({ user_id });
+        if (!cart) {
+            return res.status(404).json({ status: 404, message: 'Cart not found' });
+        }
+
+        let cartItems = await CartItems.find({ cart_id: cart._id })
+            .populate('product_id');
+
+
+        const productIds = cartItems.map(item => item.product_id._id);
+
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIds },
+            is_primary: true
+        });
+
+        const imageMap = primaryImages.reduce((acc, img) => {
+            acc[img.product_id] = img;
+            return acc;
+        }, {});
+
+        cartItems = cartItems.map(item => {
+            let product = item.product_id.toObject();
+            product.images = [imageMap[product._id]] || null;
+            return { ...item.toObject(), product_id: product };
+        });
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Cart items retrieved successfully!',
+            data: {
+                cart,
+                cartItems
+            }
+        });
+
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+    }
+});
 
 
 // ----- Product ----- //
@@ -402,7 +451,7 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
         }
 
         const primaryImage = await ProductImages.findOne({ product_id: id, is_primary: true })
-        .lean();
+            .lean();
 
         delete primaryImage.__v;
 
@@ -434,11 +483,11 @@ router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => 
     try {
         let limit = parseInt(req.params.limit) || 10;
         limit = limit > 20 ? 20 : limit;
-        
+
         const products = await Products.find()
             .sort({ average_rating: -1 })
-            .limit(limit); 
-        
+            .limit(limit);
+
         return res.status(200).json({
             status: 200,
             message: 'Get Top Rated Products Success!',
@@ -457,11 +506,11 @@ router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res)
     try {
         let limit = parseInt(req.params.limit) || 10;
         limit = limit > 20 ? 20 : limit;
-        
+
         const products = await Products.find()
             .sort({ review_count: -1 })
             .limit(limit);
-        
+
         return res.status(200).json({
             status: 200,
             message: 'Get Most Reviewed Products Success!',
@@ -1678,8 +1727,175 @@ router.post('/answer/create', authenticateToken, async (req, res) => {
 
 
 
+router.post('/cart-item/add', authenticateToken, async (req, res) => {
+    try {
+        const { user_id, product_id } = req.body;
+        const quantity = parseInt(req.body.quantity, 10);
+        if (!user_id || !product_id || !quantity || quantity < 1) {
+            return res.status(400).json({
+                status: 400,
+                message: 'Missing or invalid required fields'
+            });
+        }
+        if (quantity > MAX_QUANTITY_PER_PRODUCT) {
+            return res.status(400).json({
+                status: 400,
+                message: `You can only add up to ${MAX_QUANTITY_PER_PRODUCT} units per product`
+            });
+        }
 
-// 
+        const product = await Products.findById(product_id);
+        if (!product) {
+            return res.status(404).json({
+                status: 404,
+                message: 'Product not found'
+            });
+        }
+
+        let cart = await Carts.findOne({ user_id });
+
+        if (!cart) {
+            cart = new Carts({
+                user_id: user_id,
+                total_price: 0,
+                total_items: 0
+            });
+            cart = await cart.save();
+        }
+
+        let cartItem = await CartItems.findOne({ cart_id: cart._id, product_id });
+
+        if (cartItem) {
+            cartItem.quantity = Math.min(cartItem.quantity + quantity, MAX_QUANTITY_PER_PRODUCT);
+            cartItem.total_price = cartItem.quantity * product.price;
+        } else {
+            cartItem = new CartItems({
+                cart_id: cart._id,
+                product_id: product_id,
+                quantity: Math.min(quantity, MAX_QUANTITY_PER_PRODUCT),
+                price: product.price,
+                total_price: Math.min(quantity, MAX_QUANTITY_PER_PRODUCT) * product.price
+            });
+        }
+
+        await cartItem.save();
+
+        const cartItems = await CartItems.find({ cart_id: cart._id });
+
+        cart.total_items = cartItems.length;
+        cart.total_price = cartItems.reduce((sum, item) => sum + item.total_price, 0);
+
+        await cart.save();
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Product added to cart successfully!',
+            data: {
+                cart,
+                cartItem
+            }
+        });
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({
+            status: 500,
+            message: 'Internal Server Error'
+        });
+    }
+});
+router.post('/cart-item/update', authenticateToken, async (req, res) => {
+    try {
+        const { cart_item_id } = req.body;
+        const newQuantity = parseInt(req.body.new_quantity, 10);
+
+        if (!cart_item_id || isNaN(newQuantity) || newQuantity < 1) {
+            return res.status(400).json({
+                status: 400,
+                message: 'Missing or invalid required fields'
+            });
+        }
+
+        let cartItem = await CartItems.findById(cart_item_id);
+        if (!cartItem) {
+            return res.status(404).json({ status: 404, message: 'Cart item not found' });
+        }
+        cartItem.quantity = Math.min(newQuantity, MAX_QUANTITY_PER_PRODUCT);
+        cartItem.total_price = cartItem.quantity * cartItem.price;
+
+        await cartItem.save();
+
+        let cart = await Carts.findById(cartItem.cart_id);
+        if (!cart) {
+            return res.status(404).json({ status: 404, message: 'Cart not found' });
+        }
+
+        const cartItems = await CartItems.find({ cart_id: cart._id });
+
+        cart.total_price = cartItems.reduce((sum, item) => sum + item.total_price, 0);
+
+        await cart.save();
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Cart item updated successfully!',
+            data: { cart, cartItem }
+        });
+
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+    }
+});
+
+router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
+    try {
+        const { cart_item_id } = req.body;
+
+        if (!cart_item_id) {
+            return res.status(400).json({
+                status: 400,
+                message: 'Missing required field: cart_item_id'
+            });
+        }
+
+        let cartItem = await CartItems.findById(cart_item_id);
+        if (!cartItem) {
+            return res.status(404).json({ status: 404, message: 'Cart item not found' });
+        }
+
+        let cart = await Carts.findById(cartItem.cart_id);
+        if (!cart) {
+            return res.status(404).json({ status: 404, message: 'Cart not found' });
+        }
+
+        await CartItems.findByIdAndDelete(cart_item_id);
+
+        const cartItems = await CartItems.find({ cart_id: cart._id });
+
+        if (cartItems.length === 0) {
+            await Carts.findByIdAndDelete(cart._id);
+            return res.status(200).json({
+                status: 200,
+                message: 'Cart item removed, cart deleted as it was empty',
+                data: { cart: null }
+            });
+        }
+        cart.total_price = cartItems.reduce((sum, item) => sum + item.total_price, 0);
+        cart.total_items = cartItems.length;
+
+        await cart.save();
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Cart item removed successfully!',
+            data: { cart }
+        });
+
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+    }
+});
 
 
 
