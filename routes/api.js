@@ -32,7 +32,7 @@ function authenticateToken(req, res, next) {
     // if (process.env.NODE_ENV === 'development') {
     //     return next();
     // }
-    return next();
+    // return next();
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) {
         return res.status(401).json({
@@ -483,15 +483,30 @@ router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => 
     try {
         let limit = parseInt(req.params.limit) || 10;
         limit = limit > 20 ? 20 : limit;
-
+        
         const products = await Products.find()
             .sort({ average_rating: -1 })
-            .limit(limit);
+            .limit(limit)
+            .lean();
+        
+        const productIds = products.map(product => product._id);
+        const primaryImages = await ProductImages.find({ 
+            product_id: { $in: productIds }, 
+            is_primary: true 
+        }).lean();
+
+        const productsWithImages = products.map(product => {
+            const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
+            return {
+                ...product,
+                images: primaryImage ? [primaryImage] : []
+            };
+        });
 
         return res.status(200).json({
             status: 200,
             message: 'Get Top Rated Products Success!',
-            data: products
+            data: productsWithImages
         });
     } catch (error) {
         console.error("Error:", error);
@@ -509,12 +524,28 @@ router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res)
 
         const products = await Products.find()
             .sort({ review_count: -1 })
-            .limit(limit);
+            .limit(limit)
+            .lean();
+
+        const productIds = products.map(product => product._id);
+
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIds },
+            is_primary: true
+        }).lean();
+
+        const productsWithImages = products.map(product => {
+            const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
+            return {
+                ...product,
+                images: primaryImage ? [primaryImage] : []
+            };
+        });
 
         return res.status(200).json({
             status: 200,
             message: 'Get Most Reviewed Products Success!',
-            data: products
+            data: productsWithImages
         });
     } catch (error) {
         console.error("Error:", error);
@@ -524,6 +555,7 @@ router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res)
         });
     }
 });
+
 
 
 router.get('/product/:id/details', authenticateToken, async function (req, res, next) {
