@@ -1,4 +1,6 @@
-const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+=|<>?{}[\]~-]).{8,}$/;
+
+
 var express = require('express');
 var router = express.Router();
 
@@ -32,7 +34,7 @@ function authenticateToken(req, res, next) {
     // if (process.env.NODE_ENV === 'development') {
     //     return next();
     // }
-    // return next();
+    return next();
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) {
         return res.status(401).json({
