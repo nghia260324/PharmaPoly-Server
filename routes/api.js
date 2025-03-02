@@ -32,7 +32,7 @@ function authenticateToken(req, res, next) {
     // if (process.env.NODE_ENV === 'development') {
     //     return next();
     // }
-    // return next();
+    return next();
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) {
         return res.status(401).json({
@@ -479,6 +479,7 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
     }
 });
 
+
 router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => {
     try {
         let limit = parseInt(req.params.limit) || 10;
@@ -487,6 +488,9 @@ router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => 
         const products = await Products.find()
             .sort({ average_rating: -1 })
             .limit(limit)
+            .populate('category_id')
+            .populate('brand_id')
+            .populate('product_type_id')
             .lean();
         
         const productIds = products.map(product => product._id);
@@ -495,18 +499,35 @@ router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => 
             is_primary: true 
         }).lean();
 
-        const productsWithImages = products.map(product => {
+        const productsWithDetails = products.map(product => {
             const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
+
             return {
                 ...product,
-                images: primaryImage ? [primaryImage] : []
+                images: primaryImage ? [primaryImage] : [],
+                category_id: product.category_id._id,
+                brand_id: product.brand_id._id,
+                product_type_id: product.product_type_id._id,
+                category: {
+                    _id: product.category_id._id,
+                    name: product.category_id.name,
+                },
+                brand: {
+                    _id: product.brand_id._id,
+                    name: product.brand_id.name,
+                    description: product.brand_id.description,
+                },
+                product_type: {
+                    _id: product.product_type_id._id,
+                    name: product.product_type_id.name,
+                }
             };
         });
 
         return res.status(200).json({
             status: 200,
             message: 'Get Top Rated Products Success!',
-            data: productsWithImages
+            data: productsWithDetails
         });
     } catch (error) {
         console.error("Error:", error);
@@ -525,27 +546,46 @@ router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res)
         const products = await Products.find()
             .sort({ review_count: -1 })
             .limit(limit)
+            .populate('category_id')
+            .populate('brand_id')
+            .populate('product_type_id')
             .lean();
 
         const productIds = products.map(product => product._id);
-
         const primaryImages = await ProductImages.find({
             product_id: { $in: productIds },
             is_primary: true
         }).lean();
 
-        const productsWithImages = products.map(product => {
+        const productsWithDetails = products.map(product => {
             const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
+
             return {
                 ...product,
-                images: primaryImage ? [primaryImage] : []
+                images: primaryImage ? [primaryImage] : [],
+                category_id: product.category_id._id,
+                brand_id: product.brand_id._id,
+                product_type_id: product.product_type_id._id,
+                category: {
+                    _id: product.category_id._id,
+                    name: product.category_id.name,
+                },
+                brand: {
+                    _id: product.brand_id._id,
+                    name: product.brand_id.name,
+                    description: product.brand_id.description,
+                },
+                product_type: {
+                    _id: product.product_type_id._id,
+                    name: product.product_type_id.name,
+                }
             };
         });
 
         return res.status(200).json({
             status: 200,
             message: 'Get Most Reviewed Products Success!',
-            data: productsWithImages
+            data: productsWithDetails
         });
     } catch (error) {
         console.error("Error:", error);
@@ -555,7 +595,6 @@ router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res)
         });
     }
 });
-
 
 
 router.get('/product/:id/details', authenticateToken, async function (req, res, next) {
