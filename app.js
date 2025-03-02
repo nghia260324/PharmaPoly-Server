@@ -4,6 +4,7 @@ var hbs = require('hbs');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+const axios = require("axios");
 const firebaseAdmin = require('./firebase/firebaseAdmin');
 
 const indexRouter = require('./routes/index');
@@ -19,6 +20,18 @@ const productImageRouter = require("./routes/productImageRouter");
 const authenticateToken = require("./middlewares/authenticateToken"); // Import middleware
 
 var app = express();
+
+const PING_INTERVAL = 12 * 60 * 1000;
+
+let lastRequestTime = Date.now();
+
+app.use((req, res, next) => {
+  lastRequestTime = Date.now();
+  next();
+});
+
+
+
 
 const database = require('./config/db');
 // const productRoutes = require("./src/routes/productRoutes");
@@ -48,13 +61,23 @@ app.use("/brands",authenticateToken, brandRouter);
 app.use("/products",authenticateToken, productRouter);
 app.use("/dashboards",authenticateToken, dashboardRouter);
 
-
-
 database.connect();
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
 });
+
+setInterval(async () => {
+  if (Date.now() - lastRequestTime >= PING_INTERVAL) {
+    try {
+      console.log("Pinging server to keep it awake...");
+      await axios.get("https://pharmapoly-server.onrender.com/keep-alive");
+    } catch (error) {
+      console.error("Ping failed:", error.message);
+    }
+  }
+}, PING_INTERVAL);
+
 
 // error handler
 app.use(function (err, req, res, next) {

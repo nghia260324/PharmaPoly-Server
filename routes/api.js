@@ -951,24 +951,48 @@ router.get('/product/:id/questions', authenticateToken, async (req, res) => {
             });
         }
 
-        const formattedReviews = questions.map(question => ({
-            _id: question._id,
-            user_id: question.user_id,
-            product_id: question.product_id,
-            content: question.content,
-            created_at: question.createdAt,
-            status: question.status
-        })).map(question => {
-            delete question.__v;
-            delete question.createdAt;
-            delete question.updatedAt;
-            return question;
+        const userIds = [...new Set([...questions.map(q => q.user_id)])];
+        const users = await Users.find({ _id: { $in: userIds } }, '_id full_name avatar_url').lean();
+        const userMap = new Map(users.map(user => [user._id.toString(), user]));
+
+        const questionIds = questions.map(q => q._id);
+        const answers = await Answers.find({ question_id: { $in: questionIds } }).lean();
+        
+        const answerUserIds = [...new Set(answers.map(a => a.user_id))];
+        const answerUsers = await Users.find({ _id: { $in: answerUserIds } }, '_id full_name avatar_url').lean();
+        const answerUserMap = new Map(answerUsers.map(user => [user._id.toString(), user]));
+
+        const answersMap = new Map();
+        answers.forEach(answer => {
+            if (!answersMap.has(answer.question_id.toString())) {
+                answersMap.set(answer.question_id.toString(), []);
+            }
+            answersMap.get(answer.question_id.toString()).push({
+                _id: answer._id,
+                user_id: answer.user_id,
+                content: answer.content,
+                created_at: answer.created_at,
+                user: answerUserMap.get(answer.user_id.toString()) || null
+            });
+        });
+
+        const formattedQuestions = questions.map(question => {
+            return {
+                _id: question._id,
+                user_id: question.user_id,
+                product_id: question.product_id,
+                content: question.content,
+                created_at: question.createdAt,
+                status: question.status,
+                user: userMap.get(question.user_id.toString()) || null,
+                answers: answersMap.get(question._id.toString()) || []
+            };
         });
 
         return res.status(200).json({
             status: 200,
             message: 'Get Product Questions Success!',
-            data: formattedReviews
+            data: formattedQuestions
         });
     } catch (error) {
         console.error("Error:", error);
@@ -1765,17 +1789,17 @@ router.post('/answer/create', authenticateToken, async (req, res) => {
 
         const question = await Questions.findById(question_id);
         if (!question) {
-            return res.status(404).json({
-                status: 404,
+            return res.status(401).json({
+                status: 401,
                 message: 'Question not found'
             });
         }
 
-        const user = await Products.findById(user_id);
+        const user = await Users.findById(user_id);
         if (!user) {
             return res.status(404).json({
                 status: 404,
-                message: 'Product not found'
+                message: 'User not found'
             });
         }
 
