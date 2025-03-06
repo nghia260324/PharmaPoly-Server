@@ -1,4 +1,4 @@
-<aside class="app-sidebar bg-body-secondary shadow sidebar">
+<aside class="app-sidebar shadow sidebar">
   <div class="sidebar-header text-center py-3">
     <h5 class="mb-0 text-white">Admin Panel</h5>
   </div>
@@ -34,6 +34,30 @@
       </a>
     </li>
     <li class="nav-item">
+      <a class="nav-link text-white" href="/discounts">
+        <i class="bi bi-ticket"></i> <span data-lang="discount">Discount</span>
+      </a>
+    </li>
+
+    {{!-- <li class="nav-item">
+      <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
+        data-bs-toggle="collapse" data-bs-target="#discount-menu">
+        <div>
+          <i class="bi bi-ticket"></i> <span data-lang="discount">Discount</span>
+        </div>
+        <i class="bi bi-chevron-right toggle-icon"></i>
+      </a>
+      <ul id="discount-menu" class="collapse list-unstyled">
+        <li>
+          <a class="nav-link text-white" href="/discount-condition-type">DiscountConditionType</span></a>
+        </li>
+        <li>
+          <a class="nav-link text-white" href="/discounts"><span data-lang="discount">Discount</span></a>
+        </li>
+      </ul>
+    </li> --}}
+
+    <li class="nav-item">
       <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
         data-bs-toggle="collapse" data-bs-target="#language-menu">
         <div>
@@ -41,7 +65,7 @@
         </div>
         <i class="bi bi-chevron-right toggle-icon"></i>
       </a>
-      <ul id="language-menu" class="collapse list-unstyled ps-3">
+      <ul id="language-menu" class="collapse list-unstyled">
         <li>
           <a class="nav-link text-white" href="?lang=en">English</span></a>
         </li>
@@ -51,11 +75,8 @@
       </ul>
     </li>
 
-
   </ul>
 </aside>
-
-
 
 <style>
   .sidebar {
@@ -87,6 +108,7 @@
     color: #fff;
   }
 
+  #discount-menu,
   #language-menu {
     transition: all 0.3s ease-in-out;
   }
@@ -109,40 +131,34 @@
     const navLinks = document.querySelectorAll('.nav-link');
     const currentPath = window.location.pathname;
 
-    navLinks.forEach(link => {
+       navLinks.forEach(link => {
       if (link.getAttribute('href') === currentPath) {
         link.classList.add('active');
-      }
 
-      link.addEventListener('click', function () {
-        localStorage.setItem('activeNav', this.getAttribute('href'));
+        const parentCollapse = link.closest('.collapse');
+        if (parentCollapse) {
+          parentCollapse.classList.add('show');
+
+          const parentNav = parentCollapse.previousElementSibling;
+          if (parentNav && parentNav.classList.contains('nav-link')) {
+            parentNav.setAttribute('aria-expanded', 'true');
+            parentNav.querySelector('.toggle-icon').style.transform = "rotate(90deg)";
+          }
+        }
+      }
+    });
+
+    document.querySelectorAll('.nav-link[data-bs-toggle="collapse"]').forEach(toggle => {
+      const targetMenu = document.querySelector(toggle.getAttribute('data-bs-target'));
+      const toggleIcon = toggle.querySelector('.toggle-icon');
+
+      targetMenu.addEventListener("shown.bs.collapse", function () {
+        toggleIcon.style.transform = "rotate(90deg)";
+      });
+
+      targetMenu.addEventListener("hidden.bs.collapse", function () {
+        toggleIcon.style.transform = "rotate(0deg)";
       });
     });
-
-    const activeNav = localStorage.getItem('activeNav');
-    if (activeNav) {
-      navLinks.forEach(link => link.classList.remove('active'));
-      const activeLink = document.querySelector(`.nav-link[href="${activeNav}"]`);
-      if (activeLink) {
-        activeLink.classList.add('active');
-      }
-    }
   });
-  document.addEventListener("DOMContentLoaded", function () {
-    const languageLink = document.querySelector('.nav-link[data-bs-toggle="collapse"]');
-    const toggleIcon = languageLink.querySelector(".toggle-icon");
-    const languageMenu = document.getElementById("language-menu");
-
-    languageMenu.addEventListener("shown.bs.collapse", function () {
-      toggleIcon.style.transform = "rotate(90deg)";
-    });
-
-    languageMenu.addEventListener("hidden.bs.collapse", function () {
-      toggleIcon.style.transform = "rotate(0deg)";
-    });
-  });
-
-
-
-
 </script>

@@ -9,6 +9,7 @@
       "language": "Language",
       "name": "Name",
       "description": "Description",
+      "discount": "Discount",
 
       "brands": "Brands",
       "brand_id": "Brand ID",
@@ -38,6 +39,7 @@
       "language": "Ngôn ngữ",
       "name": "Tên",
       "description": "Mô tả",
+      "discount": "Mã giảm giá",
 
       "brands": "Thương hiệu",
       "brand_id": "ID thương hiệu",

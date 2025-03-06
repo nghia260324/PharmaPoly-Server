@@ -4,23 +4,6 @@ var router = express.Router();
 const Categories = require('../models/categories');
 
 
-// function authenticateToken(req, res, next) {
-//     const token = req.cookies.token || req.headers.authorization?.split(" ")[1]; 
-
-//     if (!token) {
-//         return res.redirect('/login');
-//     }
-
-//     jwt.verify(token, "secret_key", (err, user) => {
-//         if (err) {
-//             return res.redirect('/login'); 
-//         }
-//         req.user = user;
-//         next();
-//     });
-// }
-
-
 router.get('/', async function (req, res, next) {
     const categories = await Categories.find();
     res.render('categories/list', {

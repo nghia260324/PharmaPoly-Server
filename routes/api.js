@@ -486,7 +486,7 @@ router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => 
     try {
         let limit = parseInt(req.params.limit) || 10;
         limit = limit > 20 ? 20 : limit;
-        
+
         const products = await Products.find()
             .sort({ average_rating: -1 })
             .limit(limit)
@@ -494,11 +494,11 @@ router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => 
             .populate('brand_id')
             .populate('product_type_id')
             .lean();
-        
+
         const productIds = products.map(product => product._id);
-        const primaryImages = await ProductImages.find({ 
-            product_id: { $in: productIds }, 
-            is_primary: true 
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIds },
+            is_primary: true
         }).lean();
 
         const productsWithDetails = products.map(product => {
@@ -902,19 +902,34 @@ router.get('/product/:id/reviews', authenticateToken, async (req, res) => {
             });
         }
 
+        const userIds = [...new Set(productReviews.map(r => r.user_id))];
+
+        const users = await Users.find({ _id: { $in: userIds } }, '_id full_name avatar_url').lean();
+        const userMap = new Map(users.map(user => [user._id.toString(), user]));
 
         const formattedReviews = productReviews.map(review => ({
             _id: review._id,
+            user_id: review.user_id,
             product_id: review.product_id,
             rating: review.rating,
             review: review.review,
             created_at: review.createdAt,
-        })).map(productReview => {
-            delete productReview.__v;
-            delete productReview.createdAt;
-            delete productReview.updatedAt;
-            return productReview;
-        });
+            user: userMap.get(review.user_id.toString()) || null,
+        }));
+
+        // const formattedReviews = productReviews.map(review => ({
+        //     _id: review._id,
+        //     user_id: review.user_id,
+        //     product_id: review.product_id,
+        //     rating: review.rating,
+        //     review: review.review,
+        //     created_at: review.createdAt,
+        // })).map(productReview => {
+        //     delete productReview.__v;
+        //     delete productReview.createdAt;
+        //     delete productReview.updatedAt;
+        //     return productReview;
+        // });
 
         return res.status(200).json({
             status: 200,
@@ -959,7 +974,7 @@ router.get('/product/:id/questions', authenticateToken, async (req, res) => {
 
         const questionIds = questions.map(q => q._id);
         const answers = await Answers.find({ question_id: { $in: questionIds } }).lean();
-        
+
         const answerUserIds = [...new Set(answers.map(a => a.user_id))];
         const answerUsers = await Users.find({ _id: { $in: answerUserIds } }, '_id full_name avatar_url').lean();
         const answerUserMap = new Map(answerUsers.map(user => [user._id.toString(), user]));

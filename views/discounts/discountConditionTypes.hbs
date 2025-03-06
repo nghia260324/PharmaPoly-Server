@@ -1,0 +1,67 @@
+<div class="container mt-4">
+    <div class="brand-header mb-4 p-3 bg-light rounded">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="h5 mb-0"><span data-lang="discount_condition_type">Discount Condition Types</span></span>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                data-bs-target="#addDiscountConditionTypeModal">
+                <i class="bi bi-plus-circle"></i> <span data-lang="add_new_discount_condition_type">Add New Discount
+                    Condition Types</span>
+            </button>
+        </div>
+    </div>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Condition Type</th>
+                <th>Description</th>
+                <th>Input Type</th>
+                <th>Options</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="discountConditionTableBody">
+            <!-- Data will be loaded dynamically -->
+        </tbody>
+    </table>
+</div>
+
+
+<!-- Modal for Adding New Condition Type -->
+<div class="modal fade" id="addDiscountConditionTypeModal" tabindex="-1" aria-labelledby="addDiscountConditionTypeLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addDiscountConditionTypeLabel">Add New Discount Condition Type</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="discountConditionForm">
+                    <div class="mb-3">
+                        <label for="conditionType" class="form-label">Condition Type</label>
+                        <input type="text" class="form-control" id="conditionType" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="inputType" class="form-label">Input Type</label>
+                        <select class="form-control" id="inputType" required>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="select">Select</option>
+                            <option value="time_range">Time Range</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="options" class="form-label">Options (Comma separated)</label>
+                        <input type="text" class="form-control" id="options">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Condition Type</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
