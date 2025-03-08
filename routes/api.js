@@ -72,6 +72,7 @@ function checkMissingFields(fields, requiredFields) {
 
 // ----- User ----- //
 
+// Kiểm tra số điện thoại
 router.post('/user/check-phone', async (req, res) => {
     try {
         const { phone_number } = req.body;
@@ -105,6 +106,7 @@ router.post('/user/check-phone', async (req, res) => {
     }
 });
 
+// Tạo tài khoản
 router.post('/user/create-account', async (req, res) => {
     try {
         const { uid, phone_number, password, confirm_password } = req.body;
@@ -173,6 +175,7 @@ router.post('/user/create-account', async (req, res) => {
     }
 });
 
+// Đăng nhập
 router.post('/user/login', async (req, res) => {
     try {
         const { phone_number, password } = req.body;
@@ -230,6 +233,7 @@ router.post('/user/login', async (req, res) => {
     }
 });
 
+// Cập nhật thông tin cá nhân
 router.put('/user/update-profile', authenticateToken, upload.single('avatar'), async (req, res) => {
     try {
         const { full_name, date_of_birth, gender, address } = req.body;
@@ -294,6 +298,7 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
     }
 });
 
+// Đổi mật khẩu
 router.put('/user/change-password', authenticateToken, async (req, res) => {
     try {
         const { password, new_password, confirm_password } = req.body;
@@ -356,6 +361,8 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
     }
 });
 
+
+// Làm mới token
 router.post('/refresh-token', async (req, res) => {
     const { refreshToken } = req.body;
 
@@ -392,7 +399,9 @@ router.post('/refresh-token', async (req, res) => {
     }
 });
 
-router.get('/user/cart/items', authenticateToken, async (req, res) => {
+
+// Lấy danh sách item trong giỏ hàng
+router.get('/user/cart', authenticateToken, async (req, res) => {
     try {
         const { user_id } = req.body;
 
@@ -402,8 +411,15 @@ router.get('/user/cart/items', authenticateToken, async (req, res) => {
         }
 
         let cartItems = await CartItems.find({ cart_id: cart._id })
-            .populate('product_id');
-
+            .populate({
+                path: 'product_id',
+                select: '_id name category_id brand_id product_type_id',
+                populate: [
+                    { path: 'category_id', select: '_id name' },
+                    { path: 'brand_id', select: '_id name description' },
+                    { path: 'product_type_id', select: '_id name' }
+                ]
+            });
 
         const productIds = cartItems.map(item => item.product_id._id);
 
@@ -419,17 +435,42 @@ router.get('/user/cart/items', authenticateToken, async (req, res) => {
 
         cartItems = cartItems.map(item => {
             let product = item.product_id.toObject();
-            product.images = [imageMap[product._id]] || null;
-            return { ...item.toObject(), product_id: product };
+            let productDetails = {
+                _id: product._id,
+                name: product.name,
+                category_id: product.category_id ? product.category_id._id : null,
+                brand_id: product.brand_id ? product.brand_id._id : null,
+                product_type_id: product.product_type_id ? product.product_type_id._id : null,
+                category: product.category_id ? {
+                    _id: product.category_id._id,
+                    name: product.category_id.name
+                } : null,
+                brand: product.brand_id ? {
+                    _id: product.brand_id._id,
+                    name: product.brand_id.name,
+                    description: product.brand_id.description
+                } : null,
+                product_type: product.product_type_id ? {
+                    _id: product.product_type_id._id,
+                    name: product.product_type_id.name
+                } : null,
+                images: [imageMap[product._id]] || null
+            };
+
+            return {
+                ...item.toObject(),
+                product_id: product._id,
+                product: productDetails
+            };
         });
+
+        let cartData = cart.toObject();
+        cartData.cartItems = cartItems;
 
         return res.status(200).json({
             status: 200,
             message: 'Cart items retrieved successfully!',
-            data: {
-                cart,
-                cartItems
-            }
+            data: cartData
         });
 
     } catch (error) {
@@ -441,6 +482,271 @@ router.get('/user/cart/items', authenticateToken, async (req, res) => {
 
 // ----- Product ----- //
 
+// Lấy sản phẩm theo id
+
+
+// router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => {
+//     try {
+//         let limit = parseInt(req.params.limit) || 10;
+//         limit = limit > 20 ? 20 : limit;
+
+//         const products = await Products.find()
+//             .sort({ average_rating: -1 })
+//             .limit(limit)
+//             .populate('category_id')
+//             .populate('brand_id')
+//             .populate('product_type_id')
+//             .lean();
+
+//         const productIds = products.map(product => product._id);
+//         const primaryImages = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         }).lean();
+
+//         const productsWithDetails = products.map(product => {
+//             const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
+
+//             return {
+//                 ...product,
+//                 images: primaryImage ? [primaryImage] : [],
+//                 category_id: product.category_id._id,
+//                 brand_id: product.brand_id._id,
+//                 product_type_id: product.product_type_id._id,
+//                 category: {
+//                     _id: product.category_id._id,
+//                     name: product.category_id.name,
+//                 },
+//                 brand: {
+//                     _id: product.brand_id._id,
+//                     name: product.brand_id.name,
+//                     description: product.brand_id.description,
+//                 },
+//                 product_type: {
+//                     _id: product.product_type_id._id,
+//                     name: product.product_type_id.name,
+//                 }
+//             };
+//         });
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Get Top Rated Products Success!',
+//             data: productsWithDetails
+//         });
+//     } catch (error) {
+//         console.error("Error:", error);
+//         return res.status(500).json({
+//             status: 500,
+//             message: 'Internal Server Error'
+//         });
+//     }
+// });
+
+
+// Top sản phẩm được đánh giá cao nhất
+router.get('/product/top-rated', authenticateToken, async (req, res) => {
+    try {
+        let { page = 1, limit = 10 } = req.query;
+
+        const pageNumber = parseInt(page);
+        let limitNumber = parseInt(limit);
+
+        if (limitNumber > 20) {
+            limitNumber = 20;
+        }
+
+        const skip = (pageNumber - 1) * limitNumber;
+
+        const products = await Products.find()
+            .sort({ average_rating: -1 })
+            .skip(skip)
+            .limit(limitNumber)
+            .populate('category_id', '_id name')
+            .populate('brand_id', '_id name description')
+            .populate('product_type_id', '_id name')
+            .lean();
+
+        const totalProducts = await Products.countDocuments();
+        const totalPages = Math.ceil(totalProducts / limitNumber);
+
+        const productIds = products.map(p => p._id);
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIds },
+            is_primary: true
+        }).lean();
+
+        const imageMap = primaryImages.reduce((acc, img) => {
+            acc[img.product_id] = img;
+            return acc;
+        }, {});
+
+        const formattedProducts = products.map(product => ({
+            _id: product._id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            average_rating: product.average_rating,
+            category_id: product.category_id._id,
+            brand_id: product.brand_id._id,
+            product_type_id: product.product_type_id._id,
+            category: product.category_id,
+            brand: product.brand_id,
+            product_type: product.product_type_id,
+            primary_image: imageMap[product._id] || null,
+            create_at: product.createdAt,
+            update_at: product.updatedAt
+        }));
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Get Top Rated Products Success!',
+            data: {
+                currentPage: pageNumber,
+                totalPages,
+                totalProducts,
+                hasNextPage: pageNumber < totalPages,
+                hasPrevPage: pageNumber > 1,
+                data: formattedProducts
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching top-rated products:", error);
+        return res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+});
+
+// Lấy sản phẩm theo id
+
+
+// router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res) => {
+//     try {
+//         let limit = parseInt(req.params.limit) || 10;
+//         limit = limit > 20 ? 20 : limit;
+
+//         const products = await Products.find()
+//             .sort({ review_count: -1 })
+//             .limit(limit)
+//             .populate('category_id')
+//             .populate('brand_id')
+//             .populate('product_type_id')
+//             .lean();
+
+//         const productIds = products.map(product => product._id);
+//         const primaryImages = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         }).lean();
+
+//         const productsWithDetails = products.map(product => {
+//             const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
+
+//             return {
+//                 ...product,
+//                 images: primaryImage ? [primaryImage] : [],
+//                 category_id: product.category_id._id,
+//                 brand_id: product.brand_id._id,
+//                 product_type_id: product.product_type_id._id,
+//                 category: {
+//                     _id: product.category_id._id,
+//                     name: product.category_id.name,
+//                 },
+//                 brand: {
+//                     _id: product.brand_id._id,
+//                     name: product.brand_id.name,
+//                     description: product.brand_id.description,
+//                 },
+//                 product_type: {
+//                     _id: product.product_type_id._id,
+//                     name: product.product_type_id.name,
+//                 }
+//             };
+//         });
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Get Most Reviewed Products Success!',
+//             data: productsWithDetails
+//         });
+//     } catch (error) {
+//         console.error("Error:", error);
+//         return res.status(500).json({
+//             status: 500,
+//             message: 'Internal Server Error'
+//         });
+//     }
+// });
+
+// Các sản phẩm có nhiều đánh giá nhất
+router.get('/product/most-reviewed', authenticateToken, async (req, res) => {
+    try {
+        let { page = 1, limit = 10 } = req.query;
+        page = parseInt(page);
+        limit = Math.min(parseInt(limit), 20); // Giới hạn tối đa 20 sản phẩm
+        const skip = (page - 1) * limit;
+
+        const totalProducts = await Products.countDocuments();
+        const totalPages = Math.ceil(totalProducts / limit);
+
+        const products = await Products.find()
+            .sort({ review_count: -1 }) // Sắp xếp theo số lượng đánh giá giảm dần
+            .skip(skip)
+            .limit(limit)
+            .populate('category_id')
+            .populate('brand_id')
+            .populate('product_type_id')
+            .lean();
+
+        const productIds = products.map(product => product._id);
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIds },
+            is_primary: true
+        }).lean();
+
+        const productsWithDetails = products.map(product => {
+            const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
+
+            return {
+                ...product,
+                images: primaryImage ? [primaryImage] : [],
+                category_id: product.category_id?._id,
+                brand_id: product.brand_id?._id,
+                product_type_id: product.product_type_id?._id,
+                category: product.category_id
+                    ? { _id: product.category_id._id, name: product.category_id.name }
+                    : null,
+                brand: product.brand_id
+                    ? { _id: product.brand_id._id, name: product.brand_id.name, description: product.brand_id.description }
+                    : null,
+                product_type: product.product_type_id
+                    ? { _id: product.product_type_id._id, name: product.product_type_id.name }
+                    : null
+            };
+        });
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Get Most Reviewed Products Success!',
+            data: {
+                currentPage: page,
+                totalPages,
+                totalProducts,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1,
+                products: productsWithDetails,
+            }
+        });
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({
+            status: 500,
+            message: 'Internal Server Error'
+        });
+    }
+});
+
+// Lấy sản phẩm theo id
 router.get('/product/:id', authenticateToken, async function (req, res, next) {
     try {
         const { id } = req.params;
@@ -481,124 +787,7 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
     }
 });
 
-
-router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => {
-    try {
-        let limit = parseInt(req.params.limit) || 10;
-        limit = limit > 20 ? 20 : limit;
-
-        const products = await Products.find()
-            .sort({ average_rating: -1 })
-            .limit(limit)
-            .populate('category_id')
-            .populate('brand_id')
-            .populate('product_type_id')
-            .lean();
-
-        const productIds = products.map(product => product._id);
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        }).lean();
-
-        const productsWithDetails = products.map(product => {
-            const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
-
-            return {
-                ...product,
-                images: primaryImage ? [primaryImage] : [],
-                category_id: product.category_id._id,
-                brand_id: product.brand_id._id,
-                product_type_id: product.product_type_id._id,
-                category: {
-                    _id: product.category_id._id,
-                    name: product.category_id.name,
-                },
-                brand: {
-                    _id: product.brand_id._id,
-                    name: product.brand_id.name,
-                    description: product.brand_id.description,
-                },
-                product_type: {
-                    _id: product.product_type_id._id,
-                    name: product.product_type_id.name,
-                }
-            };
-        });
-
-        return res.status(200).json({
-            status: 200,
-            message: 'Get Top Rated Products Success!',
-            data: productsWithDetails
-        });
-    } catch (error) {
-        console.error("Error:", error);
-        return res.status(500).json({
-            status: 500,
-            message: 'Internal Server Error'
-        });
-    }
-});
-
-router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res) => {
-    try {
-        let limit = parseInt(req.params.limit) || 10;
-        limit = limit > 20 ? 20 : limit;
-
-        const products = await Products.find()
-            .sort({ review_count: -1 })
-            .limit(limit)
-            .populate('category_id')
-            .populate('brand_id')
-            .populate('product_type_id')
-            .lean();
-
-        const productIds = products.map(product => product._id);
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        }).lean();
-
-        const productsWithDetails = products.map(product => {
-            const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
-
-            return {
-                ...product,
-                images: primaryImage ? [primaryImage] : [],
-                category_id: product.category_id._id,
-                brand_id: product.brand_id._id,
-                product_type_id: product.product_type_id._id,
-                category: {
-                    _id: product.category_id._id,
-                    name: product.category_id.name,
-                },
-                brand: {
-                    _id: product.brand_id._id,
-                    name: product.brand_id.name,
-                    description: product.brand_id.description,
-                },
-                product_type: {
-                    _id: product.product_type_id._id,
-                    name: product.product_type_id.name,
-                }
-            };
-        });
-
-        return res.status(200).json({
-            status: 200,
-            message: 'Get Most Reviewed Products Success!',
-            data: productsWithDetails
-        });
-    } catch (error) {
-        console.error("Error:", error);
-        return res.status(500).json({
-            status: 500,
-            message: 'Internal Server Error'
-        });
-    }
-});
-
-
+// Lấy chi tiết sản phẩm
 router.get('/product/:id/details', authenticateToken, async function (req, res, next) {
     try {
         const { id } = req.params;
@@ -683,6 +872,7 @@ router.get('/product/:id/details', authenticateToken, async function (req, res, 
     }
 });
 
+// Lấy 
 router.get('/product/:id/sections', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -1088,19 +1278,103 @@ router.get('/category/:id', authenticateToken, async (req, res) => {
     }
 });
 
-router.get('/category/:id/products', async (req, res) => {
+// router.get('/category/:id/products', async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const { page = 1, limit = 10 } = req.query;
+
+//         const pageNumber = parseInt(page);
+//         const limitNumber = parseInt(limit);
+//         const skip = (pageNumber - 1) * limitNumber;
+
+//         const products = await Products.find({ category_id: id })
+//             .skip(skip)
+//             .limit(limitNumber)
+//             .lean();
+
+//         const totalProducts = await Products.countDocuments({ category_id: id });
+//         const totalPages = Math.ceil(totalProducts / limitNumber);
+
+//         res.json({
+//             status: 200,
+//             message: "Success",
+//             data: {
+//                 products,
+//                 pagination: {
+//                     currentPage: pageNumber,
+//                     totalPages,
+//                     totalProducts,
+//                     hasNextPage: pageNumber < totalPages,
+//                     hasPrevPage: pageNumber > 1
+//                 }
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Error fetching products:", error);
+//         res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
+//     }
+// });
+
+
+
+
+
+router.get('/category/:id/products',authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { page = 1, limit = 10 } = req.query;
 
         const pageNumber = parseInt(page);
         const limitNumber = parseInt(limit);
+
+        if (limitNumber > 20) {
+            limitNumber = 20;
+        }
+
         const skip = (pageNumber - 1) * limitNumber;
 
         const products = await Products.find({ category_id: id })
+            .populate({ path: 'category_id', select: '_id name' })
+            .populate({ path: 'brand_id', select: '_id name description' })
+            .populate({ path: 'product_type_id', select: '_id name' })
             .skip(skip)
             .limit(limitNumber)
             .lean();
+
+        const productIds = products.map(product => product._id);
+
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIds },
+            is_primary: true
+        });
+
+        const imageMap = primaryImages.reduce((acc, img) => {
+            acc[img.product_id] = img;
+            return acc;
+        }, {});
+
+        const formattedProducts = products.map(product => ({
+            _id: product._id,
+            name: product.name,
+            category_id: product.category_id ? product.category_id._id : null,
+            brand_id: product.brand_id ? product.brand_id._id : null,
+            product_type_id: product.product_type_id ? product.product_type_id._id : null,
+            category: product.category_id ? {
+                _id: product.category_id._id,
+                name: product.category_id.name
+            } : null,
+            brand: product.brand_id ? {
+                _id: product.brand_id._id,
+                name: product.brand_id.name,
+                description: product.brand_id.description
+            } : null,
+            product_type: product.product_type_id ? {
+                _id: product.product_type_id._id,
+                name: product.product_type_id.name
+            } : null,
+            images: [imageMap[product._id]] || null
+        }));
 
         const totalProducts = await Products.countDocuments({ category_id: id });
         const totalPages = Math.ceil(totalProducts / limitNumber);
@@ -1109,14 +1383,12 @@ router.get('/category/:id/products', async (req, res) => {
             status: 200,
             message: "Success",
             data: {
-                products,
-                pagination: {
-                    currentPage: pageNumber,
-                    totalPages,
-                    totalProducts,
-                    hasNextPage: pageNumber < totalPages,
-                    hasPrevPage: pageNumber > 1
-                }
+                currentPage: pageNumber,
+                totalPages,
+                totalProducts,
+                hasNextPage: pageNumber < totalPages,
+                hasPrevPage: pageNumber > 1,
+                data: formattedProducts,
             }
         });
 
@@ -1125,6 +1397,10 @@ router.get('/category/:id/products', async (req, res) => {
         res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
     }
 });
+
+
+
+
 
 
 // ----- Brand Router ----- //
@@ -1195,6 +1471,79 @@ router.get('/brand/:id', authenticateToken, async (req, res) => {
         });
     }
 });
+
+
+router.get('/brand/:id/products',authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        let { page = 1, limit = 10 } = req.query;
+
+        const pageNumber = parseInt(page);
+        let limitNumber = parseInt(limit);
+
+        if (limitNumber > 20) {
+            limitNumber = 20;
+        }
+
+        const skip = (pageNumber - 1) * limitNumber;
+
+        const products = await Products.find({ brand_id: id })
+            .populate('category_id', '_id name')
+            .populate('brand_id', '_id name description')
+            .populate('product_type_id', '_id name')
+            .skip(skip)
+            .limit(limitNumber)
+            .lean();
+
+        const totalProducts = await Products.countDocuments({ brand_id: id });
+        const totalPages = Math.ceil(totalProducts / limitNumber);
+
+        const productIds = products.map(p => p._id);
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIds },
+            is_primary: true
+        }).lean();
+
+        const imageMap = primaryImages.reduce((acc, img) => {
+            acc[img.product_id] = img;
+            return acc;
+        }, {});
+
+        const formattedProducts = products.map(product => ({
+            _id: product._id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            category_id: product.category_id._id,
+            brand_id: product.brand_id._id,
+            product_type_id: product.product_type_id._id,
+            category: product.category_id,
+            brand: product.brand_id,
+            product_type: product.product_type,
+            primary_image: imageMap[product._id] || null,
+            create_at: product.createdAt,
+            update_at: product.updatedAt
+        }));
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Get Products by Brand Success!',
+            data: {
+                currentPage: pageNumber,
+                totalPages,
+                totalProducts,
+                hasNextPage: pageNumber < totalPages,
+                hasPrevPage: pageNumber > 1,
+                data: formattedProducts
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching brand products:", error);
+        return res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+});
+
 
 
 // ----- Product Type Router ----- //
@@ -1907,10 +2256,7 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
         return res.status(200).json({
             status: 200,
             message: 'Product added to cart successfully!',
-            data: {
-                cart,
-                cartItem
-            }
+            data: cartItem
         });
     } catch (error) {
         console.error("Error:", error);
@@ -1955,7 +2301,7 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
         return res.status(200).json({
             status: 200,
             message: 'Cart item updated successfully!',
-            data: { cart, cartItem }
+            data: cartItem
         });
 
     } catch (error) {
@@ -2005,7 +2351,7 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
         return res.status(200).json({
             status: 200,
             message: 'Cart item removed successfully!',
-            data: { cart }
+            data: cart
         });
 
     } catch (error) {
@@ -2013,7 +2359,6 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
-
 
 
 module.exports = router;

@@ -9,29 +9,30 @@ const APPLIES_TO = ["all", "order", "product", "category", "brand"];
 const DISCOUNT_CONDITIONS = require("../public/discountConditions");
 
 function isValidCondition(conditionType, value) {
-  const condition = DISCOUNT_CONDITIONS.find(c => c.key === conditionType);
-  if (!condition) return false;
+    const condition = DISCOUNT_CONDITIONS.find(c => c.key === conditionType);
+    if (!condition) return false;
 
-  if (condition.validValues) {
-    if (Array.isArray(condition.validValues)) {
-      return condition.validValues.includes(value);
+    if (condition.validValues) {
+        if (Array.isArray(condition.validValues)) {
+            return condition.validValues.includes(value);
+        }
+        if (typeof condition.validValues === "object") {
+            if (condition.validValues.min !== undefined && value < condition.validValues.min) return false;
+            if (condition.validValues.max !== undefined && value > condition.validValues.max) return false;
+        }
     }
-    if (typeof condition.validValues === "object") {
-      if (condition.validValues.min !== undefined && value < condition.validValues.min) return false;
-      if (condition.validValues.max !== undefined && value > condition.validValues.max) return false;
-    }
-  }
-  return true;
+    return true;
 }
 
 
 router.get('/', async function (req, res, next) {
     try {
         const discounts = await DiscountCode.find();
-        res.render('discounts/discounts', { 
+        res.render('discounts/discounts', {
             discounts,
             appliesTo: APPLIES_TO,
-            discountTypes: DISCOUNT_TYPES 
+            discountTypes: DISCOUNT_TYPES,
+            discountConditions: DISCOUNT_CONDITIONS
         });
     } catch (error) {
         next(error);

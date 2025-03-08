@@ -3,13 +3,13 @@ const DISCOUNT_CONDITIONS = [
       key: "minimum_items",
       label: "Số lượng sản phẩm tối thiểu",
       inputType: "number",
-      validValues: null // Không giới hạn, miễn là số nguyên dương
+      validValues: { min: 1 }
     },
     {
       key: "first_time_user",
       label: "Áp dụng cho khách hàng mới",
       inputType: "boolean",
-      validValues: [true, false]
+      validValues: null
     },
     {
       key: "specific_payment_method",
@@ -21,7 +21,7 @@ const DISCOUNT_CONDITIONS = [
       key: "specific_time_range",
       label: "Chỉ áp dụng trong khoảng thời gian cụ thể",
       inputType: "object",
-      validValues: { from: "HH:mm", to: "HH:mm" } // Định dạng giờ phút
+      validValues: { from: "HH:mm", to: "HH:mm" }
     },
     {
       key: "customer_group",
@@ -33,7 +33,7 @@ const DISCOUNT_CONDITIONS = [
       key: "minimum_order_value",
       label: "Giá trị đơn hàng tối thiểu",
       inputType: "number",
-      validValues: null // Không giới hạn, miễn là số nguyên dương
+      validValues: { min: 1 }
     },
     {
       key: "maximum_order_value",
@@ -45,61 +45,61 @@ const DISCOUNT_CONDITIONS = [
       key: "specific_users",
       label: "Chỉ áp dụng cho danh sách khách hàng cụ thể",
       inputType: "array",
-      validValues: null // Danh sách ID khách hàng
+      validValues: "fetch_users"
     },
     {
       key: "excluded_users",
       label: "Không áp dụng cho danh sách khách hàng cụ thể",
       inputType: "array",
-      validValues: null
+      validValues: "fetch_users"
     },
     {
       key: "specific_products",
       label: "Chỉ áp dụng cho một số sản phẩm",
       inputType: "array",
-      validValues: null // Danh sách ID sản phẩm
+      validValues: "fetch_products"
     },
     {
       key: "excluded_products",
       label: "Không áp dụng cho một số sản phẩm",
       inputType: "array",
-      validValues: null
+      validValues: "fetch_products"
     },
     {
       key: "specific_brands",
       label: "Chỉ áp dụng cho một số thương hiệu",
       inputType: "array",
-      validValues: null // Danh sách ID thương hiệu
+      validValues: "fetch_brands"
     },
     {
       key: "excluded_brands",
       label: "Không áp dụng cho một số thương hiệu",
       inputType: "array",
-      validValues: null
+      validValues: "fetch_brands"
     },
     {
       key: "specific_categories",
       label: "Chỉ áp dụng cho một số danh mục sản phẩm",
       inputType: "array",
-      validValues: null // Danh sách ID danh mục
+      validValues: "fetch_categories"
     },
     {
       key: "excluded_categories",
       label: "Không áp dụng cho một số danh mục sản phẩm",
       inputType: "array",
-      validValues: null
+      validValues: "fetch_categories"
     },
     {
       key: "new_product_only",
       label: "Chỉ áp dụng cho sản phẩm mới ra mắt",
       inputType: "number",
-      validValues: { min: 1, max: 365 } // Số ngày từ ngày ra mắt
+      validValues: { min: 1, max: 365 }
     },
     {
       key: "first_n_orders",
       label: "Chỉ áp dụng cho X đơn hàng đầu tiên trong hệ thống",
       inputType: "number",
-      validValues: { min: 1 } // Số đơn hàng tối thiểu là 1
+      validValues: { min: 1 }
     },
     {
       key: "first_n_orders_per_user",
@@ -120,34 +120,10 @@ const DISCOUNT_CONDITIONS = [
       validValues: ["cod"]
     },
     {
-      key: "cart_contains_product",
-      label: "Chỉ áp dụng nếu giỏ hàng có sản phẩm cụ thể",
-      inputType: "array",
-      validValues: null // Danh sách ID sản phẩm
-    },
-    {
-      key: "cart_excludes_product",
-      label: "Không áp dụng nếu giỏ hàng có sản phẩm cụ thể",
-      inputType: "array",
-      validValues: null
-    },
-    {
       key: "maximum_usage_per_user",
       label: "Giới hạn số lần sử dụng trên mỗi user",
       inputType: "number",
       validValues: { min: 1 }
-    },
-    {
-      key: "specific_device",
-      label: "Chỉ áp dụng cho đơn hàng đặt trên thiết bị cụ thể",
-      inputType: "string",
-      validValues: ["mobile", "desktop"]
-    },
-    {
-      key: "specific_app_version",
-      label: "Chỉ áp dụng cho một số phiên bản app",
-      inputType: "string",
-      validValues: null // Phiên bản app bất kỳ
     },
     {
       key: "day_of_week",
@@ -165,7 +141,7 @@ const DISCOUNT_CONDITIONS = [
       key: "total_spent_over",
       label: "Chỉ áp dụng nếu tổng chi tiêu của người dùng vượt mức",
       inputType: "number",
-      validValues: { min: 0 } // Không giới hạn tối đa
+      validValues: { min: 0 }
     }
   ];
   

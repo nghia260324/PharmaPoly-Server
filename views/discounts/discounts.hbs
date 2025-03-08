@@ -3,11 +3,10 @@
         display: flex;
         flex-wrap: nowrap;
         gap: 5px;
+        min-height: 56px;
         padding: 8px;
         border: 1px solid #ced4da;
         border-radius: 5px;
-        min-height: 80px;
-        max-height: 150px;
         overflow-y: auto;
         background-color: #fff;
     }
@@ -37,6 +36,18 @@
         cursor: pointer;
         color: red;
         font-weight: bold;
+    }
+
+    .condition-label {
+        width: 240px;
+        flex-shrink: 0;
+        display: inline-block;
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
     }
 </style>
 
@@ -98,40 +109,48 @@
 
 
 
-
 <div class="modal fade" id="addDiscountModal" tabindex="-1" aria-labelledby="addDiscountModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addDiscountModalLabel">Create New Discount</h5>
+                <h5 class="modal-title fw-bold" id="addDiscountModalLabel">Create New Discount</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="discountForm">
+
+                    <!-- Discount Code -->
+                    {{!-- <h6 class="fw-bold border-bottom pb-2">Basic Information</h6> --}}
                     <div class="mb-3">
                         <label for="discountCode" class="form-label">Discount Code</label>
-                        <input type="text" class="form-control" id="discountCode" required>
+                        <input type="text" class="form-control" id="discountCode" value="DISCOUNT_TEST" required>
                     </div>
 
+                    <!-- Applies To -->
+                    <h6 class="fw-bold border-bottom pb-2 mt-3">Applies To</h6>
                     <div class="mb-3">
-                        <label for="appliesTo" class="form-label">Applies To</label>
+                        <label for="appliesTo" class="form-label">Select Application</label>
                         <div class="d-flex">
-                            <select class="form-select me-2" id="appliesTo" required>
+                            <select class="form-select" id="appliesTo" required>
                                 {{#each appliesTo}}
                                 <option value="{{this}}">{{formatDiscountField this "applies_to"}}</option>
                                 {{/each}}
                             </select>
-                            <button type="button" id="selectTargetBtn"
-                                class="btn btn-outline-secondary d-none">Select</button>
+                            <button type="button" id="selectTargetBtn" class="btn btn-primary ms-2">
+                                {{!-- <i class="bi bi-search"></i> --}}
+                                Select
+                            </button>
                         </div>
                     </div>
 
                     <div class="mb-3 d-none" id="targetIdsContainer">
                         <label class="form-label">Selected Items</label>
-                        <div id="selectedItemsContainer" class="selected-items-container"></div>
+                        <div id="selectedItemsContainer" class="selected-items-container p-2 border rounded bg-light">
+                        </div>
                     </div>
 
-
+                    <!-- Discount Details -->
+                    <h6 class="fw-bold border-bottom pb-2 mt-3">Discount Details</h6>
                     <div class="mb-3">
                         <label for="discountType" class="form-label">Discount Type</label>
                         <select class="form-select" id="discountType" required>
@@ -141,30 +160,51 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="discountValue" class="form-label">Discount Value</label>
-                        <input type="number" class="form-control" id="discountValue" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="minOrderValue" class="form-label">Minimum Order Value</label>
-                        <input type="number" class="form-control" id="minOrderValue">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="discountValue" class="form-label">Discount Value</label>
+                            <input type="number" class="form-control" id="discountValue" value="66" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="minOrderValue" class="form-label">Minimum Order Value</label>
+                            <input type="number" class="form-control" id="minOrderValue" value="66">
+                        </div>
                     </div>
 
                     <div class="mb-3 d-none" id="maxDiscountContainer">
                         <label for="maxDiscount" class="form-label">Maximum Discount</label>
-                        <input type="number" class="form-control" id="maxDiscount">
+                        <input type="number" class="form-control" id="maxDiscount" value="66">
                     </div>
 
-
+                    <!-- Validity Period -->
+                    <h6 class="fw-bold border-bottom pb-2 mt-3">Validity Period</h6>
                     <div class="row mb-3">
                         <div class="col">
                             <label for="startDate" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="startDate" required>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-calendar"></i></span>
+                                <input type="date" class="form-control" id="startDate" required>
+                            </div>
                         </div>
                         <div class="col">
                             <label for="endDate" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="endDate" required>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-calendar"></i></span>
+                                <input type="date" class="form-control" id="endDate" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Usage Limit -->
+                    <h6 class="fw-bold border-bottom pb-2 mt-3">Usage & Stackability</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Usage Limit</label>
+                        <div class="d-flex align-items-center">
+                            <input class="form-check-input me-2" type="checkbox" id="hasUsageLimit"
+                                style="margin-top: 0px;">
+                            <label class="form-check-label me-2" for="hasUsageLimit">Set Limit</label>
+                            <input type="number" class="form-control w-50 d-none" id="usageLimit"
+                                placeholder="Enter limit" value="66">
                         </div>
                     </div>
 
@@ -176,31 +216,31 @@
                         </div>
                     </div>
 
+                    <!-- Discount Conditions -->
+                    <h6 class="fw-bold border-bottom pb-2 mt-3">Discount Conditions</h6>
                     <div class="mb-3">
-                        <label for="minOrderValue" class="form-label">Minimum Order Value</label>
-                        <input type="number" class="form-control" id="minOrderValue">
-                    </div>
-
-                    <div class="mb-3 d-none" id="maxDiscountContainer">
-                        <label for="maxDiscount" class="form-label">Maximum Discount</label>
-                        <input type="number" class="form-control" id="maxDiscount">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Usage Limit</label>
+                        <label for="discountConditions" class="form-label">Add Conditions</label>
                         <div class="d-flex">
-                            <select class="form-select me-2 w-50" id="usageLimitType">
-                                <option value="unlimited">Unlimited</option>
-                                <option value="limited">Limited</option>
+                            <select class="form-select me-2" id="discountConditions">
+                                {{#each discountConditions}}
+                                <option value="{{this.key}}" data-input-type="{{this.inputType}}">
+                                    {{this.label}}
+                                </option>
+                                {{/each}}
                             </select>
-                            <input type="number" class="form-control d-none w-50" id="usageLimitValue"
-                                placeholder="Enter limit">
                         </div>
                     </div>
 
-                    <div class="text-end">
-                        <button type="submit" class="btn btn-primary">Save</button>
+                    <div class="mb-3 d-none" id="conditionsContainer">
+                        <label class="form-label">Selected Conditions</label>
+                        <div id="selectedConditionsContainer" class="selected-items-container"
+                            style="flex-direction: column;"></div>
                     </div>
+
+                    <div class="text-end mt-4">
+                        <button type="submit" class="btn btn-primary">Save Discount</button>
+                    </div>
+
                 </form>
             </div>
         </div>
@@ -210,12 +250,219 @@
 
 
 
+<div class="modal fade" id="selectItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Select Items</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul id="itemList" class="list-group"></ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirmSelectionBtn" class="btn btn-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
-
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody">
+                <!-- Message will be inserted here -->
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+<script id="discountConditionsData" type="application/json">
+    {{{json discountConditions}}}
+</script>
 <script>
 
     document.addEventListener("DOMContentLoaded", function () {
+
+        document.getElementById("discountForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const formData = {
+                code: document.getElementById("discountCode").value.trim(),
+                applies_to: document.getElementById("appliesTo").value,
+                target_ids: Array.from(document.querySelectorAll("#selectedItemsContainer .selected-item"))
+                    .map(item => item.dataset.id),
+                type: document.getElementById("discountType").value,
+                value: parseFloat(document.getElementById("discountValue").value) || 0,
+                min_order_value: parseFloat(document.getElementById("minOrderValue").value) || null,
+                max_discount: parseFloat(document.getElementById("maxDiscount")?.value) || null,
+                start_date: formatDateToISO(document.getElementById("startDate").value),
+                end_date: formatDateToISO(document.getElementById("endDate").value),
+                usage_limit: document.getElementById("hasUsageLimit").checked
+                    ? parseInt(document.getElementById("usageLimit").value) || -1
+                    : -1,
+                stackable: document.getElementById("stackable").checked,
+                conditions: Array.from(document.querySelectorAll("#selectedConditionsContainer .condition-item")).map(cond => {
+                    const key = cond.getAttribute("data-key");
+                    const value = getConditionValue(cond);
+                    return { key, value };
+                }),
+            };
+
+            console.log("Collected Discount Data:", formData);
+        });
+        function formatDateToISO(dateString) {
+            return dateString ? new Date(dateString).toISOString() : null;
+        }
+        function getConditionValue(conditionElement) {
+            const inputs = conditionElement.querySelectorAll(".condition-value");
+            if (inputs.length === 1) {
+                return inputs[0].value;
+            }
+            if (inputs.length === 2) {
+                return { from: inputs[0].value, to: inputs[1].value };
+            }
+            return null;
+        }
+
+
+
+
+
+        const discountConditions = JSON.parse(document.getElementById("discountConditionsData").textContent);
+        const discountConditionsSelect = document.getElementById("discountConditions");
+        const conditionsContainer = document.getElementById("conditionsContainer");
+        const selectedConditionsContainer = document.getElementById("selectedConditionsContainer");
+
+        discountConditionsSelect.addEventListener("change", function () {
+            const selectedOption = discountConditionsSelect.options[discountConditionsSelect.selectedIndex];
+            const key = selectedOption.value;
+            const label = selectedOption.text;
+            const inputType = selectedOption.dataset.inputType;
+            const conditionData = discountConditions.find(cond => cond.key === key);
+
+            //Fif (!key || document.querySelector(`.condition-item[data-key="${key}"]`)) {
+            //FshowToast("This condition has already been added.", "warning");
+            //Freturn;
+            //F}
+            const existingCondition = document.querySelector(`.condition-item[data-key="${key}"]`);
+            if (existingCondition) {
+                showToast("This condition has already been added.", "warning");
+                existingCondition.scrollIntoView({ behavior: "smooth", block: "center" });
+
+                const inputElement = existingCondition.querySelector(".condition-value");
+                if (inputElement) {
+                    inputElement.focus();
+                }
+                return;
+            }
+
+
+
+            const conditionDiv = document.createElement("div");
+            conditionDiv.classList.add("d-flex", "align-items-center", "mb-2", "condition-item");
+            conditionDiv.setAttribute("data-key", key);
+
+            const inputField = generateInputField(inputType, key, conditionData.validValues);
+
+            conditionDiv.innerHTML = `
+                                        <strong class="me-2 condition-label">${label}:</strong>
+                                        ${inputField}
+                                        
+                                        <button type="button" class="btn btn-sm btn-danger ms-2 remove-condition" data-key="${key}">
+                                            <i class="bi bi-trash-fill text-white"></i>
+                                        </button>
+                                    `;
+
+            selectedConditionsContainer.appendChild(conditionDiv);
+            conditionsContainer.classList.remove("d-none");
+
+            conditionDiv.querySelector(".remove-condition").addEventListener("click", function () {
+                conditionDiv.remove();
+                if (!selectedConditionsContainer.children.length) {
+                    conditionsContainer.classList.add("d-none");
+                }
+            });
+            discountConditionsSelect.selectedIndex = 0;
+        });
+
+        function generateInputField(inputType, key, validValues) {
+            if (Array.isArray(validValues)) {
+                return `
+                            <select class="form-select condition-value" name="${key}" required>
+                                ${validValues.map(value => `<option value="${value}">${formatLabel(value)}</option>`).join('')}
+                            </select>
+                        `;
+            }
+
+            switch (inputType) {
+                case "number":
+                    return `<input type="number" class="form-control condition-value" name="${key}" required>`;
+                case "boolean":
+                    return `
+                                <select class="form-select condition-value" name="${key}">
+                                    <option value="true">Yes</option>
+                                    <option value="false">No</option>
+                                </select>
+                            `;
+                case "array":
+                    return `<input type="text" class="form-control condition-value" name="${key}" placeholder="Comma-separated values" required>`;
+                case "object":
+                    return `
+                                <label class="mx-2">From</label>
+                                <input type="time" class="form-control condition-value" name="${key}_from" required>
+                                <label class="mx-2">To</label>
+                                <input type="time" class="form-control condition-value" name="${key}_to" required>
+                            `;
+                case "string":
+                default:
+                    return `<input type="text" class="form-control condition-value" name="${key}" required>`;
+            }
+        }
+
+
+
+
+
+
+
+        testSelectAllConditions();
+
+        function testSelectAllConditions() {
+            const selectElement = document.getElementById("discountConditions");
+            const options = Array.from(selectElement.options);
+
+            let index = 0;
+
+            function addNextCondition() {
+                if (index >= options.length) {
+                    console.log("Tất cả điều kiện đã được thêm.");
+                    return;
+                }
+
+                selectElement.selectedIndex = index; // Chọn option hiện tại
+                selectElement.dispatchEvent(new Event("change")); // Gọi sự kiện change nếu cần
+
+                // addConditionBtn.click(); // Giả lập click nút "Add"
+
+                index++;
+                setTimeout(addNextCondition, 100); // Thêm mỗi điều kiện sau 0.5 giây
+            }
+
+            addNextCondition();
+        }
+
+
+
+
+
+
+
 
         const discountType = document.getElementById("discountType");
         const maxDiscountContainer = document.getElementById("maxDiscountContainer");
@@ -230,8 +477,19 @@
 
 
 
+        const hasUsageLimit = document.getElementById("hasUsageLimit");
+        const usageLimitInput = document.getElementById("usageLimit");
 
-
+        hasUsageLimit.addEventListener("change", function () {
+            if (this.checked) {
+                usageLimitInput.classList.remove("d-none");
+                usageLimitInput.required = true;
+            } else {
+                usageLimitInput.classList.add("d-none");
+                usageLimitInput.required = false;
+                usageLimitInput.value = "";
+            }
+        });
 
 
 
@@ -257,7 +515,6 @@
         });
 
         selectTargetBtn.addEventListener("click", function () {
-            // Ở đây bạn có thể mở modal hoặc danh sách để chọn item, mình tạm dùng prompt để demo
             const selectedNames = prompt("Enter selected item names (comma separated):", "");
             if (selectedNames) {
                 selectedItems = selectedNames.split(",").map(name => name.trim());
@@ -277,7 +534,6 @@
                 selectedItemsContainer.appendChild(itemElement);
             });
 
-            // Xử lý sự kiện xóa item
             document.querySelectorAll(".remove-item").forEach(button => {
                 button.addEventListener("click", function () {
                     const index = this.getAttribute("data-index");
@@ -318,5 +574,33 @@
         });
 
     });
+    function showToast(message, type = "success") {
+        const toastElement = document.getElementById("toastMessage");
+        const toastBody = document.getElementById("toastBody");
 
+        toastBody.textContent = message;
+
+        toastElement.classList.remove("bg-success", "bg-danger", "bg-warning", "bg-info");
+        switch (type) {
+            case "error":
+                toastElement.classList.add("bg-danger");
+                break;
+            case "warning":
+                toastElement.classList.add("bg-warning");
+                break;
+            case "info":
+                toastElement.classList.add("bg-info");
+                break;
+            default:
+                toastElement.classList.add("bg-success");
+        }
+
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+    }
+    function formatLabel(value) {
+        return value
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, char => char.toUpperCase());
+    }
 </script>
