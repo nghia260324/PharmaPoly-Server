@@ -545,6 +545,7 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
 
 
 // Top sản phẩm được đánh giá cao nhất
+// Top sản phẩm được đánh giá cao nhất
 router.get('/product/top-rated', authenticateToken, async (req, res) => {
     try {
         let { page = 1, limit = 10 } = req.query;
@@ -593,7 +594,7 @@ router.get('/product/top-rated', authenticateToken, async (req, res) => {
             category: product.category_id,
             brand: product.brand_id,
             product_type: product.product_type_id,
-            primary_image: imageMap[product._id] || null,
+            images: imageMap[product._id] ? [imageMap[product._id]] : [],
             create_at: product.createdAt,
             update_at: product.updatedAt
         }));
@@ -616,6 +617,7 @@ router.get('/product/top-rated', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 });
+
 
 // Lấy sản phẩm theo id
 
