@@ -34,7 +34,7 @@ function authenticateToken(req, res, next) {
     // if (process.env.NODE_ENV === 'development') {
     //     return next();
     // }
-    // return next();
+    return next();
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) {
         return res.status(401).json({
@@ -279,8 +279,8 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
         delete formattedUser.createdAt;
         delete formattedUser.updatedAt;
 
-        res.status(200).json({
-            status: 200,
+        res.status(404).json({
+            status: 404,
             message: "Profile updated successfully!",
             data: formattedUser
         });
@@ -322,22 +322,22 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({
-                status: 403,
+            return res.status(405).json({
+                status: 405,
                 message: "Incorrect current password!"
             });
         }
 
         const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
         if (!passwordPattern.test(new_password)) {
-            return res.status(400).json({
-                status: 402,
+            return res.status(403).json({
+                status: 403,
                 message: "New password must be at least 8 characters long, contain at least one uppercase letter, one number, and one special character."
             });
         }
 
         if (new_password !== confirm_password) {
-            return res.status(400).json({
+            return res.status(401).json({
                 status: 401,
                 message: "New password and confirm password do not match!"
             });
@@ -347,8 +347,8 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
         user.password = hashedNewPassword;
         await user.save();
 
-        res.status(200).json({
-            status: 200,
+        res.status(407).json({
+            status: 407,
             message: "Password changed successfully!"
         });
 
@@ -390,7 +390,7 @@ router.post('/refresh-token', async (req, res) => {
         );
 
         res.json({
-            status: 200,
+            status: 404,
             message: 'Access token refreshed!',
             data: { accessToken: newAccessToken }
         });
@@ -467,8 +467,8 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
         let cartData = cart.toObject();
         cartData.cartItems = cartItems;
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(405).json({
+            status: 405,
             message: 'Cart items retrieved successfully!',
             data: cartData
         });
@@ -1382,7 +1382,7 @@ router.get('/category/:id/products',authenticateToken, async (req, res) => {
         const totalPages = Math.ceil(totalProducts / limitNumber);
 
         res.json({
-            status: 200,
+            status: 400,
             message: "Success",
             data: {
                 currentPage: pageNumber,
@@ -1527,8 +1527,8 @@ router.get('/brand/:id/products',authenticateToken, async (req, res) => {
             update_at: product.updatedAt
         }));
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(400).json({
+            status: 400,
             message: 'Get Products by Brand Success!',
             data: {
                 currentPage: pageNumber,
@@ -1870,8 +1870,8 @@ router.delete('/product-review/delete/:id', authenticateToken, async (req, res) 
 
         const product = await Products.findById(review.product_id);
         if (!product) {
-            return res.status(404).json({
-                status: 404,
+            return res.status(405).json({
+                status: 405,
                 message: 'Product not found for this review'
             });
         }
@@ -1892,8 +1892,8 @@ router.delete('/product-review/delete/:id', authenticateToken, async (req, res) 
 
         await ProductReviews.findByIdAndDelete(id);
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(403).json({
+            status: 403,
             message: 'Delete Product Review Success!',
         });
     } catch (error) {
@@ -1928,8 +1928,8 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
 
         const product = await Products.findById(existingReview.product_id);
         if (!product) {
-            return res.status(404).json({
-                status: 404,
+            return res.status(405).json({
+                status: 405,
                 message: 'Product not found for this review'
             });
         }
@@ -1960,8 +1960,8 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
         product.average_rating = parseFloat((Math.round(averageRating * 2) / 2).toFixed(2));
         await product.save();
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(407).json({
+            status: 407,
             message: 'Update Product Review Success!',
             data: existingReview
         });
@@ -1998,8 +1998,8 @@ router.post('/question/create', authenticateToken, async (req, res) => {
 
         const product = await Products.findById(product_id);
         if (!product) {
-            return res.status(404).json({
-                status: 404,
+            return res.status(405).json({
+                status: 405,
                 message: 'Product not found'
             });
         }
@@ -2012,8 +2012,8 @@ router.post('/question/create', authenticateToken, async (req, res) => {
 
         const savedQuestion = await newQuestion.save();
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(403).json({
+            status: 403,
             message: 'Create Question Success!',
             data: savedQuestion
         });
@@ -2045,8 +2045,8 @@ router.get('/question/get/:id', authenticateToken, async (req, res) => {
         delete formattedQuestion.__v;
         delete formattedQuestion.updatedAt;
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(400).json({
+            status: 400,
             message: 'Get question Review Success!',
             data: formattedQuestion
         });
@@ -2072,8 +2072,8 @@ router.get('/question/get/:id/details', authenticateToken, async (req, res) => {
 
         const user = await Users.findById(question.user_id).lean();
         if (!user) {
-            return res.status(404).json({
-                status: 404,
+            return res.status(405).json({
+                status: 405,
                 message: 'User not found'
             });
         }
@@ -2091,8 +2091,8 @@ router.get('/question/get/:id/details', authenticateToken, async (req, res) => {
         delete formattedQuestion.__v;
         delete formattedQuestion.updatedAt;
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(401).json({
+            status: 401,
             message: 'Get question Review Success!',
             data: formattedQuestion
         });
@@ -2127,8 +2127,8 @@ router.delete('/question/delete/:id', authenticateToken, async (req, res) => {
 
         await Questions.findByIdAndDelete(id);
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(405).json({
+            status: 405,
             message: 'Question deleted successfully'
         });
     } catch (error) {
@@ -2179,8 +2179,8 @@ router.post('/answer/create', authenticateToken, async (req, res) => {
 
         const saveAnswer = await newAnswer.save();
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(407).json({
+            status: 407,
             message: 'Create Answer Success!',
             data: saveAnswer
         });
@@ -2206,16 +2206,16 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
             });
         }
         if (quantity > MAX_QUANTITY_PER_PRODUCT) {
-            return res.status(400).json({
-                status: 400,
+            return res.status(404).json({
+                status: 404,
                 message: `You can only add up to ${MAX_QUANTITY_PER_PRODUCT} units per product`
             });
         }
 
         const product = await Products.findById(product_id);
         if (!product) {
-            return res.status(404).json({
-                status: 404,
+            return res.status(405).json({
+                status: 405,
                 message: 'Product not found'
             });
         }
@@ -2255,8 +2255,8 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
 
         await cart.save();
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(408).json({
+            status: 408,
             message: 'Product added to cart successfully!',
             data: cartItem
         });
@@ -2291,7 +2291,7 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
 
         let cart = await Carts.findById(cartItem.cart_id);
         if (!cart) {
-            return res.status(404).json({ status: 404, message: 'Cart not found' });
+            return res.status(405).json({ status: 405, message: 'Cart not found' });
         }
 
         const cartItems = await CartItems.find({ cart_id: cart._id });
@@ -2300,8 +2300,8 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
 
         await cart.save();
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(401).json({
+            status: 401,
             message: 'Cart item updated successfully!',
             data: cartItem
         });
@@ -2330,7 +2330,7 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
 
         let cart = await Carts.findById(cartItem.cart_id);
         if (!cart) {
-            return res.status(404).json({ status: 404, message: 'Cart not found' });
+            return res.status(405).json({ status: 405, message: 'Cart not found' });
         }
 
         await CartItems.findByIdAndDelete(cart_item_id);
@@ -2339,8 +2339,8 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
 
         if (cartItems.length === 0) {
             await Carts.findByIdAndDelete(cart._id);
-            return res.status(200).json({
-                status: 200,
+            return res.status(407).json({
+                status: 407,
                 message: 'Cart item removed, cart deleted as it was empty',
                 data: { cart: null }
             });
@@ -2350,8 +2350,8 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
 
         await cart.save();
 
-        return res.status(200).json({
-            status: 200,
+        return res.status(408).json({
+            status: 408,
             message: 'Cart item removed successfully!',
             data: cart
         });
