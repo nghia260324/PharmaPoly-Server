@@ -395,26 +395,42 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
 
         let savedSections = [];
         if (data.sections) {
-            const sections = JSON.parse(data.sections);
+            try {
+                const sections = typeof data.sections === "string" ? JSON.parse(data.sections) : data.sections;
 
-            for (const section of sections) {
-                const newProductSection = new ProductSections({
-                    product_id: savedProduct._id,
-                    section_id: section.section_id,
-                });
+                let uniqueSections = new Set(); // Dùng để kiểm tra section_id trùng
 
-                const savedSection = await newProductSection.save();
-                savedSections.push(savedSection);
+                for (const section of sections) {
+                    if (uniqueSections.has(section.section_id)) {
+                        return res.status(404).json({
+                            status: 404,
+                            message: `Section "${section.section_id}" đã tồn tại, vui lòng chọn section khác!`
+                        });
+                    }
 
-                if (section.details && section.details.length > 0) {
-                    const sectionDetails = section.details.map(detail => ({
-                        product_section_id: savedSection._id,
-                        title: detail.title,
-                        content: detail.content,
-                    }));
+                    uniqueSections.add(section.section_id); // Thêm vào Set nếu chưa có
 
-                    await ProductSectionDetails.insertMany(sectionDetails);
+                    const newProductSection = new ProductSections({
+                        product_id: savedProduct._id,
+                        section_id: section.section_id,
+                    });
+
+                    const savedSection = await newProductSection.save();
+                    savedSections.push(savedSection);
+
+                    if (section.details && section.details.length > 0) {
+                        const sectionDetails = section.details.map(detail => ({
+                            product_section_id: savedSection._id,
+                            title: detail.title,
+                            content: detail.content,
+                        }));
+
+                        await ProductSectionDetails.insertMany(sectionDetails);
+                    }
                 }
+            } catch (parseError) {
+                console.error("Error parsing sections:", parseError);
+                return res.status(400).json({ status: 400, message: "Invalid sections format!" });
             }
         }
 

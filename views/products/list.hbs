@@ -679,6 +679,24 @@
             addSection(editSectionContainer);
         });
 
+        function updateSectionOptions() {
+            const selectedSections = Array.from(document.querySelectorAll(".section-select"))
+                .map(select => select.value)
+                .filter(value => value !== "");
+
+            document.querySelectorAll(".section-select").forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = `
+            <option value="" disabled>Select Section</option>
+            {{#each sections}}
+            <option value="{{this._id}}" ${selectedSections.includes("{{this._id}}") && currentValue !== "{{this._id}}" ? 'hidden' : ''}>
+                {{this.name}}
+            </option>
+            {{/each}}
+        `;
+                select.value = currentValue;
+            });
+        }
         function addSection(sectionContainer) {
             const sectionItem = document.createElement("div");
             sectionItem.classList.add("border", "p-3", "mb-3", "rounded", "section-item");
@@ -693,11 +711,14 @@
             const select = document.createElement("select");
             select.classList.add("form-select", "me-2", "section-select");
             select.innerHTML = `
-                        <option value="" disabled>Select Section</option>
-                        {{#each sections}}
-                        <option value="{{this._id}}">{{this.name}}</option>
-                        {{/each}}
-                    `;
+        <option value="" disabled selected>Select Section</option>
+        {{#each sections}}
+        <option value="{{this._id}}">{{this.name}}</option>
+        {{/each}}
+    `;
+
+            // Gọi updateSectionOptions khi thay đổi giá trị dropdown
+            select.addEventListener("change", updateSectionOptions);
 
             const removeSectionBtn = document.createElement("button");
             removeSectionBtn.classList.add("btn", "btn-danger", "btn-sm", "ms-2");
@@ -705,6 +726,7 @@
             removeSectionBtn.addEventListener("click", function (event) {
                 event.preventDefault();
                 sectionItem.remove();
+                updateSectionOptions(); // Gọi khi xóa section để cập nhật lại dropdown
             });
 
             const itemsContainer = document.createElement("div");
@@ -726,7 +748,10 @@
             sectionItem.appendChild(itemsContainer);
             sectionItem.appendChild(addItemBtn);
             sectionContainer.appendChild(sectionItem);
+
+            updateSectionOptions(); // Gọi ngay sau khi thêm section mới
         }
+
         function addItemSection(container, title = "", content = "") {
             const itemDiv = document.createElement("div");
             itemDiv.classList.add("d-flex", "align-items-start", "mb-2", "border", "p-2", "rounded", "section-detail-item");
