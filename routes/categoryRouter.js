@@ -79,3 +79,13 @@ router.put('/update/:id', async (req, res) => {
         return res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
     }
 });
+
+router.get('/all', async (req, res) => {
+    try {
+        const categories = await Categories.find();
+        res.json(categories);
+    } catch (error) {
+        res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+    }
+});
+

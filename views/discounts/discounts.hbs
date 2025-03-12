@@ -1,7 +1,5 @@
 <style>
     .selected-items-container {
-        display: flex;
-        flex-wrap: nowrap;
         gap: 5px;
         min-height: 56px;
         padding: 8px;
@@ -11,17 +9,7 @@
         background-color: #fff;
     }
 
-    .selected-item {
-        display: flex;
-        align-items: center;
-        background-color: #e9ecef;
-        border-radius: 6px;
-        padding: 5px 10px;
-        font-size: 14px;
-        max-width: 240px;
-        height: 32px;
-        overflow: hidden;
-    }
+
 
     .selected-item span {
         min-width: 0;
@@ -48,6 +36,18 @@
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
+    }
+
+    .target-name {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: normal;
+        word-wrap: break-word;
+        min-height: 1.5em;
+        max-height: 3em;
     }
 </style>
 
@@ -76,7 +76,7 @@
         </thead>
         <tbody id="discountTableBody">
             {{#each discounts}}
-            <tr>
+            <tr data-id="{{this._id}}">
                 <td>{{addOne @index}}</td>
                 <td>{{this.code}}</td>
                 <td>{{#if (eq this.type "percent")}}Percentage{{else}}Fixed Amount{{/if}}</td>
@@ -92,8 +92,11 @@
                     <button class="btn btn-info btn-sm">
                         <i class="bi bi-eye"></i>
                     </button>
-                    <button class="btn btn-warning btn-sm"
+                    {{!-- <button class="btn btn-warning btn-sm"
                         onclick="editDiscount('{{this._id}}', '{{this.code}}', '{{this.type}}', '{{this.value}}', '{{this.start_date}}', '{{this.end_date}}')">
+                        <i class="bi bi-pencil"></i>
+                    </button> --}}
+                    <button class="btn btn-warning btn-sm" onclick="editDiscount('{{this._id}}')">
                         <i class="bi bi-pencil"></i>
                     </button>
                     <button class="btn btn-danger btn-sm" onclick="deleteDiscount('{{this._id}}')">
@@ -136,7 +139,7 @@
                                 <option value="{{this}}">{{formatDiscountField this "applies_to"}}</option>
                                 {{/each}}
                             </select>
-                            <button type="button" id="selectTargetBtn" class="btn btn-primary ms-2">
+                            <button type="button" id="selectTargetBtn" class="btn btn-primary ms-2 d-none">
                                 {{!-- <i class="bi bi-search"></i> --}}
                                 Select
                             </button>
@@ -145,7 +148,7 @@
 
                     <div class="mb-3 d-none" id="targetIdsContainer">
                         <label class="form-label">Selected Items</label>
-                        <div id="selectedItemsContainer" class="selected-items-container p-2 border rounded bg-light">
+                        <div id="selectedTargetsContainer" class="selected-items-container p-2 border rounded bg-light">
                         </div>
                     </div>
 
@@ -160,7 +163,7 @@
                         </select>
                     </div>
 
-                    <div class="row">
+                    <div class="mb-3 row">
                         <div class="col-md-6">
                             <label for="discountValue" class="form-label">Discount Value</label>
                             <input type="number" class="form-control" id="discountValue" value="66" required>
@@ -282,21 +285,106 @@
         </div>
     </div>
 </div>
+
+
+
+<div class="modal fade" id="selectModal" tabindex="-1" aria-labelledby="selectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="selectModalLabel">Select Items</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center">
+                                    <input type="checkbox" id="selectAll" class="form-check-input">
+                                </th>
+                                <th id="extraColumn">Item Name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSelection">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 <script id="discountConditionsData" type="application/json">
-    {{{json discountConditions}}}
+        {{{json discountConditions}}}
 </script>
 <script>
 
     document.addEventListener("DOMContentLoaded", function () {
+        const discountConditions = JSON.parse(document.getElementById("discountConditionsData").textContent);
+        const selectAllCheckbox = document.getElementById("selectAll");
 
-        document.getElementById("discountForm").addEventListener("submit", function (event) {
+        const appliesToSelect = document.getElementById("appliesTo");
+        const selectTargetBtn = document.getElementById("selectTargetBtn");
+        const targetIdsContainer = document.getElementById("targetIdsContainer");
+        const selectedTargetsContainer = document.getElementById("selectedTargetsContainer");
+
+
+        const discountType = document.getElementById("discountType");
+        const maxDiscountContainer = document.getElementById("maxDiscountContainer");
+
+        function toggleMaxDiscount() {
+            if (discountType.value === "percent" || discountType.value === "freeship") {
+                maxDiscountContainer.classList.remove("d-none");
+            } else {
+                maxDiscountContainer.classList.add("d-none");
+            }
+        }
+
+        toggleMaxDiscount();
+        discountType.addEventListener("change", toggleMaxDiscount);
+
+
+
+
+
+
+
+
+
+
+
+
+        window.editDiscount = function(id) {
+            localStorage.setItem("editDiscountId", id);
+            window.location.href = `discounts/edit/${id}`;
+        }
+
+
+
+
+
+
+
+
+
+
+        document.getElementById("discountForm").addEventListener("submit", async function (event) {
             event.preventDefault();
 
             const formData = {
                 code: document.getElementById("discountCode").value.trim(),
                 applies_to: document.getElementById("appliesTo").value,
-                target_ids: Array.from(document.querySelectorAll("#selectedItemsContainer .selected-item"))
+                target_ids: Array.from(selectedTargetsContainer.querySelectorAll(".selected-target"))
                     .map(item => item.dataset.id),
+
                 type: document.getElementById("discountType").value,
                 value: parseFloat(document.getElementById("discountValue").value) || 0,
                 min_order_value: parseFloat(document.getElementById("minOrderValue").value) || null,
@@ -307,34 +395,344 @@
                     ? parseInt(document.getElementById("usageLimit").value) || -1
                     : -1,
                 stackable: document.getElementById("stackable").checked,
-                conditions: Array.from(document.querySelectorAll("#selectedConditionsContainer .condition-item")).map(cond => {
-                    const key = cond.getAttribute("data-key");
-                    const value = getConditionValue(cond);
-                    return { key, value };
-                }),
+                conditions: getConditions()
             };
 
-            console.log("Collected Discount Data:", formData);
+
+            try {
+                const response = await fetch("discounts/add", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (result.status == 200) {
+                    showToast(result.message, "success");
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showToast(result.message, "error");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Đã xảy ra lỗi! Vui lòng thử lại.");
+            }
+            console.log(formData);
+
         });
         function formatDateToISO(dateString) {
             return dateString ? new Date(dateString).toISOString() : null;
         }
-        function getConditionValue(conditionElement) {
-            const inputs = conditionElement.querySelectorAll(".condition-value");
-            if (inputs.length === 1) {
-                return inputs[0].value;
-            }
-            if (inputs.length === 2) {
-                return { from: inputs[0].value, to: inputs[1].value };
-            }
-            return null;
+
+        function getConditions() {
+            const conditions = [];
+
+            document.querySelectorAll(".condition-item").forEach(condition => {
+                const key = condition.dataset.key;
+                let value;
+
+                // Nếu key là "excluded_categories", lấy danh sách data-id từ .selected-target
+                if (key === "specific_hour_range") {
+                    const fromTime = condition.querySelector("input[name='specific_hour_range_from']").value;
+                    const toTime = condition.querySelector("input[name='specific_hour_range_to']").value;
+
+                    if (fromTime && toTime) {
+                        value = { from: fromTime, to: toTime };
+                    } else {
+                        value = null; // Nếu thiếu một trong hai giá trị thì bỏ qua
+                    }
+                }
+                // Xử lý các trường hợp chứa danh sách ID
+                else if (["excluded_categories", "excluded_products", "excluded_brands", "excluded_users"].includes(key)) {
+                    value = Array.from(condition.querySelectorAll(".selected-target"))
+                        .map(target => target.dataset.id)
+                        .filter(id => id); // Lọc bỏ giá trị null/undefined
+
+                } else {
+                    const input = condition.querySelector(".condition-value");
+                    if (input) {
+                        if (input.tagName === "SELECT") {
+                            value = input.value;
+                        } else if (input.tagName === "INPUT") {
+                            if (input.type === "number") {
+                                value = parseFloat(input.value) || null;
+                            } else if (input.type === "time") {
+                                value = input.value || null;
+                            }
+                        } else if (input.classList.contains("multi-select")) {
+                            value = Array.from(input.selectedOptions).map(option => option.value);
+                        } else if (input.classList.contains("id-value")) {
+                            value = input.dataset.id || input.value.trim();
+                        } else {
+                            value = input.innerText.trim();
+                        }
+                    }
+                }
+
+                if (value !== null && value !== "") {
+                    const conditionType = discountConditions.find(c => c.key === key)?.inputType || typeof value;
+
+                    if (conditionType === "number") {
+                        value = parseFloat(value);
+                    } else if (conditionType === "boolean") {
+                        value = value === "true";
+                    } else if (conditionType === "array" && !Array.isArray(value)) {
+                        value = [value];
+                    } else if (conditionType === "object" && typeof value === "string") {
+                        try {
+                            value = JSON.parse(value);
+                        } catch (e) {
+                            console.warn(`Invalid JSON format for ${key}`);
+                        }
+                    }
+
+                    conditions.push({
+                        condition_key: key,
+                        input_type: conditionType,
+                        value: JSON.stringify(value)
+                    });
+                }
+            });
+
+            return conditions;
         }
 
 
 
 
 
-        const discountConditions = JSON.parse(document.getElementById("discountConditionsData").textContent);
+        //const conditions = {};
+
+        //document.querySelectorAll('.selected-target').forEach(target => {
+        //const key = target.getAttribute('data-key');
+        //const id = target.getAttribute('data-id');
+
+        //if (key) {
+        //if (!conditions[key]) {
+        //conditions[key] = [];
+        //}
+        //conditions[key].push(id);
+        //}
+        //});
+
+
+
+
+
+
+
+
+
+
+        let selectedTargets = {
+            appliesTo: [],
+            product: [],
+            brand: [],
+            category: [],
+            user: []
+        };
+        let currentDataKey = "";
+        let previousType = "";
+        let currentMode = "appliesTo";
+        let currentContainer = selectedTargetsContainer;
+
+        appliesToSelect.addEventListener("change", function () {
+            const value = appliesToSelect.value;
+            if (["product", "category", "brand"].includes(value)) {
+                selectTargetBtn.classList.remove("d-none");
+                targetIdsContainer.classList.remove("d-none");
+
+                if (value !== previousType) {
+                    selectAllCheckbox.checked = false;
+                }
+
+                previousType = value;
+            } else {
+                selectTargetBtn.classList.add("d-none");
+                targetIdsContainer.classList.add("d-none");
+            }
+        });
+
+
+        selectTargetBtn.addEventListener("click", function () {
+            currentContainer = selectedTargetsContainer;
+            currentMode = "appliesTo";
+            fetchTargets(appliesToSelect.value);
+        });
+
+        function openConditionsTargetSelection(conditionType) {
+            currentMode = conditionType;
+            fetchTargets(conditionType);
+        }
+
+
+        document.querySelectorAll(".date-format").forEach(element => {
+            const date = new Date(element.innerText);
+            element.innerText = date.toLocaleDateString("vi-VN");
+        });
+
+        document.querySelectorAll(".status-column").forEach(element => {
+            const startDate = new Date(element.dataset.start);
+            const endDate = new Date(element.dataset.end);
+            const today = new Date();
+
+            let statusText = "Expired";
+            let statusClass = "text-danger";
+
+            if (today >= startDate && today <= endDate) {
+                statusText = "Active";
+                statusClass = "text-success";
+            } else if (today < startDate) {
+                statusText = "Upcoming";
+                statusClass = "text-warning";
+            }
+
+            element.innerHTML = `<span class="${statusClass} fw-bold">${statusText}</span>`;
+        });
+
+        async function fetchTargets(type) {
+            let data = [];
+            try {
+                const urlMap = {
+                    product: "/products/all",
+                    category: "/categories/all",
+                    brand: "/brands/all",
+                    user: "/users/all"
+                };
+                if (urlMap[type]) {
+                    const response = await fetch(urlMap[type]);
+                    data = await response.json();
+                }
+            } catch (error) {
+                console.error(`Error fetching ${type}:`, error);
+                return;
+            }
+            renderTable(data, type);
+        }
+
+        function renderTable(items, type) {
+            const tableBody = document.getElementById("itemsTableBody");
+            tableBody.innerHTML = "";
+
+            const extraColumn = document.getElementById("extraColumn");
+            extraColumn.innerHTML = type === "product" ? "Image" : "Item Name";
+
+
+            items.forEach(item => {
+                //const isChecked = selectedTargets[currentMode].some(selected => selected.id === item._id) ? "checked" : "";
+                if (!Array.isArray(selectedTargets[currentMode])) {
+                    selectedTargets[currentMode] = [];
+                }
+
+                const isChecked = selectedTargets[currentMode].some(selected => selected.id === item._id) ? "checked" : "";
+
+                const imageSrc = type === "user"
+                    ? (item.avatar_url && item.avatar_url.trim().length > 0 ? item.avatar_url : "/images/default_avatar.png")
+                    : item.image;
+
+                const displayName = type === "user" ? item.full_name : item.name;
+
+                const row = document.createElement("tr");
+                row.innerHTML = `
+        <td class="text-center">
+            <input type="checkbox" class="target-checkbox form-check-input"
+                data-id="${item._id}" data-name="${displayName}" data-image="${imageSrc || ''}" ${isChecked}>
+        </td>
+        ${(type === "product" || type === "user")
+                        ? `<td><img src="${imageSrc}" alt="${displayName}" width="50" class="me-2"> ${displayName}</td>`
+                        : `<td>${displayName}</td>`}
+    `;
+
+                tableBody.appendChild(row);
+
+                row.addEventListener("click", function (event) {
+                    if (event.target.tagName !== "INPUT") {
+                        const checkbox = row.querySelector(".target-checkbox");
+                        checkbox.checked = !checkbox.checked;
+                        toggleTargetSelection(checkbox);
+                    }
+                });
+            });
+
+
+            const modal = new bootstrap.Modal(document.getElementById("selectModal"));
+            modal.show();
+        }
+
+        selectAllCheckbox.addEventListener("change", function () {
+            const isChecked = selectAllCheckbox.checked;
+            const allCheckboxes = document.querySelectorAll(".target-checkbox");
+
+            selectedTargets[currentMode] = isChecked
+                ? Array.from(allCheckboxes).map(checkbox => ({
+                    id: checkbox.getAttribute("data-id"),
+                    name: checkbox.getAttribute("data-name"),
+                    image: checkbox.getAttribute("data-image")
+                }))
+                : [];
+
+            allCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+
+            renderSelectedTargets(currentMode);
+        });
+
+        function renderSelectedTargets() {
+            const container = currentContainer;
+            container.innerHTML = "";
+
+            selectedTargets[currentMode].forEach(target => {
+                const targetElement = document.createElement("div");
+                targetElement.classList.add("selected-target", "d-flex", "align-items-center", "mb-2", "p-2", "border", "rounded");
+                targetElement.setAttribute("data-id", target.id);
+                targetElement.setAttribute("data-key", currentDataKey);
+
+                targetElement.innerHTML = `
+                ${target.image ? `<img src="${target.image}" alt="${target.name}" width="40" class="me-2">` : ""}
+                <span class="flex-grow-1 target-name">${target.name}</span>
+                <button class="btn btn-danger btn-sm remove-target" data-id="${target.id}">
+                    <i class="bi bi-trash" style="color: white;"></i>
+                </button>
+            `;
+
+                container.appendChild(targetElement);
+            });
+
+            document.querySelectorAll(".remove-target").forEach(button => {
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const id = this.getAttribute("data-id");
+                    selectedTargets[currentMode] = selectedTargets[currentMode].filter(target => target.id !== id);
+                    renderSelectedTargets(currentMode);
+                });
+            });
+        }
+
+        document.querySelectorAll(".btn-select-condition").forEach(button => {
+            button.addEventListener("click",);
+        });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         const discountConditionsSelect = document.getElementById("discountConditions");
         const conditionsContainer = document.getElementById("conditionsContainer");
         const selectedConditionsContainer = document.getElementById("selectedConditionsContainer");
@@ -368,16 +766,16 @@
             conditionDiv.classList.add("d-flex", "align-items-center", "mb-2", "condition-item");
             conditionDiv.setAttribute("data-key", key);
 
-            const inputField = generateInputField(inputType, key, conditionData.validValues);
+            const inputField = generateInputField(inputType, key, conditionData.validValues, conditionDiv);
 
             conditionDiv.innerHTML = `
-                                        <strong class="me-2 condition-label">${label}:</strong>
-                                        ${inputField}
-                                        
-                                        <button type="button" class="btn btn-sm btn-danger ms-2 remove-condition" data-key="${key}">
-                                            <i class="bi bi-trash-fill text-white"></i>
-                                        </button>
-                                    `;
+                                            <strong class="me-2 condition-label">${label}:</strong>
+                                            ${inputField}
+                                            
+                                            <button type="button" class="btn btn-sm btn-danger ms-2 remove-condition" data-key="${key}">
+                                                <i class="bi bi-trash-fill text-white"></i>
+                                            </button>
+                                        `;
 
             selectedConditionsContainer.appendChild(conditionDiv);
             conditionsContainer.classList.remove("d-none");
@@ -391,13 +789,33 @@
             discountConditionsSelect.selectedIndex = 0;
         });
 
-        function generateInputField(inputType, key, validValues) {
+
+        function generateInputField(inputType, key, validValues, conditionDiv) {
             if (Array.isArray(validValues)) {
                 return `
-                            <select class="form-select condition-value" name="${key}" required>
-                                ${validValues.map(value => `<option value="${value}">${formatLabel(value)}</option>`).join('')}
-                            </select>
-                        `;
+                <select class="form-select condition-value" name="${key}" required>
+                    ${validValues.map(value => `<option value="${value}">${formatLabel(value)}</option>`).join('')}
+                </select>
+            `;
+            }
+
+            if (inputType == "array" && validValues.startsWith("fetch_")) {
+                if (conditionDiv.classList.contains("align-items-center")) {
+                    conditionDiv.classList.remove("align-items-center");
+                    conditionDiv.classList.add("align-items-start");
+                }
+
+                return `
+                <div class="d-flex flex-grow-1 align-items-start">
+                    <div style="min-height: 56px;" class="form-control condition-value text-truncate px-2" name="${key}" id="selected-${validValues.substring(6)}-container"
+                        data-placeholder="Click to select..." contenteditable="false">
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm ms-2 btn-select-condition"
+                        data-key="${key}" data-condition-type="${validValues.substring(6)}">
+                        Select
+                    </button>
+                </div>
+            `;
             }
 
             switch (inputType) {
@@ -405,175 +823,76 @@
                     return `<input type="number" class="form-control condition-value" name="${key}" required>`;
                 case "boolean":
                     return `
-                                <select class="form-select condition-value" name="${key}">
-                                    <option value="true">Yes</option>
-                                    <option value="false">No</option>
-                                </select>
-                            `;
+                    <select class="form-select condition-value" name="${key}">
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                `;
                 case "array":
                     return `<input type="text" class="form-control condition-value" name="${key}" placeholder="Comma-separated values" required>`;
                 case "object":
                     return `
-                                <label class="mx-2">From</label>
-                                <input type="time" class="form-control condition-value" name="${key}_from" required>
-                                <label class="mx-2">To</label>
-                                <input type="time" class="form-control condition-value" name="${key}_to" required>
-                            `;
+                    <label class="mx-2">From</label>
+                    <input type="time" class="form-control condition-value" name="${key}_from" required>
+                    <label class="mx-2">To</label>
+                    <input type="time" class="form-control condition-value" name="${key}_to" required>
+                `;
                 case "string":
                 default:
                     return `<input type="text" class="form-control condition-value" name="${key}" required>`;
             }
         }
 
+        document.addEventListener("click", function (event) {
+            if (event.target.classList.contains("btn-select-condition")) {
+                let conditionType = event.target.getAttribute("data-condition-type");
+                let dataKey = event.target.getAttribute("data-key");
+                currentDataKey = dataKey;
+                currentContainer = document.getElementById(`selected-${conditionType}-container`)
+                openConditionsTargetSelection(conditionType);
+            }
+        });
 
 
+        function toggleTargetSelection(checkbox) {
+            const id = checkbox.getAttribute("data-id");
+            const name = checkbox.getAttribute("data-name");
+            const image = checkbox.getAttribute("data-image");
 
-
-
-
-        testSelectAllConditions();
-
-        function testSelectAllConditions() {
-            const selectElement = document.getElementById("discountConditions");
-            const options = Array.from(selectElement.options);
-
-            let index = 0;
-
-            function addNextCondition() {
-                if (index >= options.length) {
-                    console.log("Tất cả điều kiện đã được thêm.");
-                    return;
+            if (checkbox.checked) {
+                if (!selectedTargets[currentMode].some(target => target.id === id)) {
+                    selectedTargets[currentMode].push({ id, name, image });
                 }
-
-                selectElement.selectedIndex = index; // Chọn option hiện tại
-                selectElement.dispatchEvent(new Event("change")); // Gọi sự kiện change nếu cần
-
-                // addConditionBtn.click(); // Giả lập click nút "Add"
-
-                index++;
-                setTimeout(addNextCondition, 100); // Thêm mỗi điều kiện sau 0.5 giây
+            } else {
+                selectedTargets[currentMode] = selectedTargets[currentMode].filter(target => target.id !== id);
             }
 
-            addNextCondition();
+            renderSelectedTargets();
         }
 
-
-
-
-
-
-
-
-        const discountType = document.getElementById("discountType");
-        const maxDiscountContainer = document.getElementById("maxDiscountContainer");
-
-        discountType.addEventListener("change", function () {
-            if (this.value === "percent") {
-                maxDiscountContainer.classList.remove("d-none");
-            } else {
-                maxDiscountContainer.classList.add("d-none");
+        document.getElementById("confirmSelection").addEventListener("click", function () {
+            let modal = bootstrap.Modal.getInstance(document.getElementById("selectModal"));
+            if (modal) {
+                modal.hide();
             }
         });
-
-
-
-        const hasUsageLimit = document.getElementById("hasUsageLimit");
-        const usageLimitInput = document.getElementById("usageLimit");
-
-        hasUsageLimit.addEventListener("change", function () {
-            if (this.checked) {
-                usageLimitInput.classList.remove("d-none");
-                usageLimitInput.required = true;
-            } else {
-                usageLimitInput.classList.add("d-none");
-                usageLimitInput.required = false;
-                usageLimitInput.value = "";
-            }
-        });
-
-
-
-
-        const appliesToSelect = document.getElementById("appliesTo");
-        const selectTargetBtn = document.getElementById("selectTargetBtn");
-        const targetIdsContainer = document.getElementById("targetIdsContainer");
-        const selectedItemsContainer = document.getElementById("selectedItemsContainer");
-
-        let selectedItems = [];
-
-        appliesToSelect.addEventListener("change", function () {
-            const value = appliesToSelect.value;
-            if (["product", "category", "brand"].includes(value)) {
-                selectTargetBtn.classList.remove("d-none");
-                targetIdsContainer.classList.remove("d-none");
-            } else {
-                selectTargetBtn.classList.add("d-none");
-                targetIdsContainer.classList.add("d-none");
-                selectedItems = [];
-                renderSelectedItems();
-            }
-        });
-
-        selectTargetBtn.addEventListener("click", function () {
-            const selectedNames = prompt("Enter selected item names (comma separated):", "");
-            if (selectedNames) {
-                selectedItems = selectedNames.split(",").map(name => name.trim());
-                renderSelectedItems();
-            }
-        });
-
-        function renderSelectedItems() {
-            selectedItemsContainer.innerHTML = "";
-            selectedItems.forEach((item, index) => {
-                const itemElement = document.createElement("div");
-                itemElement.classList.add("selected-item");
-                itemElement.innerHTML = `
-                <span title="${item}">${item}</span>
-                <span class="remove-item" data-index="${index}">&times;</span>
-            `;
-                selectedItemsContainer.appendChild(itemElement);
-            });
-
-            document.querySelectorAll(".remove-item").forEach(button => {
-                button.addEventListener("click", function () {
-                    const index = this.getAttribute("data-index");
-                    selectedItems.splice(index, 1);
-                    renderSelectedItems();
-                });
-            });
-        }
-
-
-
-
-
-
-
-        document.querySelectorAll(".date-format").forEach(element => {
-            const date = new Date(element.innerText);
-            element.innerText = date.toLocaleDateString("vi-VN");
-        });
-
-        document.querySelectorAll(".status-column").forEach(element => {
-            const startDate = new Date(element.dataset.start);
-            const endDate = new Date(element.dataset.end);
-            const today = new Date();
-
-            let statusText = "Expired";
-            let statusClass = "text-danger";
-
-            if (today >= startDate && today <= endDate) {
-                statusText = "Active";
-                statusClass = "text-success";
-            } else if (today < startDate) {
-                statusText = "Upcoming";
-                statusClass = "text-warning";
-            }
-
-            element.innerHTML = `<span class="${statusClass} fw-bold">${statusText}</span>`;
-        });
-
     });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     function showToast(message, type = "success") {
         const toastElement = document.getElementById("toastMessage");
         const toastBody = document.getElementById("toastBody");
@@ -604,3 +923,50 @@
             .replace(/\b\w/g, char => char.toUpperCase());
     }
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{{!--
+
+
+testSelectAllConditions();
+
+function testSelectAllConditions() {
+const selectElement = document.getElementById("discountConditions");
+const options = Array.from(selectElement.options);
+
+let index = 0;
+
+function addNextCondition() {
+if (index >= options.length) {
+console.log("Tất cả điều kiện đã được thêm.");
+return;
+}
+
+selectElement.selectedIndex = index; // Chọn option hiện tại
+selectElement.dispatchEvent(new Event("change")); // Gọi sự kiện change nếu cần
+
+// addConditionBtn.click(); // Giả lập click nút "Add"
+
+index++;
+setTimeout(addNextCondition, 100); // Thêm mỗi điều kiện sau 0.5 giây
+}
+
+addNextCondition();
+} --}}

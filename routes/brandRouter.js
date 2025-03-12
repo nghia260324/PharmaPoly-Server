@@ -10,6 +10,16 @@ router.get('/', async function (req, res, next) {
     });
 });
 
+router.get('/all', async (req, res) => {
+    try {
+        const brands = await Brands.find();
+        res.json(brands);
+    } catch (error) {
+        res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+    }
+});
+
+
 router.post('/add', async (req, res) => {
     try {
         const data = req.body;

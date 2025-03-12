@@ -1,0 +1,55 @@
+
+
+<div class="container mt-4">
+
+
+
+    {{!-- 
+    Luồng cập nhật: 
+
+    1. Gọi api lấy mã giảm giá (Đã có)
+    2. Đổ data lên form (xem phần tạo mã giảm giá tương tự)
+    3. Viết Api cập nhật dựa vào api add
+    4. Cập nhật xong thì về lại trang mã giảm giá
+    
+    
+     --}}
+
+
+
+
+
+</div>
+
+
+
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const id = localStorage.getItem("editDiscountId");
+
+        if (!id) {
+            console.error("No discount ID found in localStorage!");
+            return;
+        }
+
+        try {
+            const res = await fetch(`/discounts/get/${id}`);
+            const data = await res.json();
+
+            if (res.status !== 200) {
+                console.error("Error fetching discount:", data.message);
+                return;
+            }
+
+            console.log("Discount data:", data.discount);
+
+        } catch (error) {
+            console.error("Fetch error:", error);
+        }
+    });
+
+
+</script>

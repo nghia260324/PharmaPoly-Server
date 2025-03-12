@@ -1322,18 +1322,13 @@ router.get('/category/:id', authenticateToken, async (req, res) => {
 
 
 
-router.get('/category/:id/products',authenticateToken, async (req, res) => {
+router.get('/category/:id/products', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { page = 1, limit = 10 } = req.query;
+        let { page = 1, limit = 10 } = req.query;
 
-        const pageNumber = parseInt(page);
-        const limitNumber = parseInt(limit);
-
-        if (limitNumber > 20) {
-            limitNumber = 20;
-        }
-
+        const pageNumber = parseInt(page) || 1;
+        let limitNumber = Math.min(parseInt(limit) || 10, 20);
         const skip = (pageNumber - 1) * limitNumber;
 
         const products = await Products.find({ category_id: id })
@@ -1375,7 +1370,14 @@ router.get('/category/:id/products',authenticateToken, async (req, res) => {
                 _id: product.product_type_id._id,
                 name: product.product_type_id.name
             } : null,
-            images: [imageMap[product._id]] || null
+            price: product.price,
+            short_description: product.short_description,
+            specification: product.specification,
+            origin_country: product.origin_country,
+            manufacturer: product.manufacturer,
+            average_rating: product.average_rating,
+            review_count: product.review_count,
+            images: imageMap[product._id] ? [imageMap[product._id]] : []
         }));
 
         const totalProducts = await Products.countDocuments({ category_id: id });
@@ -1475,7 +1477,7 @@ router.get('/brand/:id', authenticateToken, async (req, res) => {
 });
 
 
-router.get('/brand/:id/products',authenticateToken, async (req, res) => {
+router.get('/brand/:id/products', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         let { page = 1, limit = 10 } = req.query;

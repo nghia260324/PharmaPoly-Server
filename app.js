@@ -61,7 +61,9 @@ app.use("/product-types", authenticateToken, productTypeRouter);
 app.use("/brands", authenticateToken, brandRouter);
 app.use("/products", authenticateToken, productRouter);
 app.use("/dashboards", authenticateToken, dashboardRouter);
-app.use("/discounts", authenticateToken, discountRouter);
+// app.use("/discounts", authenticateToken, discountRouter);
+app.use("/discounts", discountRouter);
+app.use("/users", authenticateToken, userRouter);
 
 // hbs.registerHelper('formatType', function(type) {
 //   const formattedTypes = {

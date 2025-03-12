@@ -1,0 +1,1100 @@
+{{!-- .selected-item {
+    display: flex;
+    align-items: center;
+    background-color: #e9ecef;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 14px;
+    max-width: 240px;
+    height: 32px;
+    overflow: hidden;
+    } --}}
+    <style>
+        .selected-items-container {
+            gap: 5px;
+            min-height: 56px;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            overflow-y: auto;
+            background-color: #fff;
+        }
+    
+    
+    
+        .selected-item span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    
+        .selected-item .remove-item {
+            flex-shrink: 0;
+            margin-left: 8px;
+            cursor: pointer;
+            color: red;
+            font-weight: bold;
+        }
+    
+        .condition-label {
+            width: 240px;
+            flex-shrink: 0;
+            display: inline-block;
+            white-space: normal;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+    </style>
+    
+    <div class="container mt-4">
+        <div class="brand-header mb-4 p-3 bg-light rounded">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="h5 mb-0"><span data-lang="discounts">Discounts</span></span>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDiscountModal">
+                    <i class="bi bi-plus-circle"></i> <span data-lang="add_new_discount">Add New Discount</span>
+                </button>
+            </div>
+        </div>
+    
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Code</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                    <th>Start Date</th>
+                    <th>Expiry Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="discountTableBody">
+                {{#each discounts}}
+                <tr>
+                    <td>{{addOne @index}}</td>
+                    <td>{{this.code}}</td>
+                    <td>{{#if (eq this.type "percent")}}Percentage{{else}}Fixed Amount{{/if}}</td>
+                    <td>{{#if (eq this.type "percent")}}{{this.value}}%{{else}}{{this.value}} VND{{/if}}</td>
+                    <td class="date-format">{{this.start_date}}</td>
+                    <td class="date-format">{{this.end_date}}</td>
+                    <td class="status-column" data-start="{{this.start_date}}" data-end="{{this.end_date}}"></td>
+                    <td>
+                        {{!-- <button class="btn btn-warning btn-sm"
+                            onclick="editDiscount('{{this._id}}', '{{this.code}}', '{{this.type}}', '{{this.value}}', '{{this.start_date}}', '{{this.end_date}}')">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteDiscount('{{this._id}}')">Delete</button>
+                        --}}
+                        <button class="btn btn-info btn-sm">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-warning btn-sm"
+                            onclick="editDiscount('{{this._id}}', '{{this.code}}', '{{this.type}}', '{{this.value}}', '{{this.start_date}}', '{{this.end_date}}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteDiscount('{{this._id}}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+    
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </div>
+    
+    
+    
+    <div class="modal fade" id="addDiscountModal" tabindex="-1" aria-labelledby="addDiscountModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="addDiscountModalLabel">Create New Discount</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="discountForm">
+    
+                        <!-- Discount Code -->
+                        {{!-- <h6 class="fw-bold border-bottom pb-2">Basic Information</h6> --}}
+                        <div class="mb-3">
+                            <label for="discountCode" class="form-label">Discount Code</label>
+                            <input type="text" class="form-control" id="discountCode" value="DISCOUNT_TEST" required>
+                        </div>
+    
+                        <!-- Applies To -->
+                        <h6 class="fw-bold border-bottom pb-2 mt-3">Applies To</h6>
+                        <div class="mb-3">
+                            <label for="appliesTo" class="form-label">Select Application</label>
+                            <div class="d-flex">
+                                <select class="form-select" id="appliesTo" required>
+                                    {{#each appliesTo}}
+                                    <option value="{{this}}">{{formatDiscountField this "applies_to"}}</option>
+                                    {{/each}}
+                                </select>
+                                <button type="button" id="selectTargetBtn" class="btn btn-primary ms-2 d-none">
+                                    {{!-- <i class="bi bi-search"></i> --}}
+                                    Select
+                                </button>
+                            </div>
+                        </div>
+    
+                        <div class="mb-3 d-none" id="targetIdsContainer">
+                            <label class="form-label">Selected Items</label>
+                            <div id="selectedTargetsContainer" class="selected-items-container p-2 border rounded bg-light">
+                            </div>
+                        </div>
+    
+                        <!-- Discount Details -->
+                        <h6 class="fw-bold border-bottom pb-2 mt-3">Discount Details</h6>
+                        <div class="mb-3">
+                            <label for="discountType" class="form-label">Discount Type</label>
+                            <select class="form-select" id="discountType" required>
+                                {{#each discountTypes}}
+                                <option value="{{this}}">{{formatDiscountField this "type"}}</option>
+                                {{/each}}
+                            </select>
+                        </div>
+    
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="discountValue" class="form-label">Discount Value</label>
+                                <input type="number" class="form-control" id="discountValue" value="66" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="minOrderValue" class="form-label">Minimum Order Value</label>
+                                <input type="number" class="form-control" id="minOrderValue" value="66">
+                            </div>
+                        </div>
+    
+                        <div class="mb-3 d-none" id="maxDiscountContainer">
+                            <label for="maxDiscount" class="form-label">Maximum Discount</label>
+                            <input type="number" class="form-control" id="maxDiscount" value="66">
+                        </div>
+    
+                        <!-- Validity Period -->
+                        <h6 class="fw-bold border-bottom pb-2 mt-3">Validity Period</h6>
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-calendar"></i></span>
+                                    <input type="date" class="form-control" id="startDate" required>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <label for="endDate" class="form-label">End Date</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-calendar"></i></span>
+                                    <input type="date" class="form-control" id="endDate" required>
+                                </div>
+                            </div>
+                        </div>
+    
+                        <!-- Usage Limit -->
+                        <h6 class="fw-bold border-bottom pb-2 mt-3">Usage & Stackability</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Usage Limit</label>
+                            <div class="d-flex align-items-center">
+                                <input class="form-check-input me-2" type="checkbox" id="hasUsageLimit"
+                                    style="margin-top: 0px;">
+                                <label class="form-check-label me-2" for="hasUsageLimit">Set Limit</label>
+                                <input type="number" class="form-control w-50 d-none" id="usageLimit"
+                                    placeholder="Enter limit" value="66">
+                            </div>
+                        </div>
+    
+                        <div class="mb-3">
+                            <label class="form-label">Stackable</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="stackable">
+                                <label class="form-check-label" for="stackable">Can be used with other codes</label>
+                            </div>
+                        </div>
+    
+                        <!-- Discount Conditions -->
+                        <h6 class="fw-bold border-bottom pb-2 mt-3">Discount Conditions</h6>
+                        <div class="mb-3">
+                            <label for="discountConditions" class="form-label">Add Conditions</label>
+                            <div class="d-flex">
+                                <select class="form-select me-2" id="discountConditions">
+                                    {{#each discountConditions}}
+                                    <option value="{{this.key}}" data-input-type="{{this.inputType}}">
+                                        {{this.label}}
+                                    </option>
+                                    {{/each}}
+                                </select>
+                            </div>
+                        </div>
+    
+                        <div class="mb-3 d-none" id="conditionsContainer">
+                            <label class="form-label">Selected Conditions</label>
+                            <div id="selectedConditionsContainer" class="selected-items-container"
+                                style="flex-direction: column;"></div>
+                        </div>
+    
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-primary">Save Discount</button>
+                        </div>
+    
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    
+    
+    <div class="modal fade" id="selectItemModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Select Items</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul id="itemList" class="list-group"></ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="confirmSelectionBtn" class="btn btn-primary">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+            aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastBody">
+                    <!-- Message will be inserted here -->
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+    
+    
+    
+    <div class="modal fade" id="selectModal" tabindex="-1" aria-labelledby="selectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="selectModalLabel">Select Items</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center">
+                                        <input type="checkbox" id="selectAll" class="form-check-input">
+                                    </th>
+                                    <th id="extraColumn">Item Name</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody">
+                                <!-- Data will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmSelection">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    
+    <script id="discountConditionsData" type="application/json">
+        {{{json discountConditions}}}
+    </script>
+    <script>
+    
+        document.addEventListener("DOMContentLoaded", function () {
+    
+            document.getElementById("discountForm").addEventListener("submit", function (event) {
+                event.preventDefault();
+    
+                const formData = {
+                    code: document.getElementById("discountCode").value.trim(),
+                    applies_to: document.getElementById("appliesTo").value,
+                    target_ids: Array.from(document.querySelectorAll(".selected-target"))
+                        .map(item => item.dataset.id),
+    
+                    type: document.getElementById("discountType").value,
+                    value: parseFloat(document.getElementById("discountValue").value) || 0,
+                    min_order_value: parseFloat(document.getElementById("minOrderValue").value) || null,
+                    max_discount: parseFloat(document.getElementById("maxDiscount")?.value) || null,
+                    start_date: formatDateToISO(document.getElementById("startDate").value),
+                    end_date: formatDateToISO(document.getElementById("endDate").value),
+                    usage_limit: document.getElementById("hasUsageLimit").checked
+                        ? parseInt(document.getElementById("usageLimit").value) || -1
+                        : -1,
+                    stackable: document.getElementById("stackable").checked,
+                    conditions: Array.from(document.querySelectorAll("#selectedConditionsContainer .condition-item")).map(cond => {
+                        const key = cond.getAttribute("data-key");
+                        const value = getConditionValue(cond);
+                        return { key, value };
+                    }),
+                };
+    
+                console.log("Collected Discount Data:", formData);
+            });
+            function formatDateToISO(dateString) {
+                return dateString ? new Date(dateString).toISOString() : null;
+            }
+            function getConditionValue(conditionElement) {
+                const inputs = conditionElement.querySelectorAll(".condition-value");
+                if (inputs.length === 1) {
+                    return inputs[0].value;
+                }
+                if (inputs.length === 2) {
+                    return { from: inputs[0].value, to: inputs[1].value };
+                }
+                return null;
+            }
+    
+    
+    
+            testSelectAllConditions();
+    
+            function testSelectAllConditions() {
+                const selectElement = document.getElementById("discountConditions");
+                const options = Array.from(selectElement.options);
+    
+                let index = 0;
+    
+                function addNextCondition() {
+                    if (index >= options.length) {
+                        console.log("Tất cả điều kiện đã được thêm.");
+                        return;
+                    }
+    
+                    selectElement.selectedIndex = index; // Chọn option hiện tại
+                    selectElement.dispatchEvent(new Event("change")); // Gọi sự kiện change nếu cần
+    
+                    // addConditionBtn.click(); // Giả lập click nút "Add"
+    
+                    index++;
+                    setTimeout(addNextCondition, 100); // Thêm mỗi điều kiện sau 0.5 giây
+                }
+    
+                addNextCondition();
+            }
+    
+    
+    
+    
+            const discountConditions = JSON.parse(document.getElementById("discountConditionsData").textContent);
+            const discountConditionsSelect = document.getElementById("discountConditions");
+            const conditionsContainer = document.getElementById("conditionsContainer");
+            const selectedConditionsContainer = document.getElementById("selectedConditionsContainer");
+    
+            discountConditionsSelect.addEventListener("change", function () {
+                const selectedOption = discountConditionsSelect.options[discountConditionsSelect.selectedIndex];
+                const key = selectedOption.value;
+                const label = selectedOption.text;
+                const inputType = selectedOption.dataset.inputType;
+                const conditionData = discountConditions.find(cond => cond.key === key);
+    
+                //Fif (!key || document.querySelector(`.condition-item[data-key="${key}"]`)) {
+                //FshowToast("This condition has already been added.", "warning");
+                //Freturn;
+                //F}
+                const existingCondition = document.querySelector(`.condition-item[data-key="${key}"]`);
+                if (existingCondition) {
+                    showToast("This condition has already been added.", "warning");
+                    existingCondition.scrollIntoView({ behavior: "smooth", block: "center" });
+    
+                    const inputElement = existingCondition.querySelector(".condition-value");
+                    if (inputElement) {
+                        inputElement.focus();
+                    }
+                    return;
+                }
+    
+    
+    
+                const conditionDiv = document.createElement("div");
+                conditionDiv.classList.add("d-flex", "align-items-center", "mb-2", "condition-item");
+                conditionDiv.setAttribute("data-key", key);
+    
+                const inputField = generateInputField(inputType, key, conditionData.validValues);
+    
+                conditionDiv.innerHTML = `
+                                            <strong class="me-2 condition-label">${label}:</strong>
+                                            ${inputField}
+                                            
+                                            <button type="button" class="btn btn-sm btn-danger ms-2 remove-condition" data-key="${key}">
+                                                <i class="bi bi-trash-fill text-white"></i>
+                                            </button>
+                                        `;
+    
+                selectedConditionsContainer.appendChild(conditionDiv);
+                conditionsContainer.classList.remove("d-none");
+    
+                conditionDiv.querySelector(".remove-condition").addEventListener("click", function () {
+                    conditionDiv.remove();
+                    if (!selectedConditionsContainer.children.length) {
+                        conditionsContainer.classList.add("d-none");
+                    }
+                });
+                discountConditionsSelect.selectedIndex = 0;
+            });
+    
+    
+            function generateInputField(inputType, key, validValues) {
+                if (Array.isArray(validValues)) {
+                    return `
+                <select class="form-select condition-value" name="${key}" required>
+                    ${validValues.map(value => `<option value="${value}">${formatLabel(value)}</option>`).join('')}
+                </select>
+            `;
+                }
+    
+                // Nếu key bắt đầu bằng "fetch_", dùng giả textarea + button chọn
+                if (inputType == "array" && validValues.startsWith("fetch_")) {
+                    return `
+                <div class="d-flex flex-grow-1">
+                    <div class="form-control condition-value text-truncate px-2" name="${key}" 
+                        data-placeholder="Click to select..." contenteditable="false">
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm ms-2 btn-select-condition" 
+                        data-key="${key}">
+                        Select
+                    </button>
+                </div>
+            `;
+                }
+    
+                switch (inputType) {
+                    case "number":
+                        return `<input type="number" class="form-control condition-value" name="${key}" required>`;
+                    case "boolean":
+                        return `
+                    <select class="form-select condition-value" name="${key}">
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                `;
+                    case "array":
+                        return `<input type="text" class="form-control condition-value" name="${key}" placeholder="Comma-separated values" required>`;
+                    case "object":
+                        return `
+                    <label class="mx-2">From</label>
+                    <input type="time" class="form-control condition-value" name="${key}_from" required>
+                    <label class="mx-2">To</label>
+                    <input type="time" class="form-control condition-value" name="${key}_to" required>
+                `;
+                    case "string":
+                    default:
+                        return `<input type="text" class="form-control condition-value" name="${key}" required>`;
+                }
+            }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+            const discountType = document.getElementById("discountType");
+            const maxDiscountContainer = document.getElementById("maxDiscountContainer");
+    
+            discountType.addEventListener("change", function () {
+                if (this.value === "percent") {
+                    maxDiscountContainer.classList.remove("d-none");
+                } else {
+                    maxDiscountContainer.classList.add("d-none");
+                }
+            });
+    
+    
+    
+            const hasUsageLimit = document.getElementById("hasUsageLimit");
+            const usageLimitInput = document.getElementById("usageLimit");
+    
+            hasUsageLimit.addEventListener("change", function () {
+                if (this.checked) {
+                    usageLimitInput.classList.remove("d-none");
+                    usageLimitInput.required = true;
+                } else {
+                    usageLimitInput.classList.add("d-none");
+                    usageLimitInput.required = false;
+                    usageLimitInput.value = "";
+                }
+            });
+    
+    
+    
+    
+    
+            const appliesToSelect = document.getElementById("appliesTo");
+            const selectTargetBtn = document.getElementById("selectTargetBtn");
+            const targetIdsContainer = document.getElementById("targetIdsContainer");
+            const selectedTargetsContainer = document.getElementById("selectedTargetsContainer");
+    
+            // Đối tượng lưu trữ mục tiêu đã chọn cho Applies To và Conditions
+            let selectedTargets = {
+                appliesTo: [],
+                conditions: []
+            };
+            let previousType = "";
+            let currentMode = "appliesTo"; // Mặc định là Applies To
+    
+            // Khi chọn Applies To
+            appliesToSelect.addEventListener("change", function () {
+                const value = appliesToSelect.value;
+                if (["product", "category", "brand"].includes(value)) {
+                    selectTargetBtn.classList.remove("d-none");
+                    targetIdsContainer.classList.remove("d-none");
+    
+                    if (value !== previousType) {
+                        selectedTargets.appliesTo = []; // Reset khi thay đổi loại mục tiêu
+                        selectAllCheckbox.checked = false;
+                        renderSelectedTargets("appliesTo");
+                    }
+    
+                    previousType = value;
+                } else {
+                    selectTargetBtn.classList.add("d-none");
+                    targetIdsContainer.classList.add("d-none");
+                }
+            });
+    
+            // Mở modal chọn mục tiêu (dùng chung cho Applies To và Conditions)
+            selectTargetBtn.addEventListener("click", function () {
+                currentMode = "appliesTo"; // Đang chọn cho Applies To
+                fetchTargets(appliesToSelect.value);
+            });
+    
+            // Hàm mở modal cho Conditions (gọi khi thêm điều kiện)
+            function openConditionsTargetSelection(conditionType) {
+                currentMode = "conditions"; // Đang chọn cho Conditions
+                fetchTargets(conditionType); // Lấy danh sách mục tiêu tương ứng
+            }
+    
+            // Fetch danh sách mục tiêu từ API
+            async function fetchTargets(type) {
+                let data = [];
+                try {
+                    const urlMap = {
+                        product: "/products/all",
+                        category: "/categories/all",
+                        brand: "/brands/all"
+                    };
+                    if (urlMap[type]) {
+                        const response = await fetch(urlMap[type]);
+                        data = await response.json();
+                    }
+                } catch (error) {
+                    console.error(`Error fetching ${type}:`, error);
+                    return;
+                }
+                renderTable(data, type);
+            }
+    
+            // Chọn tất cả mục tiêu
+            const selectAllCheckbox = document.getElementById("selectAll");
+            selectAllCheckbox.addEventListener("change", function () {
+                const isChecked = selectAllCheckbox.checked;
+                const allCheckboxes = document.querySelectorAll(".target-checkbox");
+    
+                selectedTargets[currentMode] = isChecked
+                    ? Array.from(allCheckboxes).map(checkbox => ({
+                        id: checkbox.getAttribute("data-id"),
+                        name: checkbox.getAttribute("data-name"),
+                        image: checkbox.getAttribute("data-image")
+                    }))
+                    : [];
+    
+                allCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+    
+                renderSelectedTargets(currentMode);
+            });
+    
+            // Render bảng mục tiêu
+            function renderTable(items, type) {
+                const tableBody = document.getElementById("itemsTableBody");
+                tableBody.innerHTML = "";
+    
+                const extraColumn = document.getElementById("extraColumn");
+                extraColumn.innerHTML = type === "product" ? "Image" : "Item Name";
+    
+                items.forEach(item => {
+                    const isChecked = selectedTargets[currentMode].some(selected => selected.id === item._id) ? "checked" : "";
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                <td class="text-center">
+                    <input type="checkbox" class="target-checkbox form-check-input"
+                        data-id="${item._id}" data-name="${item.name}" data-image="${item.image || ''}" ${isChecked}>
+                </td>
+                ${type === "product"
+                            ? `<td><img src="${item.image}" alt="${item.name}" width="50" class="me-2"> ${item.name}</td>`
+                            : `<td>${item.name}</td>`
+                        }
+            `;
+    
+                    tableBody.appendChild(row);
+    
+                    // Khi click vào hàng, toggle checkbox
+                    row.addEventListener("click", function (event) {
+                        if (event.target.tagName !== "INPUT") {
+                            const checkbox = row.querySelector(".target-checkbox");
+                            checkbox.checked = !checkbox.checked;
+                            toggleTargetSelection(checkbox);
+                        }
+                    });
+                });
+    
+                // Hiển thị modal
+                const modal = new bootstrap.Modal(document.getElementById("selectModal"));
+                modal.show();
+            }
+    
+            // Xử lý chọn/bỏ chọn mục tiêu
+            // Xử lý chọn/bỏ chọn mục tiêu
+            function toggleTargetSelection(checkbox) {
+                const id = checkbox.getAttribute("data-id");
+                const name = checkbox.getAttribute("data-name");
+                const image = checkbox.getAttribute("data-image");
+    
+                if (checkbox.checked) {
+                    // Nếu chưa có trong danh sách, thêm vào
+                    if (!selectedTargets[currentMode].some(target => target.id === id)) {
+                        selectedTargets[currentMode].push({ id, name, image });
+                    }
+                } else {
+                    // Nếu checkbox bị bỏ chọn, xóa khỏi danh sách
+                    selectedTargets[currentMode] = selectedTargets[currentMode].filter(target => target.id !== id);
+                }
+    
+                renderSelectedTargets(currentMode);
+            }
+    
+    
+            // Xác nhận lựa chọn
+            document.getElementById("confirmSelection").addEventListener("click", function () {
+                let modal = bootstrap.Modal.getInstance(document.getElementById("selectModal"));
+                if (modal) {
+                    modal.hide();
+                }
+            });
+    
+            // Hiển thị danh sách mục tiêu đã chọn
+            function renderSelectedTargets(mode, ct) {
+                const container = mode === "appliesTo" ? selectedTargetsContainer : ct;
+                container.innerHTML = "";
+    
+                selectedTargets[mode].forEach(target => {
+                    const targetElement = document.createElement("div");
+                    targetElement.classList.add("selected-target", "d-flex", "align-items-center", "mb-2", "p-2", "border", "rounded");
+                    targetElement.setAttribute("data-id", target.id);
+    
+                    targetElement.innerHTML = `
+                ${target.image ? `<img src="${target.image}" alt="${target.name}" width="40" class="me-2">` : ""}
+                <span class="flex-grow-1">${target.name}</span>
+                <button class="btn btn-danger btn-sm remove-target" data-id="${target.id}">
+                    <i class="bi bi-trash" style="color: white;"></i>
+                </button>
+            `;
+    
+                    container.appendChild(targetElement);
+                });
+    
+                document.querySelectorAll(".remove-target").forEach(button => {
+                    button.addEventListener("click", function () {
+                        const id = this.getAttribute("data-id");
+                        selectedTargets[mode] = selectedTargets[mode].filter(target => target.id !== id);
+                        renderSelectedTargets(mode);
+                    });
+                });
+            }
+    
+            document.querySelectorAll(".btn-select-condition").forEach(button => {
+                button.addEventListener("click",);
+            });
+    
+    
+    
+    
+    
+    
+    
+            document.querySelectorAll(".date-format").forEach(element => {
+                const date = new Date(element.innerText);
+                element.innerText = date.toLocaleDateString("vi-VN");
+            });
+    
+            document.querySelectorAll(".status-column").forEach(element => {
+                const startDate = new Date(element.dataset.start);
+                const endDate = new Date(element.dataset.end);
+                const today = new Date();
+    
+                let statusText = "Expired";
+                let statusClass = "text-danger";
+    
+                if (today >= startDate && today <= endDate) {
+                    statusText = "Active";
+                    statusClass = "text-success";
+                } else if (today < startDate) {
+                    statusText = "Upcoming";
+                    statusClass = "text-warning";
+                }
+    
+                element.innerHTML = `<span class="${statusClass} fw-bold">${statusText}</span>`;
+            });
+    
+        });
+        function showToast(message, type = "success") {
+            const toastElement = document.getElementById("toastMessage");
+            const toastBody = document.getElementById("toastBody");
+    
+            toastBody.textContent = message;
+    
+            toastElement.classList.remove("bg-success", "bg-danger", "bg-warning", "bg-info");
+            switch (type) {
+                case "error":
+                    toastElement.classList.add("bg-danger");
+                    break;
+                case "warning":
+                    toastElement.classList.add("bg-warning");
+                    break;
+                case "info":
+                    toastElement.classList.add("bg-info");
+                    break;
+                default:
+                    toastElement.classList.add("bg-success");
+            }
+    
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+        }
+        function formatLabel(value) {
+            return value
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, char => char.toUpperCase());
+        }
+    </script>
+    
+    
+    {{!--
+    function generateInputField(inputType, key, validValues) {
+    if (Array.isArray(validValues)) {
+    return `
+    <select class="form-select condition-value" name="${key}" required>
+        ${validValues.map(value => `<option value="${value}">${formatLabel(value)}</option>`).join('')}
+    </select>
+    `;
+    }
+    
+    switch (inputType) {
+    case "number":
+    return `<input type="number" class="form-control condition-value" name="${key}" required>`;
+    case "boolean":
+    return `
+    <select class="form-select condition-value" name="${key}">
+        <option value="true">Yes</option>
+        <option value="false">No</option>
+    </select>
+    `;
+    case "array":
+    return `<input type="text" class="form-control condition-value" name="${key}" placeholder="Comma-separated values"
+        required>`;
+    case "object":
+    return `
+    <label class="mx-2">From</label>
+    <input type="time" class="form-control condition-value" name="${key}_from" required>
+    <label class="mx-2">To</label>
+    <input type="time" class="form-control condition-value" name="${key}_to" required>
+    `;
+    case "string":
+    default:
+    return `<input type="text" class="form-control condition-value" name="${key}" required>`;
+    }
+    }
+    
+    
+    --}}
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    {{!--
+    const appliesToSelect = document.getElementById("appliesTo");
+    const selectTargetBtn = document.getElementById("selectTargetBtn");
+    const targetIdsContainer = document.getElementById("targetIdsContainer");
+    const selectedTargetsContainer = document.getElementById("selectedTargetsContainer");
+    
+    let selectedTargets = [];
+    let previousType = "";
+    
+    appliesToSelect.addEventListener("change", function () {
+    const value = appliesToSelect.value;
+    if (["product", "category", "brand"].includes(value)) {
+    selectTargetBtn.classList.remove("d-none");
+    targetIdsContainer.classList.remove("d-none");
+    if (value !== previousType) {
+    selectedTargets = [];
+    selectAllCheckbox.checked = false;
+    renderSelectedTargets();
+    }
+    previousType = value;
+    } else {
+    selectTargetBtn.classList.add("d-none");
+    targetIdsContainer.classList.add("d-none");
+    }
+    });
+    
+    // Mở modal chọn mục tiêu
+    selectTargetBtn.addEventListener("click", function () {
+    const type = appliesToSelect.value;
+    fetchTargets(type);
+    });
+    
+    // Fetch danh sách mục tiêu từ API
+    async function fetchTargets(type) {
+    let data = [];
+    
+    try {
+    if (type === "product") {
+    const response = await fetch("/products/all");
+    data = await response.json();
+    } else if (type === "category") {
+    const response = await fetch("/categories/all");
+    data = await response.json();
+    } else if (type === "brand") {
+    const response = await fetch("/brands/all");
+    data = await response.json();
+    }
+    } catch (error) {
+    console.error(`Error fetching ${type}:`, error);
+    return;
+    }
+    
+    renderTable(data, type);
+    }
+    const selectAllCheckbox = document.getElementById("selectAll");
+    
+    selectAllCheckbox.addEventListener("change", function () {
+    const isChecked = selectAllCheckbox.checked;
+    const allCheckboxes = document.querySelectorAll(".target-checkbox");
+    
+    selectedTargets = isChecked
+    ? Array.from(allCheckboxes).map(checkbox => ({
+    id: checkbox.getAttribute("data-id"),
+    name: checkbox.getAttribute("data-name"),
+    image: checkbox.getAttribute("data-image")
+    }))
+    : [];
+    
+    allCheckboxes.forEach(checkbox => {
+    checkbox.checked = isChecked;
+    });
+    
+    renderSelectedTargets();
+    });
+    
+    function renderTable(items, type) {
+    const tableBody = document.getElementById("itemsTableBody");
+    tableBody.innerHTML = "";
+    
+    const extraColumn = document.getElementById("extraColumn");
+    extraColumn.innerHTML = type === "product" ? "Image" : "Item Name";
+    
+    items.forEach(item => {
+    const isChecked = selectedTargets.some(selected => selected.id === item._id) ? "checked" : "";
+    const row = document.createElement("tr");
+    row.innerHTML = `
+    <td class="text-center">
+        <input type="checkbox" class="target-checkbox form-check-input" data-id="${item._id}" data-name="${item.name}"
+            data-image="${item.image || ''}" ${isChecked}>
+    </td>
+    ${type === "product"
+    ? `<td><img src="${item.image}" alt="${item.name}" width="50" class="me-2"> ${item.name}</td>`
+    : `<td>${item.name}</td>`
+    }
+    `;
+    
+    tableBody.appendChild(row);
+    
+    // Khi click vào hàng, toggle checkbox
+    row.addEventListener("click", function (event) {
+    if (event.target.tagName !== "INPUT") {
+    const checkbox = row.querySelector(".target-checkbox");
+    checkbox.checked = !checkbox.checked;
+    toggleTargetSelection(checkbox);
+    }
+    });
+    });
+    
+    // Hiển thị modal
+    const modal = new bootstrap.Modal(document.getElementById("selectModal"));
+    modal.show();
+    }
+    
+    // Xử lý chọn/bỏ chọn mục tiêu
+    function toggleTargetSelection(checkbox) {
+    const id = checkbox.getAttribute("data-id");
+    const name = checkbox.getAttribute("data-name");
+    const image = checkbox.getAttribute("data-image");
+    
+    if (checkbox.checked) {
+    if (!selectedTargets.some(target => target.id === id)) {
+    selectedTargets.push({ id, name, image });
+    }
+    } else {
+    selectedTargets = selectedTargets.filter(target => target.id !== id);
+    }
+    renderSelectedTargets();
+    }
+    
+    // Xác nhận lựa chọn
+    document.getElementById("confirmSelection").addEventListener("click", function () {
+    //renderSelectedTargets();
+    let modal = bootstrap.Modal.getInstance(document.getElementById("selectModal"));
+    if (modal) {
+    modal.hide();
+    }
+    });
+    
+    // Hiển thị danh sách mục tiêu đã chọn
+    function renderSelectedTargets() {
+    selectedTargetsContainer.innerHTML = "";
+    
+    selectedTargets.forEach(target => {
+    const targetElement = document.createElement("div");
+    targetElement.classList.add("selected-target", "d-flex", "align-items-center", "mb-2", "p-2", "border", "rounded");
+    targetElement.setAttribute("data-id", target.id);
+    
+    targetElement.innerHTML = `
+    ${target.image ? `<img src="${target.image}" alt="${target.name}" width="40" class="me-2">` : ""}
+    <span class="flex-grow-1">${target.name}</span>
+    <button class="btn btn-danger btn-sm remove-target" data-id="${target.id}">
+        <i class="bi bi-trash" style="color: white;"></i>
+    </button>
+    `;
+    
+    selectedTargetsContainer.appendChild(targetElement);
+    });
+    
+    document.querySelectorAll(".remove-target").forEach(button => {
+    button.addEventListener("click", function () {
+    const id = this.getAttribute("data-id");
+    selectedTargets = selectedTargets.filter(target => target.id !== id);
+    renderSelectedTargets();
+    });
+    });
+    }
+    --}}
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    {{!--
+    const appliesToSelect = document.getElementById("appliesTo");
+    const selectTargetBtn = document.getElementById("selectTargetBtn");
+    const targetIdsContainer = document.getElementById("targetIdsContainer");
+    const selectedItemsContainer = document.getElementById("selectedItemsContainer");
+    
+    let selectedItems = [];
+    
+    appliesToSelect.addEventListener("change", function () {
+    const value = appliesToSelect.value;
+    if (["product", "category", "brand"].includes(value)) {
+    selectTargetBtn.classList.remove("d-none");
+    targetIdsContainer.classList.remove("d-none");
+    } else {
+    selectTargetBtn.classList.add("d-none");
+    targetIdsContainer.classList.add("d-none");
+    selectedItems = [];
+    renderSelectedItems();
+    }
+    });
+    
+    
+    selectTargetBtn.addEventListener("click", function () {
+    const selectedNames = prompt("Enter selected item names (comma separated):", "");
+    if (selectedNames) {
+    selectedItems = selectedNames.split(",").map(name => name.trim());
+    renderSelectedItems();
+    }
+    });
+    
+    function renderSelectedItems() {
+    selectedItemsContainer.innerHTML = "";
+    selectedItems.forEach((item, index) => {
+    const itemElement = document.createElement("div");
+    itemElement.classList.add("selected-item");
+    itemElement.innerHTML = `
+    <span title="${item}">${item}</span>
+    <span class="remove-item" data-index="${index}">&times;</span>
+    `;
+    selectedItemsContainer.appendChild(itemElement);
+    });
+    
+    document.querySelectorAll(".remove-item").forEach(button => {
+    button.addEventListener("click", function () {
+    const index = this.getAttribute("data-index");
+    selectedItems.splice(index, 1);
+    renderSelectedItems();
+    });
+    });
+    } --}}
