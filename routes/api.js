@@ -175,7 +175,6 @@ router.post('/user/create-account', async (req, res) => {
     }
 });
 
-// Đăng nhập
 router.post('/user/login', async (req, res) => {
     try {
         const { phone_number, password } = req.body;
@@ -400,11 +399,10 @@ router.post('/refresh-token', async (req, res) => {
 });
 
 
-// Lấy danh sách item trong giỏ hàng
 router.get('/user/cart', authenticateToken, async (req, res) => {
     try {
-        const { user_id } = req.body;
-
+        const user_id = req.user_id;
+        console.log(user_id)
         let cart = await Carts.findOne({ user_id });
         if (!cart) {
             return res.status(404).json({ status: 404, message: 'Cart not found' });
