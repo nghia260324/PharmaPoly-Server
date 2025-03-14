@@ -27,6 +27,8 @@ const Answers = require('../models/answers');
 const CartItems = require('../models/cartItems');
 const Carts = require('../models/carts');
 const upload = require('../config/common/upload');
+const { removeDiacritics } = require('../utils/textUtils');
+
 
 const MAX_QUANTITY_PER_PRODUCT = 10;
 
@@ -362,6 +364,41 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
 
 
 // Làm mới token
+// router.post('/refresh-token', async (req, res) => {
+//     const { refreshToken } = req.body;
+
+//     if (!refreshToken) {
+//         return res.status(400).json({
+//             status: 400,
+//             message: 'Refresh token is required!'
+//         });
+//     }
+
+//     try {
+//         const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+//         const user = await Users.findById(decoded.uid);
+//         if (!user || user.refreshToken !== refreshToken) {
+//             return res.status(403).json({
+//                 status: 403,
+//                 message: 'Invalid refresh token!'
+//             });
+//         }
+
+//         const newAccessToken = jwt.sign(
+//             { uid: user._id, phone_number: user.phone_number },
+//             process.env.JWT_SECRET,
+//             { expiresIn: '1h' }
+//         );
+
+//         res.json({
+//             status: 200,
+//             message: 'Access token refreshed!',
+//             data: { newAccessToken }
+//         });
+//     } catch (err) {
+//         return res.status(403).json({ message: 'Invalid refresh token!' });
+//     }
+// });
 router.post('/refresh-token', async (req, res) => {
     const { refreshToken } = req.body;
 
@@ -374,7 +411,8 @@ router.post('/refresh-token', async (req, res) => {
 
     try {
         const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-        const user = await Users.findById(decoded.uid);
+        const user = await Users.findById(decoded._id);
+
         if (!user || user.refreshToken !== refreshToken) {
             return res.status(403).json({
                 status: 403,
@@ -383,26 +421,35 @@ router.post('/refresh-token', async (req, res) => {
         }
 
         const newAccessToken = jwt.sign(
-            { uid: user._id, phone_number: user.phone_number },
+            { _id: user._id, phone_number: user.phone_number },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
+        const userObj = user.toObject();
+        delete userObj.password;
+
         res.json({
             status: 200,
             message: 'Access token refreshed!',
-            data: { accessToken: newAccessToken }
+            data: userObj,
+            token: newAccessToken,
+            refreshToken: refreshToken
         });
+
     } catch (err) {
-        return res.status(403).json({ message: 'Invalid refresh token!' });
+        return res.status(403).json({
+            status: 403,
+            message: 'Invalid refresh token!'
+        });
     }
 });
+
 
 
 router.get('/user/cart', authenticateToken, async (req, res) => {
     try {
         const user_id = req.user_id;
-        console.log(user_id)
         let cart = await Carts.findOne({ user_id });
         if (!cart) {
             return res.status(404).json({ status: 404, message: 'Cart not found' });
@@ -542,7 +589,6 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
 // });
 
 
-// Top sản phẩm được đánh giá cao nhất
 // Top sản phẩm được đánh giá cao nhất
 router.get('/product/top-rated', authenticateToken, async (req, res) => {
     try {
@@ -2361,6 +2407,243 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
+
+
+
+
+router.get('/search', authenticateToken, async (req, res) => {
+    try {
+        let { keyword, page = 1, limit = 10, order = 'asc' } = req.query;
+
+        if (!keyword) {
+            return res.status(400).json({
+                status: 400,
+                message: 'Missing required field: keyword'
+            });
+        }
+
+        const pageNumber = parseInt(page);
+        let limitNumber = parseInt(limit);
+        if (limitNumber > 20) limitNumber = 20;
+        const skip = (pageNumber - 1) * limitNumber;
+
+        const normalizedKeyword = removeDiacritics(keyword);
+        const words = normalizedKeyword.trim().split(/\s+/);
+
+        let products = await Products.find()
+            .populate('category_id', '_id name')
+            .populate('brand_id', '_id name description')
+            .populate('product_type_id', '_id name')
+            .lean();
+
+        let categories = await Categories.find().lean();
+        let brands = await Brands.find().lean();
+
+        let filteredProducts = products.filter(product => {
+            const normalizedName = removeDiacritics(product.name);
+            return words.every(word => normalizedName.includes(word));
+        });
+
+        let filteredCategories = categories.filter(category => {
+            const normalizedCategoryName = removeDiacritics(category.name);
+            return words.every(word => normalizedCategoryName.includes(word));
+        }).slice(0, 5);
+
+        let filteredBrands = brands.filter(brand => {
+            const normalizedBrandName = removeDiacritics(brand.name);
+            return words.every(word => normalizedBrandName.includes(word));
+        }).slice(0, 5);
+
+        const sortOrder = order === 'desc' ? -1 : 1;
+        filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
+
+        const totalProducts = filteredProducts.length;
+        const totalPages = Math.ceil(totalProducts / limitNumber);
+        const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Search completed successfully!',
+            data: {
+                products: {
+                    currentPage: pageNumber,
+                    totalPages,
+                    totalProducts,
+                    hasNextPage: pageNumber < totalPages,
+                    hasPrevPage: pageNumber > 1,
+                    data: paginatedProducts
+                },
+                categories: filteredCategories,
+                brands: filteredBrands
+            }
+        });
+
+    } catch (error) {
+        console.error("Search error:", error);
+        return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+    }
+});
+// router.get('/search', async (req, res) => {
+//     try {
+//         let { keyword, page = 1, limit = 10 } = req.query;
+
+//         if (!keyword) {
+//             return res.status(400).json({
+//                 status: 400,
+//                 message: 'Missing required field: keyword'
+//             });
+//         }
+
+//         const pageNumber = parseInt(page);
+//         let limitNumber = parseInt(limit);
+//         if (limitNumber > 20) limitNumber = 20;
+
+//         const skip = (pageNumber - 1) * limitNumber;
+
+//         const normalizedKeyword = removeDiacritics(keyword);
+//         const words = normalizedKeyword.trim().split(/\s+/);
+
+//        const products = await Products.find()
+//             .populate('category_id', '_id name')
+//             .populate('brand_id', '_id name description')
+//             .populate('product_type_id', '_id name')
+//             .lean();
+
+//         const filteredProducts = products.filter(product => {
+//             const normalizedName = removeDiacritics(product.name);
+//             return words.every(word => normalizedName.includes(word));
+//         });
+
+//         const totalProducts = filteredProducts.length;
+//         const totalPages = Math.ceil(totalProducts / limitNumber);
+//         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
+
+//         const productIds = paginatedProducts.map(p => p._id);
+//         const primaryImages = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         }).lean();
+
+//         const imageMap = primaryImages.reduce((acc, img) => {
+//             acc[img.product_id] = img;
+//             return acc;
+//         }, {});
+
+//         const formattedProducts = paginatedProducts.map(product => ({
+//             _id: product._id,
+//             name: product.name,
+//             description: product.description,
+//             price: product.price,
+//             average_rating: product.average_rating,
+//             category_id: product.category_id._id,
+//             brand_id: product.brand_id._id,
+//             product_type_id: product.product_type_id._id,
+//             category: product.category_id,
+//             brand: product.brand_id,
+//             product_type: product.product_type_id,
+//             images: imageMap[product._id] ? [imageMap[product._id]] : [],
+//             create_at: product.createdAt,
+//             update_at: product.updatedAt
+//         }));
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Search completed successfully!',
+//             data: {
+//                 currentPage: pageNumber,
+//                 totalPages,
+//                 totalProducts,
+//                 hasNextPage: pageNumber < totalPages,
+//                 hasPrevPage: pageNumber > 1,
+//                 data: formattedProducts
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Search error:", error);
+//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+//     }
+// });
+
+
+
+// router.get('/search', async (req, res) => {
+//     try {
+//         let { keyword, page = 1, limit = 10, order = 'asc' } = req.query;
+
+//         if (!keyword) {
+//             return res.status(400).json({
+//                 status: 400,
+//                 message: 'Missing required field: keyword'
+//             });
+//         }
+
+//         const pageNumber = parseInt(page);
+//         let limitNumber = parseInt(limit);
+//         if (limitNumber > 20) limitNumber = 20;
+//         const skip = (pageNumber - 1) * limitNumber;
+
+//         const normalizedKeyword = removeDiacritics(keyword);
+//         const words = normalizedKeyword.trim().split(/\s+/);
+
+//         let products = await Products.find()
+//             .populate('category_id', '_id name')
+//             .populate('brand_id', '_id name description')
+//             .populate('product_type_id', '_id name')
+//             .lean();
+
+//         let filteredProducts = products.filter(product => {
+//             const normalizedName = removeDiacritics(product.name);
+//             return words.every(word => normalizedName.includes(word));
+//         });
+
+//         const sortOrder = order === 'desc' ? -1 : 1;
+//         filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
+
+//         const totalProducts = filteredProducts.length;
+//         const totalPages = Math.ceil(totalProducts / limitNumber);
+//         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
+
+//         const categories = await Categories.find({
+//             name: { $regex: new RegExp(normalizedKeyword, 'i') }
+//         }).limit(5).lean();
+
+//         const brands = await Brands.find({
+//             name: { $regex: new RegExp(normalizedKeyword, 'i') }
+//         }).limit(5).lean();
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Search completed successfully!',
+//             data: {
+//                 products: {
+//                     currentPage: pageNumber,
+//                     totalPages,
+//                     totalProducts,
+//                     hasNextPage: pageNumber < totalPages,
+//                     hasPrevPage: pageNumber > 1,
+//                     data: paginatedProducts
+//                 },
+//                 categories,
+//                 brands
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Search error:", error);
+//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+//     }
+// });
+
+
+
+
+
+
+
+
+
+
 
 
 module.exports = router;
