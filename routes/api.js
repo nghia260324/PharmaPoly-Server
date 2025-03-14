@@ -411,13 +411,10 @@ router.post('/refresh-token', async (req, res) => {
 
     try {
         const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-        const user = await Users.findById(decoded._id);
 
-        if (!user || user.refreshToken !== refreshToken) {
-            return res.status(403).json({
-                status: 403,
-                message: 'Invalid refresh token!'
-            });
+        const user = await Users.findById(decoded._id);
+        if (!user) {
+            return res.status(404).json({ status: 404, message: 'User not found!' });
         }
 
         const newAccessToken = jwt.sign(
@@ -438,8 +435,8 @@ router.post('/refresh-token', async (req, res) => {
         });
 
     } catch (err) {
-        return res.status(403).json({
-            status: 403,
+        return res.status(500).json({
+            status: 500,
             message: 'Invalid refresh token!'
         });
     }
