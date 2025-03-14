@@ -2355,9 +2355,65 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
     }
 });
 
+
+// router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
+//     try {
+//         const userId = req.user_id;
+//         const cart_item_id = req.query.cart_item_id;
+
+//         if (!cart_item_id) {
+//             return res.status(400).json({
+//                 status: 400,
+//                 message: 'Missing required field: cart_item_id'
+//             });
+//         }
+
+//         let cartItem = await CartItems.findById(cart_item_id);
+//         if (!cartItem) {
+//             return res.status(404).json({ status: 404, message: 'Cart item not found' });
+//         }
+
+//         await CartItems.findByIdAndDelete(cart_item_id);
+
+
+//         const cart = await Carts.findOne({ _id: cartItem.cart_id, user_id: userId }); // ✅ Đảm bảo chỉ xóa giỏ hàng của chính user
+//         if (!cart) {
+//             return res.status(404).json({ status: 404, message: 'Cart not found or access denied' });
+//         }
+
+
+//         const cartItems = await CartItems.find({ cart_id: cart._id });
+
+//         if (cartItems.length === 0) {
+//             await Carts.findByIdAndDelete(cart._id);
+//             return res.status(200).json({
+//                 status: 200,
+//                 message: 'Cart item removed, cart deleted as it was empty',
+//                 data: null
+//             });
+//         }
+//         cart.total_price = cartItems.reduce((sum, item) => sum + item.total_price, 0);
+//         cart.total_items = cartItems.length;
+
+//         await cart.save();
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Cart item removed successfully!',
+//             data: cart
+//         });
+
+//     } catch (error) {
+//         console.error("Error:", error);
+//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+//     }
+// });
+
+
 router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
     try {
-        const cart_item_id = req.query.cart_item_id;
+        const { cart_item_id } = req.query;
+        const userId = req.user_id;
 
         if (!cart_item_id) {
             return res.status(400).json({
@@ -2366,32 +2422,36 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
             });
         }
 
-        let cartItem = await CartItems.findById(cart_item_id);
+        const cartItem = await CartItems.findById(cart_item_id);
         if (!cartItem) {
             return res.status(404).json({ status: 404, message: 'Cart item not found' });
         }
 
-        let cart = await Carts.findById(cartItem.cart_id);
-        if (!cart) {
-            return res.status(404).json({ status: 404, message: 'Cart not found' });
-        }
-
         await CartItems.findByIdAndDelete(cart_item_id);
 
-        const cartItems = await CartItems.find({ cart_id: cart._id });
+        const cartItems = await CartItems.find({ cart_id: cartItem.cart_id });
 
         if (cartItems.length === 0) {
-            await Carts.findByIdAndDelete(cart._id);
+            await Carts.findByIdAndDelete(cartItem.cart_id);
             return res.status(200).json({
                 status: 200,
                 message: 'Cart item removed, cart deleted as it was empty',
                 data: null
             });
         }
-        cart.total_price = cartItems.reduce((sum, item) => sum + item.total_price, 0);
-        cart.total_items = cartItems.length;
 
-        await cart.save();
+        const cart = await Carts.findOneAndUpdate(
+            { _id: cartItem.cart_id, user_id: userId },
+            {
+                total_price: cartItems.reduce((sum, item) => sum + item.total_price, 0),
+                total_items: cartItems.length
+            },
+            { new: true }
+        );
+
+        if (!cart) {
+            return res.status(404).json({ status: 404, message: 'Cart not found or access denied' });
+        }
 
         return res.status(200).json({
             status: 200,
