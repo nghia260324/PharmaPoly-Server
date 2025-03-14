@@ -36,7 +36,7 @@ function authenticateToken(req, res, next) {
     // if (process.env.NODE_ENV === 'development') {
     //     return next();
     // }
-    // return next();
+    return next();
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) {
         return res.status(401).json({
@@ -2357,7 +2357,7 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
 
 router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
     try {
-        const { cart_item_id } = req.body;
+        const cart_item_id = req.query.cart_item_id;
 
         if (!cart_item_id) {
             return res.status(400).json({
@@ -2385,7 +2385,7 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
             return res.status(200).json({
                 status: 200,
                 message: 'Cart item removed, cart deleted as it was empty',
-                data: { cart: null }
+                data: null
             });
         }
         cart.total_price = cartItems.reduce((sum, item) => sum + item.total_price, 0);
