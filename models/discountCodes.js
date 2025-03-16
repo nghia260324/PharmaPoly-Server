@@ -11,7 +11,7 @@ const DiscountCodes = new Schema({
     target_ids: [{ type: Schema.Types.ObjectId, refPath: 'applies_to' }],
     type: { 
         type: String, 
-        enum: ["percent", "fixed", "freeship"], 
+        enum: ["percent", "fixed", "free_shipping"], 
         required: true 
     },
     value: { type: Number, required: true },

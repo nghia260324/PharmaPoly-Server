@@ -108,7 +108,7 @@ hbs.registerHelper("addOne", function (value) {
   return value + 1;
 });
 hbs.registerHelper("json", function (context) {
-    return JSON.stringify(context);
+  return JSON.stringify(context);
 });
 
 
