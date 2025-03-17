@@ -2290,7 +2290,7 @@ router.post('/answer/create', authenticateToken, async (req, res) => {
 router.post('/cart-item/add', authenticateToken, async (req, res) => {
     try {
         const user_id = req.user_id;
-        const product_id = req.body;
+        const product_id = req.body.product_id;
         const quantity = parseInt(req.body.quantity, 10);
         if (!user_id || !product_id || !quantity || quantity < 1) {
             return res.status(400).json({
