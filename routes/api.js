@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const { encrypt } = require('../utils/crypto');
 
 const { checkPhoneVerification, checkUidAndPhoneNumber } = require('../utils/checkPhoneVerification');
+const { bucket } = require("../firebase/firebaseAdmin");
 
 const Users = require('../models/users');
 const Products = require('../models/products');
@@ -300,7 +301,7 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
     try {
         const { full_name, date_of_birth, gender, shipping_phone_number } = req.body;
         const file = req.file;
-
+        console.log(file);
         const user = await Users.findById(req.user_id);
         if (!user) {
             return res.status(404).json({ status: 404, message: "User not found!" });
@@ -314,14 +315,37 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
 
         if (file) {
             if (user.avatar_url) {
-                const oldImagePath = path.join(__dirname, '../public', user.avatar_url);
-                fs.unlink(oldImagePath, (err) => {
-                    if (err && err.code !== 'ENOENT') {
-                        console.error('Error deleting old avatar:', err);
+                const oldImagePath = user.avatar_url.replace(`https://storage.googleapis.com/${bucket.name}/`, '');
+                const oldFile = bucket.file(oldImagePath);
+
+                try {
+                    await oldFile.delete();
+                    console.log("Old avatar deleted successfully");
+                } catch (error) {
+                    if (error.code !== 404) {
+                        console.error("Error deleting old avatar:", error);
                     }
-                });
+                }
             }
-            updateData.avatar_url = `/uploads/${file.filename}`;
+
+            const fileName = `User_Avatars/${Date.now()}-${file.originalname}`;
+            const fileUpload = bucket.file(fileName);
+
+            const stream = fileUpload.createWriteStream({
+                metadata: { contentType: file.mimetype }
+            });
+
+            stream.end(file.buffer);
+
+            await new Promise((resolve, reject) => {
+                stream.on("finish", resolve);
+                stream.on("error", reject);
+            });
+
+            await fileUpload.makePublic();
+            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+            updateData.avatar_url = publicUrl;
         }
 
         const updatedUser = await Users.findByIdAndUpdate(
@@ -2469,7 +2493,7 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
         const userId = req.user_id;
 
         if (!cart_item_id) {
-            return res.status(400).json({status: 400,message: 'Missing required field: cart_item_id'});
+            return res.status(400).json({ status: 400, message: 'Missing required field: cart_item_id' });
         }
 
         const cartItem = await CartItems.findById(cart_item_id);
