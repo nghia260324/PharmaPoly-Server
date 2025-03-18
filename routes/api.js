@@ -235,9 +235,70 @@ router.post('/user/login', async (req, res) => {
 });
 
 // Cập nhật thông tin cá nhân
+// router.put('/user/update-profile', authenticateToken, upload.single('avatar'), async (req, res) => {
+//     try {
+//         const { full_name, date_of_birth, gender, address } = req.body;
+//         const file = req.file;
+
+//         const user = await Users.findById(req.user_id);
+//         if (!user) {
+//             return res.status(404).json({ status: 404, message: "User not found!" });
+//         }
+
+//         let updateData = {};
+//         if (full_name !== undefined) updateData.full_name = full_name;
+//         if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
+//         if (gender !== undefined) updateData.gender = gender;
+//         if (address !== undefined) updateData.address = address;
+
+//         if (file) {
+//             if (user.avatar_url) {
+//                 const oldImagePath = path.join(__dirname, '../public', user.avatar_url);
+//                 fs.unlink(oldImagePath, (err) => {
+//                     if (err && err.code !== 'ENOENT') {
+//                         console.error('Error deleting old avatar:', err);
+//                     }
+//                 });
+//             }
+//             updateData.avatar_url = `/uploads/${file.filename}`;
+//         }
+
+//         const updatedUser = await Users.findByIdAndUpdate(
+//             { _id: req.user_id },
+//             { $set: updateData },
+//             { new: true }
+//         );
+
+//         const formattedUser = {
+//             ...updatedUser.toObject()
+//         };
+
+//         delete formattedUser.__v;
+//         delete formattedUser.password;
+
+//         res.status(200).json({
+//             status: 200,
+//             message: "Profile updated successfully!",
+//             data: formattedUser
+//         });
+
+//     } catch (error) {
+//         console.error("Error updating profile:", error);
+//         if (req.file) {
+//             fs.unlink(req.file.path, (err) => {
+//                 if (err) {
+//                     console.error('Error:', err);
+//                 }
+//             });
+//         }
+//         res.status(500).json({ status: 500, message: "Internal server error", error: error.message });
+//     }
+// });
+
+
 router.put('/user/update-profile', authenticateToken, upload.single('avatar'), async (req, res) => {
     try {
-        const { full_name, date_of_birth, gender, address } = req.body;
+        const { full_name, date_of_birth, gender, shipping_phone_number } = req.body;
         const file = req.file;
 
         const user = await Users.findById(req.user_id);
@@ -249,7 +310,7 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
         if (full_name !== undefined) updateData.full_name = full_name;
         if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
         if (gender !== undefined) updateData.gender = gender;
-        if (address !== undefined) updateData.address = address;
+        if (shipping_phone_number !== undefined) updateData.shipping_phone_number = shipping_phone_number;
 
         if (file) {
             if (user.avatar_url) {
@@ -270,15 +331,11 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
         );
 
         const formattedUser = {
-            ...updatedUser.toObject(),
-            created_at: updatedUser.createdAt,
-            updated_at: updatedUser.updatedAt
+            ...updatedUser.toObject()
         };
 
         delete formattedUser.__v;
         delete formattedUser.password;
-        delete formattedUser.createdAt;
-        delete formattedUser.updatedAt;
 
         res.status(200).json({
             status: 200,
@@ -298,6 +355,11 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
         res.status(500).json({ status: 500, message: "Internal server error", error: error.message });
     }
 });
+
+
+
+
+
 
 // Đổi mật khẩu
 router.put('/user/change-password', authenticateToken, async (req, res) => {
