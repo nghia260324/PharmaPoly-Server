@@ -2890,6 +2890,9 @@ router.get('/search', authenticateToken, async (req, res) => {
         const formattedProducts = filteredProducts.map(product => ({
             _id: product._id,
             name: product.name,
+            category_id: product.category_id ? product.category_id._id : null,
+            brand_id: product.brand_id ? product.brand_id._id : null,
+            product_type_id: product.product_type_id ? product.product_type_id._id : null,
             category: product.category_id ? {
                 _id: product.category_id._id,
                 name: product.category_id.name
