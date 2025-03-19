@@ -2648,6 +2648,81 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
 
 
 
+// router.get('/search', authenticateToken, async (req, res) => {
+//     try {
+//         let { keyword, page = 1, limit = 10, order = 'asc' } = req.query;
+
+//         if (!keyword) {
+//             return res.status(400).json({
+//                 status: 400,
+//                 message: 'Missing required field: keyword'
+//             });
+//         }
+
+//         const pageNumber = parseInt(page);
+//         let limitNumber = parseInt(limit);
+//         if (limitNumber > 20) limitNumber = 20;
+//         const skip = (pageNumber - 1) * limitNumber;
+
+//         const normalizedKeyword = removeDiacritics(keyword);
+//         const words = normalizedKeyword.trim().split(/\s+/);
+
+//         let products = await Products.find()
+//             .populate('category_id', '_id name')
+//             .populate('brand_id', '_id name description')
+//             .populate('product_type_id', '_id name')
+//             .lean();
+
+//         let categories = await Categories.find().lean();
+//         let brands = await Brands.find().lean();
+
+//         let filteredProducts = products.filter(product => {
+//             const normalizedName = removeDiacritics(product.name);
+//             return words.every(word => normalizedName.includes(word));
+//         });
+
+//         let filteredCategories = categories.filter(category => {
+//             const normalizedCategoryName = removeDiacritics(category.name);
+//             return words.every(word => normalizedCategoryName.includes(word));
+//         }).slice(0, 5);
+
+//         let filteredBrands = brands.filter(brand => {
+//             const normalizedBrandName = removeDiacritics(brand.name);
+//             return words.every(word => normalizedBrandName.includes(word));
+//         }).slice(0, 5);
+
+//         const sortOrder = order === 'desc' ? -1 : 1;
+//         filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
+
+//         const totalProducts = filteredProducts.length;
+//         const totalPages = Math.ceil(totalProducts / limitNumber);
+//         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Search completed successfully!',
+//             data: {
+//                 products: {
+//                     currentPage: pageNumber,
+//                     totalPages,
+//                     totalProducts,
+//                     hasNextPage: pageNumber < totalPages,
+//                     hasPrevPage: pageNumber > 1,
+//                     data: paginatedProducts
+//                 },
+//                 categories: filteredCategories,
+//                 brands: filteredBrands
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Search error:", error);
+//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+//     }
+// });
+
+
+
 router.get('/search', authenticateToken, async (req, res) => {
     try {
         let { keyword, page = 1, limit = 10, order = 'asc' } = req.query;
@@ -2659,18 +2734,17 @@ router.get('/search', authenticateToken, async (req, res) => {
             });
         }
 
-        const pageNumber = parseInt(page);
-        let limitNumber = parseInt(limit);
-        if (limitNumber > 20) limitNumber = 20;
+        const pageNumber = parseInt(page) || 1;
+        let limitNumber = Math.min(parseInt(limit) || 10, 20);
         const skip = (pageNumber - 1) * limitNumber;
 
         const normalizedKeyword = removeDiacritics(keyword);
         const words = normalizedKeyword.trim().split(/\s+/);
 
         let products = await Products.find()
-            .populate('category_id', '_id name')
-            .populate('brand_id', '_id name description')
-            .populate('product_type_id', '_id name')
+            .populate({ path: 'category_id', select: '_id name' })
+            .populate({ path: 'brand_id', select: '_id name description' })
+            .populate({ path: 'product_type_id', select: '_id name' })
             .lean();
 
         let categories = await Categories.find().lean();
@@ -2698,6 +2772,44 @@ router.get('/search', authenticateToken, async (req, res) => {
         const totalPages = Math.ceil(totalProducts / limitNumber);
         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
 
+        const productIds = paginatedProducts.map(product => product._id);
+
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIds },
+            is_primary: true
+        });
+
+        const imageMap = primaryImages.reduce((acc, img) => {
+            acc[img.product_id] = img;
+            return acc;
+        }, {});
+
+        const formattedProducts = paginatedProducts.map(product => ({
+            _id: product._id,
+            name: product.name,
+            category_id: product.category_id ? product.category_id._id : null,
+            brand_id: product.brand_id ? product.brand_id._id : null,
+            product_type_id: product.product_type_id ? product.product_type_id._id : null,
+            category: product.category_id ? {
+                _id: product.category_id._id,
+                name: product.category_id.name
+            } : null,
+            brand: product.brand_id ? {
+                _id: product.brand_id._id,
+                name: product.brand_id.name,
+                description: product.brand_id.description
+            } : null,
+            product_type: product.product_type_id ? {
+                _id: product.product_type_id._id,
+                name: product.product_type_id.name
+            } : null,
+            price: product.price,
+            short_description: product.short_description,
+            average_rating: product.average_rating,
+            review_count: product.review_count,
+            images: imageMap[product._id] ? [imageMap[product._id]] : []
+        }));
+
         return res.status(200).json({
             status: 200,
             message: 'Search completed successfully!',
@@ -2708,7 +2820,7 @@ router.get('/search', authenticateToken, async (req, res) => {
                     totalProducts,
                     hasNextPage: pageNumber < totalPages,
                     hasPrevPage: pageNumber > 1,
-                    data: paginatedProducts
+                    data: formattedProducts
                 },
                 categories: filteredCategories,
                 brands: filteredBrands
@@ -2720,6 +2832,18 @@ router.get('/search', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
 // router.get('/search', async (req, res) => {
 //     try {
 //         let { keyword, page = 1, limit = 10 } = req.query;
