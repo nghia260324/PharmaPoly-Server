@@ -27,6 +27,9 @@ const Questions = require('../models/questions');
 const Answers = require('../models/answers');
 const CartItems = require('../models/cartItems');
 const Carts = require('../models/carts');
+const DiscountCodes = require('../models/discountCodes');
+const DiscountConditions = require('../models/discountConditions');
+
 const upload = require('../config/common/upload');
 const { removeDiacritics } = require('../utils/textUtils');
 
@@ -301,7 +304,6 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
     try {
         const { full_name, date_of_birth, gender, shipping_phone_number } = req.body;
         const file = req.file;
-        console.log(file);
         const user = await Users.findById(req.user_id);
         if (!user) {
             return res.status(404).json({ status: 404, message: "User not found!" });
@@ -309,7 +311,7 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
 
         let updateData = {};
         if (full_name !== undefined) updateData.full_name = full_name;
-        if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
+        if (date_of_birth !== undefined)  updateData.date_of_birth = new Date(date_of_birth);
         if (gender !== undefined) updateData.gender = gender;
         if (shipping_phone_number !== undefined) updateData.shipping_phone_number = shipping_phone_number;
 
@@ -320,7 +322,6 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
 
                 try {
                     await oldFile.delete();
-                    console.log("Old avatar deleted successfully");
                 } catch (error) {
                     if (error.code !== 404) {
                         console.error("Error deleting old avatar:", error);
@@ -673,6 +674,7 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
 
 
 // Top sản phẩm được đánh giá cao nhất
+
 router.get('/product/top-rated', authenticateToken, async (req, res) => {
     try {
         let { page = 1, limit = 10 } = req.query;
@@ -2934,6 +2936,630 @@ router.get('/search', authenticateToken, async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+// router.get('/products/discounted', async (req, res) => {
+//     try {
+//         let { page = 1, limit = 10 } = req.query;
+
+//         const pageNumber = parseInt(page);
+//         let limitNumber = parseInt(limit);
+//         if (limitNumber > 20) {
+//             limitNumber = 20;
+//         }
+//         const skip = (pageNumber - 1) * limitNumber;
+//         const now = new Date();
+
+//         const discounts = await DiscountCodes.find({
+//             status: 1,
+//             start_date: { $lte: now },
+//             end_date: { $gte: now },
+//             applies_to: { $in: ["all", "product", "category", "brand"] }
+//         }).lean();
+//         if (!discounts.length) {
+//             return res.status(200).json({
+//                 status: 200,
+//                 message: 'No discounted products available!',
+//                 data: {
+//                     currentPage: pageNumber,
+//                     totalPages: 0,
+//                     totalProducts: 0,
+//                     hasNextPage: false,
+//                     hasPrevPage: false,
+//                     data: []
+//                 }
+//             });
+//         }
+//         let discountedProductIds = new Set();
+//         let discountedCategoryIds = new Set();
+//         let discountedBrandIds = new Set();
+//         let appliesToAll = false;
+//         const discountMap = {};
+
+//         discounts.forEach(discount => {
+//             if (discount.applies_to === "all") {
+//                 appliesToAll = true;
+//             }
+//             if (discount.applies_to === "product") {
+//                 discount.target_ids.forEach(id => {
+//                     discountedProductIds.add(id.toString());
+//                     if (!discountMap[id]) discountMap[id] = [];
+//                     discountMap[id].push(discount);
+//                 });
+//             }
+//             if (discount.applies_to === "category") {
+//                 discount.target_ids.forEach(id => discountedCategoryIds.add(id.toString()));
+//             }
+//             if (discount.applies_to === "brand") {
+//                 discount.target_ids.forEach(id => discountedBrandIds.add(id.toString()));
+//             }
+//         });
+
+//         let productFilter = {};
+//         if (!appliesToAll) {
+//             productFilter = {
+//                 $or: [
+//                     { _id: { $in: Array.from(discountedProductIds) } },
+//                     { category_id: { $in: Array.from(discountedCategoryIds) } },
+//                     { brand_id: { $in: Array.from(discountedBrandIds) } }
+//                 ]
+//             };
+//         }
+
+//         const products = await Products.find(productFilter)
+//             .sort({ createdAt: -1 })
+//             .skip(skip)
+//             .limit(limitNumber)
+//             .populate('category_id', '_id name')
+//             .populate('brand_id', '_id name description')
+//             .populate('product_type_id', '_id name')
+//             .lean();
+
+
+//         const totalProducts = await Products.countDocuments({
+//             $or: [
+//                 { _id: { $in: Array.from(discountedProductIds) } },
+//                 { category_id: { $in: Array.from(discountedCategoryIds) } },
+//                 { brand_id: { $in: Array.from(discountedBrandIds) } }
+//             ]
+//         });
+
+//         const totalPages = Math.ceil(totalProducts / limitNumber);
+
+//         const productIds = products.map(p => p._id);
+//         const primaryImages = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         }).lean();
+
+//         const imageMap = primaryImages.reduce((acc, img) => {
+//             acc[img.product_id] = img;
+//             return acc;
+//         }, {});
+
+//         const formattedProducts = products.map(product => {
+//             let discountAmount = 0;
+//             let applicableDiscounts = discountMap[product._id] || [];
+
+//             applicableDiscounts.forEach(discount => {
+//                 if (discount.discount_type === "percentage") {
+//                     discountAmount = Math.max(discountAmount, product.price * (discount.discount_value / 100));
+//                 } else if (discount.discount_type === "fixed") {
+//                     discountAmount = Math.max(discountAmount, discount.discount_value);
+//                 }
+//             });
+
+//             const discountedPrice = Math.max(0, product.price - discountAmount);
+
+//             return {
+//                 _id: product._id,
+//                 name: product.name,
+//                 description: product.description,
+//                 price: product.price,
+//                 discounted_price: discountedPrice,
+//                 average_rating: product.average_rating,
+//                 category_id: product.category_id._id,
+//                 brand_id: product.brand_id._id,
+//                 product_type_id: product.product_type_id._id,
+//                 category: product.category_id,
+//                 brand: product.brand_id,
+//                 product_type: product.product_type_id,
+//                 images: imageMap[product._id] ? [imageMap[product._id]] : [],
+//                 create_at: product.create_at,
+//                 update_at: product.updated_at
+//             };
+//         });
+
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Get Discounted Products Success!',
+//             data: {
+//                 currentPage: pageNumber,
+//                 totalPages,
+//                 totalProducts,
+//                 hasNextPage: pageNumber < totalPages,
+//                 hasPrevPage: pageNumber > 1,
+//                 data: formattedProducts
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Error fetching discounted products:", error);
+//         return res.status(500).json({ status: 500, message: "Internal Server Error" });
+//     }
+// });
+
+
+
+// router.get('/products/discounted', async (req, res) => {
+//     try {
+//         let { page = 1, limit = 10 } = req.query;
+
+//         const pageNumber = parseInt(page);
+//         let limitNumber = parseInt(limit);
+//         if (limitNumber > 20) {
+//             limitNumber = 20;
+//         }
+//         const skip = (pageNumber - 1) * limitNumber;
+//         const now = new Date();
+
+//         // Lấy danh sách mã giảm giá hợp lệ
+//         const discounts = await DiscountCodes.find({
+//             status: 1,
+//             start_date: { $lte: now },
+//             end_date: { $gte: now },
+//             applies_to: { $in: ["all", "product", "category", "brand"] }
+//         }).lean();
+
+//         if (!discounts.length) {
+//             return res.status(200).json({
+//                 status: 200,
+//                 message: 'No discounted products available!',
+//                 data: {
+//                     currentPage: pageNumber,
+//                     totalPages: 0,
+//                     totalProducts: 0,
+//                     hasNextPage: false,
+//                     hasPrevPage: false,
+//                     data: []
+//                 }
+//             });
+//         }
+
+//         let discountedProductIds = new Set();
+//         let discountedCategoryIds = new Set();
+//         let discountedBrandIds = new Set();
+//         let appliesToAll = false;
+
+//         let discountMap = {};
+
+//         discounts.forEach(discount => {
+//             if (discount.applies_to === "all") {
+//                 if (!discountMap["all"]) {
+//                     discountMap["all"] = [];
+//                 }
+//                 discountMap["all"].push(discount);
+//             } else {
+//                 discount.target_ids.forEach(productId => {
+//                     if (!discountMap[productId]) {
+//                         discountMap[productId] = [];
+//                     }
+//                     discountMap[productId].push(discount);
+//                 });
+//             }
+//         });
+
+
+//         let productFilter = {};
+//         if (!appliesToAll) {
+//             productFilter = {
+//                 $or: [
+//                     { _id: { $in: Array.from(discountedProductIds) } },
+//                     { category_id: { $in: Array.from(discountedCategoryIds) } },
+//                     { brand_id: { $in: Array.from(discountedBrandIds) } }
+//                 ]
+//             };
+//         }
+
+//         const products = await Products.find(productFilter)
+//             .sort({ createdAt: -1 })
+//             .skip(skip)
+//             .limit(limitNumber)
+//             .populate('category_id', '_id name')
+//             .populate('brand_id', '_id name description')
+//             .populate('product_type_id', '_id name')
+//             .lean();
+
+//         const totalProducts = await Products.countDocuments(productFilter);
+//         const totalPages = Math.ceil(totalProducts / limitNumber);
+
+//         const productIds = products.map(p => p._id);
+//         const primaryImages = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         }).lean();
+
+//         const imageMap = primaryImages.reduce((acc, img) => {
+//             acc[img.product_id] = img;
+//             return acc;
+//         }, {});
+
+//         const formattedProducts = products.map(product => {
+//             let discountAmount = 0;
+//             let applicableDiscounts = discountMap[product._id] || [];
+
+//             applicableDiscounts.forEach(discount => {
+//                 if (discount.type === "percent") {
+//                     let percentDiscount = product.price * (discount.value / 100);
+//                     if (discount.max_discount !== null) {
+//                         percentDiscount = Math.min(percentDiscount, discount.max_discount);
+//                     }
+//                     discountAmount = Math.max(discountAmount, percentDiscount);
+//                 } else if (discount.type === "fixed") {
+//                     discountAmount = Math.max(discountAmount, discount.value);
+//                 }
+//             });
+
+//             const discountedPrice = Math.max(0, product.price - discountAmount);
+
+//             return {
+//                 _id: product._id,
+//                 name: product.name,
+//                 description: product.description,
+//                 price: product.price,
+//                 discounted_price: discountedPrice,
+//                 average_rating: product.average_rating,
+//                 category_id: product.category_id._id,
+//                 brand_id: product.brand_id._id,
+//                 product_type_id: product.product_type_id._id,
+//                 category: product.category_id,
+//                 brand: product.brand_id,
+//                 product_type: product.product_type_id,
+//                 images: imageMap[product._id] ? [imageMap[product._id]] : [],
+//                 create_at: product.create_at,
+//                 update_at: product.updated_at
+//             };
+//         });
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Get Discounted Products Success!',
+//             data: {
+//                 currentPage: pageNumber,
+//                 totalPages,
+//                 totalProducts,
+//                 hasNextPage: pageNumber < totalPages,
+//                 hasPrevPage: pageNumber > 1,
+//                 data: formattedProducts
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Error fetching discounted products:", error);
+//         return res.status(500).json({ status: 500, message: "Internal Server Error" });
+//     }
+// });
+
+
+
+
+router.get("/products/discounted", async (req, res) => {
+    try {
+        let { page = 1, limit = 10 } = req.query;
+        const pageNumber = parseInt(page);
+        let limitNumber = parseInt(limit);
+        if (limitNumber > 20) limitNumber = 20;
+        const skip = (pageNumber - 1) * limitNumber;
+
+        const activeDiscounts = await DiscountCodes.find({
+            start_date: { $lte: new Date() },
+            end_date: { $gte: new Date() },
+        }).lean();
+
+        const productIds = new Set();
+        const categoryIds = new Set();
+        const brandIds = new Set();
+
+        activeDiscounts.forEach(discount => {
+            if (discount.applies_to === "product") {
+                discount.target_ids.forEach(id => productIds.add(id.toString()));
+            }
+            if (discount.applies_to === "category") {
+                discount.target_ids.forEach(id => categoryIds.add(id.toString()));
+            }
+            if (discount.applies_to === "brand") {
+                discount.target_ids.forEach(id => brandIds.add(id.toString()));
+            }
+            if (discount.applies_to === "all") {
+                productIds.clear();
+                categoryIds.clear();
+                brandIds.clear();
+            }
+        });
+
+        // Lọc sản phẩm theo danh sách target_ids
+        let productFilter = {};
+        if (productIds.size) {
+            productFilter._id = { $in: [...productIds] };
+        }
+        if (categoryIds.size) {
+            productFilter.category_id = { $in: [...categoryIds] };
+        }
+        if (brandIds.size) {
+            productFilter.brand_id = { $in: [...brandIds] };
+        }
+
+        // Lấy sản phẩm được giảm giá
+        const products = await Products.find(productFilter)
+            .sort({ updatedAt: -1 })
+            .skip(skip)
+            .limit(limitNumber)
+            .populate("category_id", "_id name")
+            .populate("brand_id", "_id name description")
+            .populate("product_type_id", "_id name")
+            .lean();
+
+        const totalProducts = await Products.countDocuments(productFilter);
+        const totalPages = Math.ceil(totalProducts / limitNumber);
+
+        // Lấy ảnh chính của từng sản phẩm
+        const productIdsArray = products.map(p => p._id);
+        const primaryImages = await ProductImages.find({
+            product_id: { $in: productIdsArray },
+            is_primary: true
+        }).lean();
+
+        const imageMap = primaryImages.reduce((acc, img) => {
+            acc[img.product_id] = img;
+            return acc;
+        }, {});
+
+        // Kiểm tra điều kiện giảm giá (DISCOUNT_CONDITIONS)
+        const validProducts = [];
+        for (const product of products) {
+            const discount = activeDiscounts.find(d =>
+                d.applies_to === "all" ||
+                (d.applies_to === "product" && productIds.has(product._id.toString())) ||
+                (d.applies_to === "category" && categoryIds.has(product.category_id.toString())) ||
+                (d.applies_to === "brand" && brandIds.has(product.brand_id.toString()))
+            );
+
+            if (!discount) continue;
+
+            const conditions = await DiscountConditions.find({ discount_id: discount._id }).lean();
+            let isValid = true;
+
+            for (const condition of conditions) {
+                if (condition.key === "excluded_products" && condition.value.includes(product._id.toString())) {
+                    isValid = false;
+                    break;
+                }
+                if (condition.key === "excluded_categories" && condition.value.includes(product.category_id.toString())) {
+                    isValid = false;
+                    break;
+                }
+                if (condition.key === "excluded_brands" && condition.value.includes(product.brand_id.toString())) {
+                    isValid = false;
+                    break;
+                }
+                if (condition.key === "day_of_week") {
+                    const today = new Date().toLocaleString("en-US", { weekday: "long" }).toLowerCase();
+                    if (!condition.value.includes(today)) {
+                        isValid = false;
+                        break;
+                    }
+                }
+                if (condition.key === "specific_hour_range") {
+                    const now = new Date();
+                    const currentHour = now.getHours();
+                    const fromHour = parseInt(condition.value.from.split(":")[0], 10);
+                    const toHour = parseInt(condition.value.to.split(":")[0], 10);
+                    if (currentHour < fromHour || currentHour >= toHour) {
+                        isValid = false;
+                        break;
+                    }
+                }
+            }
+
+            if (isValid) {
+
+                let discountedPrice = product.price;
+                
+                if (discount && typeof product.price === "number") {
+                    if (discount.type === "percent" && typeof discount.value === "number") {
+                        discountedPrice = product.price * (1 - discount.value / 100);
+                    } else if (discount.type === "fixed" && typeof discount.value === "number") {
+                        discountedPrice = Math.max(0, product.price - discount.value);
+                    }
+                }
+
+
+                discountedPrice = Math.round(discountedPrice);
+                
+
+                let usageLeft = null;
+                if (discount.max_usage) {
+                    const usageCount = await DiscountUsage.countDocuments({ discount_id: discount._id });
+                    usageLeft = Math.max(0, discount.max_usage - usageCount);
+                }
+
+                validProducts.push({
+                    _id: product._id,
+                    name: product.name,
+                    description: product.description,
+                    price: product.price,
+                    discounted_price: discountedPrice,
+                    discount_code: {
+                        _id: discount._id,
+                        code: discount.code,
+                        type: discount.type,
+                        value: discount.value,
+                        applies_to: discount.applies_to,
+                        start_date: discount.start_date,
+                        end_date: discount.end_date,
+                        usage_limit: discount.usage_limit || null,
+                    },
+                    average_rating: product.average_rating,
+                    category_id: product.category_id._id,
+                    brand_id: product.brand_id._id,
+                    product_type_id: product.product_type_id._id,
+                    category: product.category_id,
+                    brand: product.brand_id,
+                    product_type: product.product_type_id,
+                    images: imageMap[product._id] ? [imageMap[product._id]] : []
+                });
+            }
+        }
+
+        return res.status(200).json({
+            status: 200,
+            message: "Get Discounted Products Success!",
+            data: {
+                currentPage: pageNumber,
+                totalPages,
+                totalProducts: validProducts.length,
+                hasNextPage: pageNumber < totalPages,
+                hasPrevPage: pageNumber > 1,
+                data: validProducts
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching discounted products:", error);
+        return res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+});
+
+
+
+async function getApplicableDiscounts(product_id) {
+    try {
+        // Lấy tất cả các mã giảm giá còn hiệu lực
+        const activeDiscounts = await DiscountCode.find({
+            start_date: { $lte: new Date() }, // Đã bắt đầu
+            end_date: { $gte: new Date() },   // Chưa hết hạn
+            is_active: true,                 // Đang hoạt động
+        });
+
+        // Lấy danh sách điều kiện áp dụng liên quan đến các mã giảm giá này
+        const discountIds = activeDiscounts.map(d => d._id);
+        const discountConditions = await DiscountCondition.find({
+            discount_id: { $in: discountIds }
+        });
+
+        // Lọc các mã giảm giá phù hợp với product_id
+        const applicableDiscounts = activeDiscounts.filter(discount => {
+            const conditions = discountConditions.filter(dc => dc.discount_id.equals(discount._id));
+
+            return conditions.some(condition => {
+                if (condition.type === "PRODUCT" && condition.value.toString() === product_id) {
+                    return true;
+                }
+                if (condition.type === "CATEGORY" || condition.type === "BRAND") {
+                    // Kiểm tra nếu sản phẩm thuộc danh mục hoặc thương hiệu được giảm
+                    return checkProductCondition(product_id, condition);
+                }
+                return false;
+            });
+        });
+
+        return applicableDiscounts;
+    } catch (error) {
+        console.error("Error fetching applicable discounts:", error);
+        return [];
+    }
+}
+
+async function checkProductCondition(product_id, condition) {
+    const Product = require("../models/Product");
+    const product = await Product.findById(product_id);
+
+    if (!product) return false;
+
+    if (condition.type === "CATEGORY") {
+        return product.category_id.equals(condition.value);
+    }
+    if (condition.type === "BRAND") {
+        return product.brand_id.equals(condition.value);
+    }
+
+    return false;
+}
+
+
+
+
+
+async function checkProductDiscount(product, user_id) {
+    const now = new Date();
+    const discounts = await DiscountCodes.find({
+        status: 1,
+        start_date: { $lte: now },
+        end_date: { $gte: now },
+        applies_to: { $in: ["all", "product", "category", "brand"] },
+    });
+
+    let bestDiscount = null;
+    let bestPriority = -1;
+
+    for (let discount of discounts) {
+        let priority = -1;
+
+        // Kiểm tra điều kiện áp dụng (tránh lấy các mã giảm giá không hợp lệ)
+        const conditions = await DiscountConditions.find({ discount_code_id: discount._id });
+
+        // ⚠️ 1. Kiểm tra nếu mã giảm giá có điều kiện loại trừ sản phẩm, danh mục, thương hiệu
+        if (conditions.some(c => c.condition_key === "excluded_products" && c.value.includes(product._id))) {
+            continue; // Bỏ qua nếu sản phẩm bị loại trừ
+        }
+        if (conditions.some(c => c.condition_key === "excluded_categories" && c.value.includes(product.category_id))) {
+            continue; // Bỏ qua nếu danh mục bị loại trừ
+        }
+        if (conditions.some(c => c.condition_key === "excluded_brands" && c.value.includes(product.brand_id))) {
+            continue; // Bỏ qua nếu thương hiệu bị loại trừ
+        }
+
+        // ⚠️ 2. Kiểm tra nếu mã giảm giá có điều kiện loại trừ user
+        if (conditions.some(c => c.condition_key === "excluded_users" && c.value.includes(user_id))) {
+            continue; // Bỏ qua nếu user bị loại trừ
+        }
+
+        // Xác định mức ưu tiên
+        if (discount.applies_to === "product" && discount.target_ids.includes(product._id)) {
+            priority = 3;
+        } else if (discount.applies_to === "category" && discount.target_ids.includes(product.category_id)) {
+            priority = 2;
+        } else if (discount.applies_to === "brand" && discount.target_ids.includes(product.brand_id)) {
+            priority = 1;
+        } else if (discount.applies_to === "all") {
+            priority = 0;
+        }
+
+        // Chọn mức giảm giá tốt nhất theo ưu tiên
+        if (priority > bestPriority || (priority === bestPriority && discount.value > bestDiscount?.value)) {
+            bestDiscount = {
+                discount_code: discount.code,
+                type: discount.type,
+                value: discount.value,
+                max_discount: discount.max_discount || null,
+            };
+            bestPriority = priority;
+        }
+    }
+
+    return bestDiscount;
+}
 
 
 

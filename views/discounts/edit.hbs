@@ -287,11 +287,18 @@
         const maxDiscountContainer = document.getElementById("maxDiscountContainer");
 
         function toggleMaxDiscount() {
-            if (discountType.value === "percent" || discountType.value === "freeship") {
+            if (discountType.value === "free_shipping") {
+                document.getElementById("discountValue").setAttribute("disabled", "true");
+            } else {
+                document.getElementById("discountValue").removeAttribute("disabled");
+
+            }
+            if (discountType.value === "percent" || discountType.value === "free_shipping") {
                 maxDiscountContainer.classList.remove("d-none");
             } else {
                 maxDiscountContainer.classList.add("d-none");
             }
+
         }
 
         toggleMaxDiscount();
@@ -354,13 +361,14 @@
                         window.location.href = "/discounts";
                     }, 1000);
                 } else {
+                    console.log("Check");
                     showToast(result.message, "error");
                 }
             } catch (error) {
                 console.error("Error:", error);
                 showToast(error, "error");
             }
-            console.log(formData);
+            //console.log(formData);
 
         });
 
@@ -688,7 +696,7 @@
                     usageLimitInput.value = "";
                     //usageLimitInput.disabled = true;
                 }
-
+                hasUsageLimitCheckbox.dispatchEvent(new Event("change"));
                 document.getElementById("stackable").checked = discount.stackable;
 
 

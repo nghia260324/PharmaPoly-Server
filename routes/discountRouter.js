@@ -329,7 +329,11 @@ router.put("/update/:id", async (req, res) => {
         const currentDate = new Date();
         discount.status = startDate > currentDate ? 0 : 1; // 0: Chưa hoạt động, 1: Đang hoạt động
 
-        await discount.save();
+        try {
+            await discount.save();
+        } catch (error) {
+            return res.status(400).json({ status: 400, message: error.message });
+        }
 
         // Xóa điều kiện cũ và thêm điều kiện mới nếu có
         if (Array.isArray(conditions) && conditions.length > 0) {

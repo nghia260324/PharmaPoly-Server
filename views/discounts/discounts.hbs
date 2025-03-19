@@ -377,11 +377,20 @@
         const maxDiscountContainer = document.getElementById("maxDiscountContainer");
 
         function toggleMaxDiscount() {
-            if (discountType.value === "percent" || discountType.value === "freeship") {
+            if (discountType.value === "free_shipping") {
+                document.getElementById("discountValue").value = 0;
+                document.getElementById("discountValue").setAttribute("disabled", "true");
+            } else {
+                document.getElementById("discountValue").value = 0;
+                document.getElementById("discountValue").removeAttribute("disabled");
+
+            }
+            if (discountType.value === "percent" || discountType.value === "free_shipping") {
                 maxDiscountContainer.classList.remove("d-none");
             } else {
                 maxDiscountContainer.classList.add("d-none");
             }
+
         }
 
         toggleMaxDiscount();
