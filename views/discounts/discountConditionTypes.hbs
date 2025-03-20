@@ -13,12 +13,12 @@
     <table class="table table-bordered table-striped">
         <thead>
             <tr>
-                <th>ID</th>
-                <th>Condition Type</th>
-                <th>Description</th>
-                <th>Input Type</th>
-                <th>Options</th>
-                <th>Actions</th>
+                <th><span data-lang="id">ID</span></th>
+                <th><span data-lang="condition_type">Condition Type</span></th>
+                <th><span data-lang="description">Description</span></th>
+                <th><span data-lang="input_type">Input Type</span></th>
+                <th><span data-lang="options">Options</span></th>
+                <th><span data-lang="actions">Actions</span></th>
             </tr>
         </thead>
         <tbody id="discountConditionTableBody">
@@ -33,33 +33,33 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addDiscountConditionTypeLabel">Add New Discount Condition Type</h5>
+                <h5 class="modal-title" id="addDiscountConditionTypeLabel"><span data-lang="add_new_discount_condition_type">Add New Discount Condition Type</span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="discountConditionForm">
                     <div class="mb-3">
-                        <label for="conditionType" class="form-label">Condition Type</label>
+                        <label for="conditionType" class="form-label"><span data-lang="condition_type">Condition Type</span></label>
                         <input type="text" class="form-control" id="conditionType" required>
                     </div>
                     <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
+                        <label for="description" class="form-label"><span data-lang="description">Description</span></label>
                         <textarea class="form-control" id="description" rows="3" required></textarea>
                     </div>
                     <div class="mb-3">
-                        <label for="inputType" class="form-label">Input Type</label>
+                        <label for="inputType" class="form-label"><span data-lang="input_type">Input Type</span></label>
                         <select class="form-control" id="inputType" required>
-                            <option value="number">Number</option>
-                            <option value="boolean">Boolean</option>
-                            <option value="select">Select</option>
-                            <option value="time_range">Time Range</option>
+                            <option value="number"><span data-lang="number">Number</span></option>
+                            <option value="boolean"><span data-lang="boolean">Boolean</span></option>
+                            <option value="select"><span data-lang="select">Select</span></option>
+                            <option value="time_range"><span data-lang="time_range">Time Range</span></option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="options" class="form-label">Options (Comma separated)</label>
+                        <label for="options" class="form-label"><span data-lang="options">Options</span> (Comma separated)</label>
                         <input type="text" class="form-control" id="options">
                     </div>
-                    <button type="submit" class="btn btn-primary">Add Condition Type</button>
+                    <button type="submit" class="btn btn-primary"><span data-lang="add_condition_type">Add Condition Type</span></button>
                 </form>
             </div>
         </div>
