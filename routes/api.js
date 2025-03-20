@@ -620,7 +620,7 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
         let cartItems = await CartItems.find({ cart_id: cart._id });
 
         let updatedCartItems = await Promise.all(cartItems.map(async (item) => {
-            let product = await getDiscountedProductById(item.product_id); // Gọi API lấy thông tin sản phẩm kèm giảm giá
+            let product = await getDiscountedProductById(item.product_id);
 
             return {
                 ...item.toObject(),
@@ -2439,8 +2439,8 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
                 message: 'Product not found'
             });
         }
-        const original_price = productData.price;
-        const discounted_price = productData.discounted_price || original_price;
+        const original_price = product.price;
+        const discounted_price = product.discounted_price || original_price;
 
         let cart = await Carts.findOne({ user_id });
 
