@@ -531,70 +531,105 @@ router.post('/refresh-token', async (req, res) => {
 
 
 
+// router.get('/user/cart', authenticateToken, async (req, res) => {
+//     try {
+//         const user_id = req.user_id;
+//         let cart = await Carts.findOne({ user_id });
+//         if (!cart) {
+//             return res.status(404).json({ status: 404, message: 'Cart not found' });
+//         }
+
+//         let cartItems = await CartItems.find({ cart_id: cart._id })
+//             .populate({
+//                 path: 'product_id',
+//                 select: '_id name category_id brand_id product_type_id',
+//                 populate: [
+//                     { path: 'category_id', select: '_id name' },
+//                     { path: 'brand_id', select: '_id name description' },
+//                     { path: 'product_type_id', select: '_id name' }
+//                 ]
+//             });
+
+//         const productIds = cartItems.map(item => item.product_id._id);
+
+//         const primaryImages = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         });
+
+//         const imageMap = primaryImages.reduce((acc, img) => {
+//             acc[img.product_id] = img;
+//             return acc;
+//         }, {});
+
+//         cartItems = cartItems.map(item => {
+//             let product = item.product_id.toObject();
+//             let productDetails = {
+//                 _id: product._id,
+//                 name: product.name,
+//                 category_id: product.category_id ? product.category_id._id : null,
+//                 brand_id: product.brand_id ? product.brand_id._id : null,
+//                 product_type_id: product.product_type_id ? product.product_type_id._id : null,
+//                 category: product.category_id ? {
+//                     _id: product.category_id._id,
+//                     name: product.category_id.name
+//                 } : null,
+//                 brand: product.brand_id ? {
+//                     _id: product.brand_id._id,
+//                     name: product.brand_id.name,
+//                     description: product.brand_id.description
+//                 } : null,
+//                 product_type: product.product_type_id ? {
+//                     _id: product.product_type_id._id,
+//                     name: product.product_type_id.name
+//                 } : null,
+//                 images: [imageMap[product._id]] || null
+//             };
+
+//             return {
+//                 ...item.toObject(),
+//                 product_id: product._id,
+//                 product: productDetails
+//             };
+//         });
+
+//         let cartData = cart.toObject();
+//         cartData.cartItems = cartItems;
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Cart items retrieved successfully!',
+//             data: cartData
+//         });
+
+//     } catch (error) {
+//         console.error("Error:", error);
+//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+//     }
+// });
+
 router.get('/user/cart', authenticateToken, async (req, res) => {
     try {
         const user_id = req.user_id;
         let cart = await Carts.findOne({ user_id });
+
         if (!cart) {
             return res.status(404).json({ status: 404, message: 'Cart not found' });
         }
 
-        let cartItems = await CartItems.find({ cart_id: cart._id })
-            .populate({
-                path: 'product_id',
-                select: '_id name category_id brand_id product_type_id',
-                populate: [
-                    { path: 'category_id', select: '_id name' },
-                    { path: 'brand_id', select: '_id name description' },
-                    { path: 'product_type_id', select: '_id name' }
-                ]
-            });
+        let cartItems = await CartItems.find({ cart_id: cart._id });
 
-        const productIds = cartItems.map(item => item.product_id._id);
-
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        });
-
-        const imageMap = primaryImages.reduce((acc, img) => {
-            acc[img.product_id] = img;
-            return acc;
-        }, {});
-
-        cartItems = cartItems.map(item => {
-            let product = item.product_id.toObject();
-            let productDetails = {
-                _id: product._id,
-                name: product.name,
-                category_id: product.category_id ? product.category_id._id : null,
-                brand_id: product.brand_id ? product.brand_id._id : null,
-                product_type_id: product.product_type_id ? product.product_type_id._id : null,
-                category: product.category_id ? {
-                    _id: product.category_id._id,
-                    name: product.category_id.name
-                } : null,
-                brand: product.brand_id ? {
-                    _id: product.brand_id._id,
-                    name: product.brand_id.name,
-                    description: product.brand_id.description
-                } : null,
-                product_type: product.product_type_id ? {
-                    _id: product.product_type_id._id,
-                    name: product.product_type_id.name
-                } : null,
-                images: [imageMap[product._id]] || null
-            };
+        let updatedCartItems = await Promise.all(cartItems.map(async (item) => {
+            let product = await getDiscountedProductById(item.product_id); // Gọi API lấy thông tin sản phẩm kèm giảm giá
 
             return {
                 ...item.toObject(),
-                product_id: product._id,
-                product: productDetails
+                product
             };
-        });
+        }));
 
         let cartData = cart.toObject();
-        cartData.cartItems = cartItems;
+        cartData.cartItems = updatedCartItems;
 
         return res.status(200).json({
             status: 200,
@@ -607,6 +642,10 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
+
+
+
+
 
 
 // ----- Product ----- //
@@ -3265,6 +3304,7 @@ router.get("/products/discounted", async (req, res) => {
         const activeDiscounts = await DiscountCodes.find({
             start_date: { $lte: new Date() },
             end_date: { $gte: new Date() },
+            type: { $ne: "free_shipping" }
         }).lean();
 
         const productIds = new Set();
@@ -3288,7 +3328,6 @@ router.get("/products/discounted", async (req, res) => {
             }
         });
 
-        // Lọc sản phẩm theo danh sách target_ids
         let productFilter = {};
         if (productIds.size) {
             productFilter._id = { $in: [...productIds] };
@@ -3300,7 +3339,6 @@ router.get("/products/discounted", async (req, res) => {
             productFilter.brand_id = { $in: [...brandIds] };
         }
 
-        // Lấy sản phẩm được giảm giá
         const products = await Products.find(productFilter)
             .sort({ updatedAt: -1 })
             .skip(skip)
@@ -3313,7 +3351,6 @@ router.get("/products/discounted", async (req, res) => {
         const totalProducts = await Products.countDocuments(productFilter);
         const totalPages = Math.ceil(totalProducts / limitNumber);
 
-        // Lấy ảnh chính của từng sản phẩm
         const productIdsArray = products.map(p => p._id);
         const primaryImages = await ProductImages.find({
             product_id: { $in: productIdsArray },
@@ -3325,7 +3362,6 @@ router.get("/products/discounted", async (req, res) => {
             return acc;
         }, {});
 
-        // Kiểm tra điều kiện giảm giá (DISCOUNT_CONDITIONS)
         const validProducts = [];
         for (const product of products) {
             const discount = activeDiscounts.find(d =>
@@ -3442,125 +3478,128 @@ router.get("/products/discounted", async (req, res) => {
 });
 
 
-
-async function getApplicableDiscounts(product_id) {
+const getDiscountedProductById = async (productId) => {
     try {
-        // Lấy tất cả các mã giảm giá còn hiệu lực
-        const activeDiscounts = await DiscountCode.find({
-            start_date: { $lte: new Date() }, // Đã bắt đầu
-            end_date: { $gte: new Date() },   // Chưa hết hạn
-            is_active: true,                 // Đang hoạt động
-        });
+        const product = await Products.findById(productId)
+            .populate("category_id", "_id name")
+            .populate("brand_id", "_id name description")
+            .populate("product_type_id", "_id name")
+            .lean();
 
-        // Lấy danh sách điều kiện áp dụng liên quan đến các mã giảm giá này
-        const discountIds = activeDiscounts.map(d => d._id);
-        const discountConditions = await DiscountCondition.find({
-            discount_id: { $in: discountIds }
-        });
+        if (!product) return null;
 
-        // Lọc các mã giảm giá phù hợp với product_id
-        const applicableDiscounts = activeDiscounts.filter(discount => {
-            const conditions = discountConditions.filter(dc => dc.discount_id.equals(discount._id));
+        // Giữ nguyên _id gốc
+        const productData = {
+            _id: product._id,
+            name: product.name,
+            price: product.price,
+            category_id: product.category_id ? product.category_id._id : null,
+            brand_id: product.brand_id ? product.brand_id._id : null,
+            product_type_id: product.product_type_id ? product.product_type_id._id : null,
+            category: product.category_id ? {
+                _id: product.category_id._id,
+                name: product.category_id.name
+            } : null,
+            brand: product.brand_id ? {
+                _id: product.brand_id._id,
+                name: product.brand_id.name,
+                description: product.brand_id.description
+            } : null,
+            product_type: product.product_type_id ? {
+                _id: product.product_type_id._id,
+                name: product.product_type_id.name
+            } : null,
+        };
 
-            return conditions.some(condition => {
-                if (condition.type === "PRODUCT" && condition.value.toString() === product_id) {
-                    return true;
+        const activeDiscounts = await DiscountCodes.find({
+            start_date: { $lte: new Date() },
+            end_date: { $gte: new Date() },
+            type: { $ne: "free_shipping" }
+        }).lean();
+
+        let discount = activeDiscounts.find(d =>
+            d.applies_to === "all" ||
+            (d.applies_to === "product" && d.target_ids.includes(product._id.toString())) ||
+            (d.applies_to === "category" && d.target_ids.includes(product.category_id._id.toString())) ||
+            (d.applies_to === "brand" && d.target_ids.includes(product.brand_id._id.toString()))
+        );
+
+        let discountedPrice = null;
+        let finalDiscount = null;
+
+        if (discount) {
+            const conditions = await DiscountConditions.find({ discount_id: discount._id }).lean();
+            let isValid = true;
+
+            for (const condition of conditions) {
+                if (condition.key === "excluded_products" && condition.value.includes(product._id.toString())) {
+                    isValid = false;
+                    break;
                 }
-                if (condition.type === "CATEGORY" || condition.type === "BRAND") {
-                    // Kiểm tra nếu sản phẩm thuộc danh mục hoặc thương hiệu được giảm
-                    return checkProductCondition(product_id, condition);
+                if (condition.key === "excluded_categories" && condition.value.includes(product.category_id._id.toString())) {
+                    isValid = false;
+                    break;
                 }
-                return false;
-            });
-        });
+                if (condition.key === "excluded_brands" && condition.value.includes(product.brand_id._id.toString())) {
+                    isValid = false;
+                    break;
+                }
+                if (condition.key === "day_of_week") {
+                    const today = new Date().toLocaleString("en-US", { weekday: "long" }).toLowerCase();
+                    if (!condition.value.includes(today)) {
+                        isValid = false;
+                        break;
+                    }
+                }
+                if (condition.key === "specific_hour_range") {
+                    const now = new Date();
+                    const currentHour = now.getHours();
+                    const fromHour = parseInt(condition.value.from.split(":")[0], 10);
+                    const toHour = parseInt(condition.value.to.split(":")[0], 10);
+                    if (currentHour < fromHour || currentHour >= toHour) {
+                        isValid = false;
+                        break;
+                    }
+                }
+            }
 
-        return applicableDiscounts;
+            if (isValid) {
+                if (discount.type === "percent") {
+                    discountedPrice = Math.round(product.price * (1 - discount.value / 100));
+                } else if (discount.type === "fixed") {
+                    discountedPrice = Math.max(0, product.price - discount.value);
+                }
+
+                let usageLeft = null;
+                if (discount.max_usage) {
+                    const usageCount = await DiscountUsage.countDocuments({ discount_id: discount._id });
+                    usageLeft = Math.max(0, discount.max_usage - usageCount);
+                }
+
+                finalDiscount = {
+                    _id: discount._id,
+                    code: discount.code,
+                    type: discount.type,
+                    value: discount.value,
+                    applies_to: discount.applies_to,
+                    start_date: discount.start_date,
+                    end_date: discount.end_date,
+                    usage_limit: discount.usage_limit || null,
+                };
+            }
+        }
+
+        return {
+            ...productData,
+            discounted_price: discountedPrice,
+            discount: finalDiscount
+        };
+
     } catch (error) {
-        console.error("Error fetching applicable discounts:", error);
-        return [];
+        console.error("Error fetching discounted product by ID:", error);
+        return null;
     }
-}
-
-async function checkProductCondition(product_id, condition) {
-    const Product = require("../models/Product");
-    const product = await Product.findById(product_id);
-
-    if (!product) return false;
-
-    if (condition.type === "CATEGORY") {
-        return product.category_id.equals(condition.value);
-    }
-    if (condition.type === "BRAND") {
-        return product.brand_id.equals(condition.value);
-    }
-
-    return false;
-}
-
-
-
-
-
-async function checkProductDiscount(product, user_id) {
-    const now = new Date();
-    const discounts = await DiscountCodes.find({
-        status: 1,
-        start_date: { $lte: now },
-        end_date: { $gte: now },
-        applies_to: { $in: ["all", "product", "category", "brand"] },
-    });
-
-    let bestDiscount = null;
-    let bestPriority = -1;
-
-    for (let discount of discounts) {
-        let priority = -1;
-
-        // Kiểm tra điều kiện áp dụng (tránh lấy các mã giảm giá không hợp lệ)
-        const conditions = await DiscountConditions.find({ discount_code_id: discount._id });
-
-        // ⚠️ 1. Kiểm tra nếu mã giảm giá có điều kiện loại trừ sản phẩm, danh mục, thương hiệu
-        if (conditions.some(c => c.condition_key === "excluded_products" && c.value.includes(product._id))) {
-            continue; // Bỏ qua nếu sản phẩm bị loại trừ
-        }
-        if (conditions.some(c => c.condition_key === "excluded_categories" && c.value.includes(product.category_id))) {
-            continue; // Bỏ qua nếu danh mục bị loại trừ
-        }
-        if (conditions.some(c => c.condition_key === "excluded_brands" && c.value.includes(product.brand_id))) {
-            continue; // Bỏ qua nếu thương hiệu bị loại trừ
-        }
-
-        // ⚠️ 2. Kiểm tra nếu mã giảm giá có điều kiện loại trừ user
-        if (conditions.some(c => c.condition_key === "excluded_users" && c.value.includes(user_id))) {
-            continue; // Bỏ qua nếu user bị loại trừ
-        }
-
-        // Xác định mức ưu tiên
-        if (discount.applies_to === "product" && discount.target_ids.includes(product._id)) {
-            priority = 3;
-        } else if (discount.applies_to === "category" && discount.target_ids.includes(product.category_id)) {
-            priority = 2;
-        } else if (discount.applies_to === "brand" && discount.target_ids.includes(product.brand_id)) {
-            priority = 1;
-        } else if (discount.applies_to === "all") {
-            priority = 0;
-        }
-
-        // Chọn mức giảm giá tốt nhất theo ưu tiên
-        if (priority > bestPriority || (priority === bestPriority && discount.value > bestDiscount?.value)) {
-            bestDiscount = {
-                discount_code: discount.code,
-                type: discount.type,
-                value: discount.value,
-                max_discount: discount.max_discount || null,
-            };
-            bestPriority = priority;
-        }
-    }
-
-    return bestDiscount;
-}
-
+};
 
 
 
