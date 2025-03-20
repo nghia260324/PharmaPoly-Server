@@ -3424,12 +3424,6 @@ router.get("/products/discounted", async (req, res) => {
                 discountedPrice = Math.round(discountedPrice);
                 
 
-                let usageLeft = null;
-                if (discount.max_usage) {
-                    const usageCount = await DiscountUsage.countDocuments({ discount_id: discount._id });
-                    usageLeft = Math.max(0, discount.max_usage - usageCount);
-                }
-
                 validProducts.push({
                     _id: product._id,
                     name: product.name,
@@ -3478,6 +3472,7 @@ router.get("/products/discounted", async (req, res) => {
 });
 
 
+
 const getDiscountedProductById = async (productId) => {
     try {
         const product = await Products.findById(productId)
@@ -3488,28 +3483,14 @@ const getDiscountedProductById = async (productId) => {
 
         if (!product) return null;
 
-        // Giữ nguyên _id gốc
-        const productData = {
-            _id: product._id,
-            name: product.name,
-            price: product.price,
-            category_id: product.category_id ? product.category_id._id : null,
-            brand_id: product.brand_id ? product.brand_id._id : null,
-            product_type_id: product.product_type_id ? product.product_type_id._id : null,
-            category: product.category_id ? {
-                _id: product.category_id._id,
-                name: product.category_id.name
-            } : null,
-            brand: product.brand_id ? {
-                _id: product.brand_id._id,
-                name: product.brand_id.name,
-                description: product.brand_id.description
-            } : null,
-            product_type: product.product_type_id ? {
-                _id: product.product_type_id._id,
-                name: product.product_type_id.name
-            } : null,
-        };
+        // Lấy danh sách ảnh và ánh xạ ảnh chính của từng sản phẩm
+        const productImages = await ProductImages.find({ product_id: product._id }).lean();
+        const imageMap = productImages.reduce((acc, img) => {
+            if (!acc[img.product_id]) {
+                acc[img.product_id] = img; // Chọn ảnh đầu tiên làm ảnh chính
+            }
+            return acc;
+        }, {});
 
         const activeDiscounts = await DiscountCodes.find({
             start_date: { $lte: new Date() },
@@ -3585,14 +3566,25 @@ const getDiscountedProductById = async (productId) => {
                     start_date: discount.start_date,
                     end_date: discount.end_date,
                     usage_limit: discount.usage_limit || null,
+                    usage_left: usageLeft,
                 };
             }
         }
 
         return {
-            ...productData,
+            _id: product._id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
             discounted_price: discountedPrice,
-            discount: finalDiscount
+            discount: finalDiscount,
+            category_id: product.category_id._id,
+            brand_id: product.brand_id._id,
+            product_type_id: product.product_type_id._id,
+            category: product.category_id,
+            brand: product.brand_id,
+            product_type: product.product_type_id,
+            images: imageMap[product._id] ? [imageMap[product._id]] : []
         };
 
     } catch (error) {
@@ -3600,6 +3592,8 @@ const getDiscountedProductById = async (productId) => {
         return null;
     }
 };
+
+
 
 
 
