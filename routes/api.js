@@ -311,7 +311,7 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
 
         let updateData = {};
         if (full_name !== undefined) updateData.full_name = full_name;
-        if (date_of_birth !== undefined)  updateData.date_of_birth = new Date(date_of_birth);
+        if (date_of_birth !== undefined) updateData.date_of_birth = new Date(date_of_birth);
         if (gender !== undefined) updateData.gender = gender;
         if (shipping_phone_number !== undefined) updateData.shipping_phone_number = shipping_phone_number;
 
@@ -416,7 +416,6 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
             });
         }
 
-        const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
         if (!passwordPattern.test(new_password)) {
             return res.status(400).json({
                 status: 402,
@@ -608,33 +607,95 @@ router.post('/refresh-token', async (req, res) => {
 //     }
 // });
 
+
+// router.get('/user/cart', authenticateToken, async (req, res) => {
+//     try {
+//         const user_id = req.user_id;
+//         let cart = await Carts.findOne({ user_id });
+
+//         if (!cart) {
+//             return res.status(404).json({ status: 404, message: 'Cart not found' });
+//         }
+
+//         let cartItems = await CartItems.find({ cart_id: cart._id });
+
+//         let updatedCartItems = await Promise.all(cartItems.map(async (item) => {
+//             let product = await getDiscountedProductById(item.product_id);
+
+//             return {
+//                 ...item.toObject(),
+//                 product
+//             };
+//         }));
+
+//         let cartData = cart.toObject();
+//         cartData.cartItems = updatedCartItems;
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Cart items retrieved successfully!',
+//             data: cartData
+//         });
+
+//     } catch (error) {
+//         console.error("Error:", error);
+//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+//     }
+// });
+
+
 router.get('/user/cart', authenticateToken, async (req, res) => {
     try {
         const user_id = req.user_id;
-        let cart = await Carts.findOne({ user_id });
+        const cart = await Carts.findOne({ user_id }).lean();
 
         if (!cart) {
             return res.status(404).json({ status: 404, message: 'Cart not found' });
         }
 
-        let cartItems = await CartItems.find({ cart_id: cart._id });
+        let cartItems = await CartItems.find({ cart_id: cart._id }).lean();
 
-        let updatedCartItems = await Promise.all(cartItems.map(async (item) => {
-            let product = await getDiscountedProductById(item.product_id);
+        const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
+            const product = await getDiscountedProductById(item.product_id);
 
-            return {
-                ...item.toObject(),
-                product
-            };
+            let shouldUpdate = false;
+
+            if (item.original_price !== product.price) {
+                shouldUpdate = true;
+            }
+
+            if (!shouldUpdate && item.discounted_price !== product.discounted_price) {
+                shouldUpdate = true;
+            }
+
+            let product_discounted_price = item.original_price;
+
+            if (product.discounted_price == null || product.discount == null) {
+                product_discounted_price = item.original_price;
+            } else if (product.discount) {
+                if (product.discount.type === "percent") {
+                    product_discounted_price = Math.round(item.original_price * (1 - product.discount.value / 100));
+                } else if (product.discount.type === "fixed") {
+                    product_discounted_price = Math.max(0, item.original_price - product.discount.value);
+                }
+            }
+
+            if (shouldUpdate || item.discounted_price !== product_discounted_price) {
+                item.discounted_price = product_discounted_price;
+
+                await CartItems.updateOne(
+                    { _id: item._id },
+                    { $set: { discounted_price: product_discounted_price } }
+                );
+            }
+
+            return { ...item, product };
         }));
-
-        let cartData = cart.toObject();
-        cartData.cartItems = updatedCartItems;
 
         return res.status(200).json({
             status: 200,
             message: 'Cart items retrieved successfully!',
-            data: cartData
+            data: { ...cart, cartItems: updatedCartItems }
         });
 
     } catch (error) {
@@ -2426,8 +2487,8 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
             });
         }
         if (quantity > MAX_QUANTITY_PER_PRODUCT) {
-            return res.status(400).json({
-                status: 400,
+            return res.status(401).json({
+                status: 401,
                 message: `You can only add up to ${MAX_QUANTITY_PER_PRODUCT} units per product`
             });
         }
@@ -2447,7 +2508,6 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
         if (!cart) {
             cart = new Carts({
                 user_id: user_id,
-                total_price: 0,
             });
             cart = await cart.save();
         }
@@ -2456,11 +2516,11 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
 
         if (cartItem) {
             cartItem.quantity = Math.min(cartItem.quantity + quantity, MAX_QUANTITY_PER_PRODUCT);
-            cartItem.total_price = cartItem.quantity * product.price;
         } else {
             cartItem = new CartItems({
                 cart_id: cart._id,
                 product_id: product_id,
+                product: getDiscountedProductById(product_id),
                 quantity: Math.min(quantity, MAX_QUANTITY_PER_PRODUCT),
                 original_price,
                 discounted_price
@@ -2499,23 +2559,31 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
             });
         }
 
+        let cart = await Carts.findById(cartItem.cart_id);
+        if (!cart || cart.user_id.toString() !== user_id) {
+            return res.status(403).json({ status: 403, message: 'Unauthorized to update this cart item' });
+        }
+        if (!cart) {
+            return res.status(404).json({ status: 404, message: 'Cart not found' });
+        }
+
         let cartItem = await CartItems.findById(cart_item_id);
         if (!cartItem) {
             return res.status(404).json({ status: 404, message: 'Cart item not found' });
         }
         cartItem.quantity = Math.min(newQuantity, MAX_QUANTITY_PER_PRODUCT);
-        //cartItem.total_price = cartItem.quantity * cartItem.price;
 
         await cartItem.save();
 
-        let cart = await Carts.findById(cartItem.cart_id);
-        if (!cart) {
-            return res.status(404).json({ status: 404, message: 'Cart not found' });
-        }
+
 
         const cartItems = await CartItems.find({ cart_id: cart._id });
-        cart.total_price = cartItems.reduce((sum, item) => sum + item.total_price, 0);
+        cart.total_items = cartItems.length;
         await cart.save();
+
+        const product = await getDiscountedProductById(cartItem.product_id);
+        cartItem = cartItem.toObject();
+        cartItem.product = product;
 
         return res.status(200).json({
             status: 200,
@@ -2530,10 +2598,80 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
 });
 
 
+// router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
+//     try {
+//         const { cart_item_id } = req.query;
+//         const userId = req.user_id;
+
+//         if (!cart_item_id) {
+//             return res.status(400).json({ status: 400, message: 'Missing required field: cart_item_id' });
+//         }
+
+//         const cartItem = await CartItems.findById(cart_item_id);
+//         if (!cartItem) {
+//             return res.status(404).json({ status: 404, message: 'Cart item not found' });
+//         }
+//         await CartItems.findByIdAndDelete(cart_item_id);
+
+//         let cartItems = await CartItems.find({ cart_id: cartItem.cart_id })
+//             .populate({
+//                 path: 'product_id',
+//                 select: '_id name category_id brand_id product_type_id',
+//                 populate: [
+//                     { path: 'category_id', select: '_id name' },
+//                     { path: 'brand_id', select: '_id name description' },
+//                     { path: 'product_type_id', select: '_id name' }
+//                 ]
+//             });
+//         if (cartItems.length === 0) {
+//             await Carts.findByIdAndDelete(cartItem.cart_id);
+//             return res.status(200).json({
+//                 status: 200,
+//                 message: 'Cart item removed, cart deleted as it was empty',
+//                 data: null
+//             });
+//         }
+
+//         const cart = await Carts.findOneAndUpdate(
+//             { _id: cartItem.cart_id, user_id: userId },
+//             {
+//                 total_price: cartItems.reduce((sum, item) => sum + item.total_price, 0),
+//                 total_items: cartItems.length
+//             },
+//             { new: true }
+//         );
+
+//         if (!cart) {
+//             return res.status(404).json({ status: 404, message: 'Cart not found or access denied' });
+//         }
+
+
+//         cartItems = cartItems.map(item => {
+//             return {
+//                 ...item.toObject(),
+//                 product_id: item._id,
+//                 product: getDiscountedProductById(item._id)
+//             };
+//         });
+
+//         let cartData = cart.toObject();
+//         cartData.cartItems = cartItems;
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Cart item removed successfully!',
+//             data: cartData
+//         });
+
+//     } catch (error) {
+//         console.error("Error:", error);
+//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+//     }
+// });
+
 router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
     try {
         const { cart_item_id } = req.query;
-        const userId = req.user_id;
+        const user_id = req.user_id;
 
         if (!cart_item_id) {
             return res.status(400).json({ status: 400, message: 'Missing required field: cart_item_id' });
@@ -2543,95 +2681,29 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
         if (!cartItem) {
             return res.status(404).json({ status: 404, message: 'Cart item not found' });
         }
+
+        let cart = await Carts.findById(cartItem.cart_id);
+        if (!cart || cart.user_id.toString() !== user_id) {
+            return res.status(403).json({ status: 403, message: 'Unauthorized to remove this cart item' });
+        }
+
         await CartItems.findByIdAndDelete(cart_item_id);
 
-        let cartItems = await CartItems.find({ cart_id: cartItem.cart_id })
-            .populate({
-                path: 'product_id',
-                select: '_id name category_id brand_id product_type_id',
-                populate: [
-                    { path: 'category_id', select: '_id name' },
-                    { path: 'brand_id', select: '_id name description' },
-                    { path: 'product_type_id', select: '_id name' }
-                ]
-            });
+        let cartItems = await CartItems.find({ cart_id: cart._id });
         if (cartItems.length === 0) {
-            await Carts.findByIdAndDelete(cartItem.cart_id);
-            return res.status(200).json({
-                status: 200,
-                message: 'Cart item removed, cart deleted as it was empty',
-                data: null
-            });
+            await Carts.findByIdAndDelete(cart._id);
+            return res.status(200).json({ status: 200, message: 'Cart item removed, cart deleted as it was empty', data: null });
         }
+        cart.total_items = cartItems.length;
+        await cart.save();
 
-        const cart = await Carts.findOneAndUpdate(
-            { _id: cartItem.cart_id, user_id: userId },
-            {
-                total_price: cartItems.reduce((sum, item) => sum + item.total_price, 0),
-                total_items: cartItems.length
-            },
-            { new: true }
-        );
-
-        if (!cart) {
-            return res.status(404).json({ status: 404, message: 'Cart not found or access denied' });
-        }
-        const productIds = cartItems.map(item => item.product_id._id);
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        });
-
-        const imageMap = primaryImages.reduce((acc, img) => {
-            acc[img.product_id] = img;
-            return acc;
-        }, {});
-
-        cartItems = cartItems.map(item => {
-            let product = item.product_id.toObject();
-            let productDetails = {
-                _id: product._id,
-                name: product.name,
-                category_id: product.category_id ? product.category_id._id : null,
-                brand_id: product.brand_id ? product.brand_id._id : null,
-                product_type_id: product.product_type_id ? product.product_type_id._id : null,
-                category: product.category_id ? {
-                    _id: product.category_id._id,
-                    name: product.category_id.name
-                } : null,
-                brand: product.brand_id ? {
-                    _id: product.brand_id._id,
-                    name: product.brand_id.name,
-                    description: product.brand_id.description
-                } : null,
-                product_type: product.product_type_id ? {
-                    _id: product.product_type_id._id,
-                    name: product.product_type_id.name
-                } : null,
-                images: [imageMap[product._id]] || null
-            };
-
-            return {
-                ...item.toObject(),
-                product_id: product._id,
-                product: productDetails
-            };
-        });
-
-        let cartData = cart.toObject();
-        cartData.cartItems = cartItems;
-        return res.status(200).json({
-            status: 200,
-            message: 'Cart item removed successfully!',
-            data: cartData
-        });
+        return res.status(200).json({ status: 200, message: 'Cart item removed successfully!', data: cart });
 
     } catch (error) {
         console.error("Error:", error);
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
-
 
 
 
@@ -3139,26 +3211,26 @@ router.get("/products/discounted", async (req, res) => {
             let isValid = true;
 
             for (const condition of conditions) {
-                if (condition.key === "excluded_products" && condition.value.includes(product._id.toString())) {
+                if (condition.condition_key === "excluded_products" && condition.value.includes(product._id.toString())) {
                     isValid = false;
                     break;
                 }
-                if (condition.key === "excluded_categories" && condition.value.includes(product.category_id.toString())) {
+                if (condition.condition_key === "excluded_categories" && condition.value.includes(product.category_id.toString())) {
                     isValid = false;
                     break;
                 }
-                if (condition.key === "excluded_brands" && condition.value.includes(product.brand_id.toString())) {
+                if (condition.condition_key === "excluded_brands" && condition.value.includes(product.brand_id.toString())) {
                     isValid = false;
                     break;
                 }
-                if (condition.key === "day_of_week") {
+                if (condition.condition_key === "day_of_week") {
                     const today = new Date().toLocaleString("en-US", { weekday: "long" }).toLowerCase();
                     if (!condition.value.includes(today)) {
                         isValid = false;
                         break;
                     }
                 }
-                if (condition.key === "specific_hour_range") {
+                if (condition.condition_key === "specific_hour_range") {
                     const now = new Date();
                     const currentHour = now.getHours();
                     const fromHour = parseInt(condition.value.from.split(":")[0], 10);
@@ -3173,7 +3245,7 @@ router.get("/products/discounted", async (req, res) => {
             if (isValid) {
 
                 let discountedPrice = product.price;
-                
+
                 if (discount && typeof product.price === "number") {
                     if (discount.type === "percent" && typeof discount.value === "number") {
                         discountedPrice = product.price * (1 - discount.value / 100);
@@ -3274,26 +3346,28 @@ const getDiscountedProductById = async (productId) => {
             let isValid = true;
 
             for (const condition of conditions) {
-                if (condition.key === "excluded_products" && condition.value.includes(product._id.toString())) {
+
+
+                if (condition.condition_key === "excluded_products" && condition.value.includes(product._id.toString())) {
                     isValid = false;
                     break;
                 }
-                if (condition.key === "excluded_categories" && condition.value.includes(product.category_id._id.toString())) {
+                if (condition.condition_key === "excluded_categories" && condition.value.includes(product.category_id._id.toString())) {
                     isValid = false;
                     break;
                 }
-                if (condition.key === "excluded_brands" && condition.value.includes(product.brand_id._id.toString())) {
+                if (condition.condition_key === "excluded_brands" && condition.value.includes(product.brand_id._id.toString())) {
                     isValid = false;
                     break;
                 }
-                if (condition.key === "day_of_week") {
+                if (condition.condition_key === "day_of_week") {
                     const today = new Date().toLocaleString("en-US", { weekday: "long" }).toLowerCase();
                     if (!condition.value.includes(today)) {
                         isValid = false;
                         break;
                     }
                 }
-                if (condition.key === "specific_hour_range") {
+                if (condition.condition_key === "specific_hour_range") {
                     const now = new Date();
                     const currentHour = now.getHours();
                     const fromHour = parseInt(condition.value.from.split(":")[0], 10);

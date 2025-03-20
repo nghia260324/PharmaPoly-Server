@@ -7,13 +7,14 @@ const CartItems = new Schema({
     quantity: { type: Number, required: true, default: 1 },
     discounted_price: { type: Number, required: true, default: 0 },
     original_price: { type: Number, required: true, default: 0 },
-    total_price: { 
-        type: Number, 
-        required: true, 
-        default: function() { return this.discounted_price * this.quantity; } 
-    },
+    total_price: { type: Number}
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
+
+CartItems.pre('save', function (next) {
+    this.total_price = this.quantity * this.discounted_price;
+    next();
 });
 
 module.exports = mongoose.model('cartItem', CartItems, 'cartItems');

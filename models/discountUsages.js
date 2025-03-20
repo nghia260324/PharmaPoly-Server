@@ -11,8 +11,8 @@ const DiscountUsage = new Schema({
         type: String, 
         enum: ["cod", "online"], 
         required: true 
-    },
-    used_at: { type: Date, default: Date.now }
+    }
+}, {
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
-
 module.exports = mongoose.model('discountUsage', DiscountUsage, 'discountUsages');
