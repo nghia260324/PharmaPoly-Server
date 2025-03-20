@@ -2432,13 +2432,15 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
             });
         }
 
-        const product = await Products.findById(product_id);
+        const product = await getDiscountedProductById(product_id);
         if (!product) {
             return res.status(404).json({
                 status: 404,
                 message: 'Product not found'
             });
         }
+        const original_price = productData.price;
+        const discounted_price = productData.discounted_price || original_price;
 
         let cart = await Carts.findOne({ user_id });
 
@@ -2460,8 +2462,8 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
                 cart_id: cart._id,
                 product_id: product_id,
                 quantity: Math.min(quantity, MAX_QUANTITY_PER_PRODUCT),
-                price: product.price,
-                total_price: Math.min(quantity, MAX_QUANTITY_PER_PRODUCT) * product.price
+                original_price,
+                discounted_price
             });
         }
 
@@ -2502,7 +2504,7 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
             return res.status(404).json({ status: 404, message: 'Cart item not found' });
         }
         cartItem.quantity = Math.min(newQuantity, MAX_QUANTITY_PER_PRODUCT);
-        cartItem.total_price = cartItem.quantity * cartItem.price;
+        //cartItem.total_price = cartItem.quantity * cartItem.price;
 
         await cartItem.save();
 
@@ -2631,248 +2633,8 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
 });
 
 
-// router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
-//     try {
-//         const { cart_item_id } = req.query;
-//         const userId = req.user_id;
-
-//         if (!cart_item_id) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: 'Missing required field: cart_item_id'
-//             });
-//         }
-
-//         const cartItem = await CartItems.findById(cart_item_id);
-//         if (!cartItem) {
-//             return res.status(404).json({ status: 404, message: 'Cart item not found' });
-//         }
-
-//         await CartItems.findByIdAndDelete(cart_item_id);
-
-//         const cartItems = await CartItems.find({ cart_id: cartItem.cart_id });
-
-//         if (cartItems.length === 0) {
-//             await Carts.findByIdAndDelete(cartItem.cart_id);
-//             return res.status(200).json({
-//                 status: 200,
-//                 message: 'Cart item removed, cart deleted as it was empty',
-//                 data: null
-//             });
-//         }
-
-//         const cart = await Carts.findOneAndUpdate(
-//             { _id: cartItem.cart_id, user_id: userId },
-//             {
-//                 total_price: cartItems.reduce((sum, item) => sum + item.total_price, 0),
-//                 total_items: cartItems.length
-//             },
-//             { new: true }
-//         );
-
-//         if (!cart) {
-//             return res.status(404).json({ status: 404, message: 'Cart not found or access denied' });
-//         }
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Cart item removed successfully!',
-//             data: cart
-//         });
-
-//     } catch (error) {
-//         console.error("Error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
 
 
-
-
-// router.get('/search', authenticateToken, async (req, res) => {
-//     try {
-//         let { keyword, page = 1, limit = 10, order = 'asc' } = req.query;
-
-//         if (!keyword) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: 'Missing required field: keyword'
-//             });
-//         }
-
-//         const pageNumber = parseInt(page);
-//         let limitNumber = parseInt(limit);
-//         if (limitNumber > 20) limitNumber = 20;
-//         const skip = (pageNumber - 1) * limitNumber;
-
-//         const normalizedKeyword = removeDiacritics(keyword);
-//         const words = normalizedKeyword.trim().split(/\s+/);
-
-//         let products = await Products.find()
-//             .populate('category_id', '_id name')
-//             .populate('brand_id', '_id name description')
-//             .populate('product_type_id', '_id name')
-//             .lean();
-
-//         let categories = await Categories.find().lean();
-//         let brands = await Brands.find().lean();
-
-//         let filteredProducts = products.filter(product => {
-//             const normalizedName = removeDiacritics(product.name);
-//             return words.every(word => normalizedName.includes(word));
-//         });
-
-//         let filteredCategories = categories.filter(category => {
-//             const normalizedCategoryName = removeDiacritics(category.name);
-//             return words.every(word => normalizedCategoryName.includes(word));
-//         }).slice(0, 5);
-
-//         let filteredBrands = brands.filter(brand => {
-//             const normalizedBrandName = removeDiacritics(brand.name);
-//             return words.every(word => normalizedBrandName.includes(word));
-//         }).slice(0, 5);
-
-//         const sortOrder = order === 'desc' ? -1 : 1;
-//         filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
-
-//         const totalProducts = filteredProducts.length;
-//         const totalPages = Math.ceil(totalProducts / limitNumber);
-//         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Search completed successfully!',
-//             data: {
-//                 products: {
-//                     currentPage: pageNumber,
-//                     totalPages,
-//                     totalProducts,
-//                     hasNextPage: pageNumber < totalPages,
-//                     hasPrevPage: pageNumber > 1,
-//                     data: paginatedProducts
-//                 },
-//                 categories: filteredCategories,
-//                 brands: filteredBrands
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error("Search error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
-
-
-
-// router.get('/search', authenticateToken, async (req, res) => {
-//     try {
-//         let { keyword, page = 1, limit = 10, order = 'asc' } = req.query;
-
-//         if (!keyword) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: 'Missing required field: keyword'
-//             });
-//         }
-
-//         const pageNumber = parseInt(page) || 1;
-//         let limitNumber = Math.min(parseInt(limit) || 10, 20);
-//         const skip = (pageNumber - 1) * limitNumber;
-
-//         const normalizedKeyword = removeDiacritics(keyword);
-//         const words = normalizedKeyword.trim().split(/\s+/);
-
-//         let products = await Products.find()
-//             .populate({ path: 'category_id', select: '_id name' })
-//             .populate({ path: 'brand_id', select: '_id name description' })
-//             .populate({ path: 'product_type_id', select: '_id name' })
-//             .lean();
-
-//         let categories = await Categories.find().lean();
-//         let brands = await Brands.find().lean();
-
-//         let filteredProducts = products.filter(product => {
-//             const normalizedName = removeDiacritics(product.name);
-//             return words.every(word => normalizedName.includes(word));
-//         });
-
-//         let filteredCategories = categories.filter(category => {
-//             const normalizedCategoryName = removeDiacritics(category.name);
-//             return words.every(word => normalizedCategoryName.includes(word));
-//         }).slice(0, 5);
-
-//         let filteredBrands = brands.filter(brand => {
-//             const normalizedBrandName = removeDiacritics(brand.name);
-//             return words.every(word => normalizedBrandName.includes(word));
-//         }).slice(0, 5);
-
-//         const sortOrder = order === 'desc' ? -1 : 1;
-//         filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
-
-//         const totalProducts = filteredProducts.length;
-//         const totalPages = Math.ceil(totalProducts / limitNumber);
-//         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
-
-//         const productIds = paginatedProducts.map(product => product._id);
-
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         });
-
-//         const imageMap = primaryImages.reduce((acc, img) => {
-//             acc[img.product_id] = img;
-//             return acc;
-//         }, {});
-
-//         const formattedProducts = paginatedProducts.map(product => ({
-//             _id: product._id,
-//             name: product.name,
-//             category_id: product.category_id ? product.category_id._id : null,
-//             brand_id: product.brand_id ? product.brand_id._id : null,
-//             product_type_id: product.product_type_id ? product.product_type_id._id : null,
-//             category: product.category_id ? {
-//                 _id: product.category_id._id,
-//                 name: product.category_id.name
-//             } : null,
-//             brand: product.brand_id ? {
-//                 _id: product.brand_id._id,
-//                 name: product.brand_id.name,
-//                 description: product.brand_id.description
-//             } : null,
-//             product_type: product.product_type_id ? {
-//                 _id: product.product_type_id._id,
-//                 name: product.product_type_id.name
-//             } : null,
-//             price: product.price,
-//             short_description: product.short_description,
-//             average_rating: product.average_rating,
-//             review_count: product.review_count,
-//             images: imageMap[product._id] ? [imageMap[product._id]] : []
-//         }));
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Search completed successfully!',
-//             data: {
-//                 products: {
-//                     currentPage: pageNumber,
-//                     totalPages,
-//                     totalProducts,
-//                     hasNextPage: pageNumber < totalPages,
-//                     hasPrevPage: pageNumber > 1,
-//                     data: formattedProducts
-//                 },
-//                 categories: filteredCategories,
-//                 brands: filteredBrands
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error("Search error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
 
 
 router.get('/search', authenticateToken, async (req, res) => {
@@ -3422,7 +3184,6 @@ router.get("/products/discounted", async (req, res) => {
 
 
                 discountedPrice = Math.round(discountedPrice);
-                
 
                 validProducts.push({
                     _id: product._id,
