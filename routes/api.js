@@ -2550,6 +2550,7 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
 router.post('/cart-item/update', authenticateToken, async (req, res) => {
     try {
         const { cart_item_id } = req.body;
+        const user_id = req.user_id;
         const newQuantity = parseInt(req.body.new_quantity, MAX_QUANTITY_PER_PRODUCT);
 
         if (!cart_item_id || isNaN(newQuantity) || newQuantity < 1) {
