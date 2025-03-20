@@ -2559,6 +2559,11 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
             });
         }
 
+        let cartItem = await CartItems.findById(cart_item_id);
+        if (!cartItem) {
+            return res.status(404).json({ status: 404, message: 'Cart item not found' });
+        }
+
         let cart = await Carts.findById(cartItem.cart_id);
         if (!cart || cart.user_id.toString() !== user_id) {
             return res.status(403).json({ status: 403, message: 'Unauthorized to update this cart item' });
@@ -2567,10 +2572,7 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
             return res.status(404).json({ status: 404, message: 'Cart not found' });
         }
 
-        let cartItem = await CartItems.findById(cart_item_id);
-        if (!cartItem) {
-            return res.status(404).json({ status: 404, message: 'Cart item not found' });
-        }
+    
         cartItem.quantity = Math.min(newQuantity, MAX_QUANTITY_PER_PRODUCT);
 
         await cartItem.save();
