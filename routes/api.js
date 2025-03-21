@@ -246,7 +246,7 @@ router.post('/user/login', async (req, res) => {
 
 router.put('/user/address/update', authenticateToken, async (req, res) => {
     try {
-        console.log(req.body);
+        //console.log(req.body);
         const { province_id, district_id, ward_id, street_address } = req.body;
         const user_id = req.user_id;
 
@@ -3350,7 +3350,7 @@ const getProvince = async (province_id) => {
             headers: { Token: TOKEN_GHN, ShopId: SHOP_ID }
         });
         const province = response.data.data.find(p => p.ProvinceID === province_id);
-        return province ? { id: province.ProvinceID, name: province.ProvinceName } : null;
+        return province ? { ProvinceID: province.ProvinceID, ProvinceName: province.ProvinceName } : null;
     } catch (error) {
         console.error('Lỗi khi lấy tỉnh:', error.response?.data || error.message);
         return null;
@@ -3363,7 +3363,7 @@ const getDistrict = async (district_id) => {
             headers: { Token: TOKEN_GHN, ShopId: SHOP_ID }
         });
         const district = response.data.data.find(d => d.DistrictID === district_id);
-        return district ? { id: district.DistrictID, name: district.DistrictName } : null;
+        return district ? { DistrictID: district.DistrictID, ProvinceID: district.ProvinceID, DistrictName: district.DistrictName } : null;
     } catch (error) {
         console.error('Lỗi khi lấy quận/huyện:', error.response?.data || error.message);
         return null;
@@ -3377,7 +3377,7 @@ const getWard = async (district_id, ward_id) => {
         });
         const ward = response.data.data.find(w => Number(w.WardCode) === Number(ward_id)); // Chuyển cả 2 về số nguyên
 
-        return ward ? { id: Number(ward.WardCode), name: ward.WardName } : null;
+        return ward ? { WardCode: Number(ward.WardCode),DistrictID: ward.DistrictID, WardName: ward.WardName } : null;
     } catch (error) {
         console.error('Lỗi khi lấy phường/xã:', error.response?.data || error.message);
         return null;
