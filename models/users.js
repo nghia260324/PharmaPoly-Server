@@ -13,7 +13,6 @@ const Users = new Scheme({
     },
     password: {type: String,maxLength: 255},
     google_id: {type: String},
-    address: {type: String},
     avatar_url: {type: String},
     uid: {type : String, unique: true},
     role: {type: Number, default: 1},

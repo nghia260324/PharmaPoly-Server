@@ -29,6 +29,7 @@ const CartItems = require('../models/cartItems');
 const Carts = require('../models/carts');
 const DiscountCodes = require('../models/discountCodes');
 const DiscountConditions = require('../models/discountConditions');
+const UserAddress = require('../models/userAddress');
 
 const upload = require('../config/common/upload');
 const { removeDiacritics } = require('../utils/textUtils');
@@ -220,6 +221,7 @@ router.post('/user/login', async (req, res) => {
             { expiresIn: '7d' }
         );
         const userObj = user.toObject();
+        user.address = await getUserAddress(user._id);
         delete userObj.password;
         res.status(200).json({
             status: 200,
@@ -237,6 +239,52 @@ router.post('/user/login', async (req, res) => {
         });
     }
 });
+
+
+router.put('/user/address/update', authenticateToken, async (req, res) => {
+    try {
+        const { user_id, province_id, district_id, ward_id, street_address } = req.body;
+        const authenticatedUserId = req.user_id;
+
+        if (!user_id) {
+            return res.status(400).json({ message: 'User ID is required' });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(user_id)) {
+            return res.status(400).json({ message: 'Invalid User ID' });
+        }
+
+        if (user_id !== authenticatedUserId) {
+            return res.status(403).json({ message: 'Permission denied: You can only update your own address' });
+        }
+
+        let address = await UserAddress.findOne({ user_id });
+
+        if (address) {
+            address.province_id = province_id;
+            address.district_id = district_id;
+            address.ward_id = ward_id;
+            address.street_address = street_address;
+        } else {
+            address = new UserAddress({
+                user_id,
+                province_id,
+                district_id,
+                ward_id,
+                street_address
+            });
+        }
+
+        await address.save();
+        res.json({ message: 'Address updated successfully', address });
+
+    } catch (error) {
+        console.error('Lỗi cập nhật địa chỉ:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+
 
 // Cập nhật thông tin cá nhân
 // router.put('/user/update-profile', authenticateToken, upload.single('avatar'), async (req, res) => {
@@ -2573,7 +2621,7 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
             return res.status(404).json({ status: 404, message: 'Cart not found' });
         }
 
-    
+
         cartItem.quantity = Math.min(newQuantity, MAX_QUANTITY_PER_PRODUCT);
 
         await cartItem.save();
@@ -2670,6 +2718,11 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
 //         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
 //     }
 // });
+
+
+
+
+
 
 router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
     try {
@@ -2810,322 +2863,6 @@ router.get('/search', authenticateToken, async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// router.get('/products/discounted', async (req, res) => {
-//     try {
-//         let { page = 1, limit = 10 } = req.query;
-
-//         const pageNumber = parseInt(page);
-//         let limitNumber = parseInt(limit);
-//         if (limitNumber > 20) {
-//             limitNumber = 20;
-//         }
-//         const skip = (pageNumber - 1) * limitNumber;
-//         const now = new Date();
-
-//         const discounts = await DiscountCodes.find({
-//             status: 1,
-//             start_date: { $lte: now },
-//             end_date: { $gte: now },
-//             applies_to: { $in: ["all", "product", "category", "brand"] }
-//         }).lean();
-//         if (!discounts.length) {
-//             return res.status(200).json({
-//                 status: 200,
-//                 message: 'No discounted products available!',
-//                 data: {
-//                     currentPage: pageNumber,
-//                     totalPages: 0,
-//                     totalProducts: 0,
-//                     hasNextPage: false,
-//                     hasPrevPage: false,
-//                     data: []
-//                 }
-//             });
-//         }
-//         let discountedProductIds = new Set();
-//         let discountedCategoryIds = new Set();
-//         let discountedBrandIds = new Set();
-//         let appliesToAll = false;
-//         const discountMap = {};
-
-//         discounts.forEach(discount => {
-//             if (discount.applies_to === "all") {
-//                 appliesToAll = true;
-//             }
-//             if (discount.applies_to === "product") {
-//                 discount.target_ids.forEach(id => {
-//                     discountedProductIds.add(id.toString());
-//                     if (!discountMap[id]) discountMap[id] = [];
-//                     discountMap[id].push(discount);
-//                 });
-//             }
-//             if (discount.applies_to === "category") {
-//                 discount.target_ids.forEach(id => discountedCategoryIds.add(id.toString()));
-//             }
-//             if (discount.applies_to === "brand") {
-//                 discount.target_ids.forEach(id => discountedBrandIds.add(id.toString()));
-//             }
-//         });
-
-//         let productFilter = {};
-//         if (!appliesToAll) {
-//             productFilter = {
-//                 $or: [
-//                     { _id: { $in: Array.from(discountedProductIds) } },
-//                     { category_id: { $in: Array.from(discountedCategoryIds) } },
-//                     { brand_id: { $in: Array.from(discountedBrandIds) } }
-//                 ]
-//             };
-//         }
-
-//         const products = await Products.find(productFilter)
-//             .sort({ createdAt: -1 })
-//             .skip(skip)
-//             .limit(limitNumber)
-//             .populate('category_id', '_id name')
-//             .populate('brand_id', '_id name description')
-//             .populate('product_type_id', '_id name')
-//             .lean();
-
-
-//         const totalProducts = await Products.countDocuments({
-//             $or: [
-//                 { _id: { $in: Array.from(discountedProductIds) } },
-//                 { category_id: { $in: Array.from(discountedCategoryIds) } },
-//                 { brand_id: { $in: Array.from(discountedBrandIds) } }
-//             ]
-//         });
-
-//         const totalPages = Math.ceil(totalProducts / limitNumber);
-
-//         const productIds = products.map(p => p._id);
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         }).lean();
-
-//         const imageMap = primaryImages.reduce((acc, img) => {
-//             acc[img.product_id] = img;
-//             return acc;
-//         }, {});
-
-//         const formattedProducts = products.map(product => {
-//             let discountAmount = 0;
-//             let applicableDiscounts = discountMap[product._id] || [];
-
-//             applicableDiscounts.forEach(discount => {
-//                 if (discount.discount_type === "percentage") {
-//                     discountAmount = Math.max(discountAmount, product.price * (discount.discount_value / 100));
-//                 } else if (discount.discount_type === "fixed") {
-//                     discountAmount = Math.max(discountAmount, discount.discount_value);
-//                 }
-//             });
-
-//             const discountedPrice = Math.max(0, product.price - discountAmount);
-
-//             return {
-//                 _id: product._id,
-//                 name: product.name,
-//                 description: product.description,
-//                 price: product.price,
-//                 discounted_price: discountedPrice,
-//                 average_rating: product.average_rating,
-//                 category_id: product.category_id._id,
-//                 brand_id: product.brand_id._id,
-//                 product_type_id: product.product_type_id._id,
-//                 category: product.category_id,
-//                 brand: product.brand_id,
-//                 product_type: product.product_type_id,
-//                 images: imageMap[product._id] ? [imageMap[product._id]] : [],
-//                 create_at: product.create_at,
-//                 update_at: product.updated_at
-//             };
-//         });
-
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Get Discounted Products Success!',
-//             data: {
-//                 currentPage: pageNumber,
-//                 totalPages,
-//                 totalProducts,
-//                 hasNextPage: pageNumber < totalPages,
-//                 hasPrevPage: pageNumber > 1,
-//                 data: formattedProducts
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error("Error fetching discounted products:", error);
-//         return res.status(500).json({ status: 500, message: "Internal Server Error" });
-//     }
-// });
-
-
-
-// router.get('/products/discounted', async (req, res) => {
-//     try {
-//         let { page = 1, limit = 10 } = req.query;
-
-//         const pageNumber = parseInt(page);
-//         let limitNumber = parseInt(limit);
-//         if (limitNumber > 20) {
-//             limitNumber = 20;
-//         }
-//         const skip = (pageNumber - 1) * limitNumber;
-//         const now = new Date();
-
-//         // Lấy danh sách mã giảm giá hợp lệ
-//         const discounts = await DiscountCodes.find({
-//             status: 1,
-//             start_date: { $lte: now },
-//             end_date: { $gte: now },
-//             applies_to: { $in: ["all", "product", "category", "brand"] }
-//         }).lean();
-
-//         if (!discounts.length) {
-//             return res.status(200).json({
-//                 status: 200,
-//                 message: 'No discounted products available!',
-//                 data: {
-//                     currentPage: pageNumber,
-//                     totalPages: 0,
-//                     totalProducts: 0,
-//                     hasNextPage: false,
-//                     hasPrevPage: false,
-//                     data: []
-//                 }
-//             });
-//         }
-
-//         let discountedProductIds = new Set();
-//         let discountedCategoryIds = new Set();
-//         let discountedBrandIds = new Set();
-//         let appliesToAll = false;
-
-//         let discountMap = {};
-
-//         discounts.forEach(discount => {
-//             if (discount.applies_to === "all") {
-//                 if (!discountMap["all"]) {
-//                     discountMap["all"] = [];
-//                 }
-//                 discountMap["all"].push(discount);
-//             } else {
-//                 discount.target_ids.forEach(productId => {
-//                     if (!discountMap[productId]) {
-//                         discountMap[productId] = [];
-//                     }
-//                     discountMap[productId].push(discount);
-//                 });
-//             }
-//         });
-
-
-//         let productFilter = {};
-//         if (!appliesToAll) {
-//             productFilter = {
-//                 $or: [
-//                     { _id: { $in: Array.from(discountedProductIds) } },
-//                     { category_id: { $in: Array.from(discountedCategoryIds) } },
-//                     { brand_id: { $in: Array.from(discountedBrandIds) } }
-//                 ]
-//             };
-//         }
-
-//         const products = await Products.find(productFilter)
-//             .sort({ createdAt: -1 })
-//             .skip(skip)
-//             .limit(limitNumber)
-//             .populate('category_id', '_id name')
-//             .populate('brand_id', '_id name description')
-//             .populate('product_type_id', '_id name')
-//             .lean();
-
-//         const totalProducts = await Products.countDocuments(productFilter);
-//         const totalPages = Math.ceil(totalProducts / limitNumber);
-
-//         const productIds = products.map(p => p._id);
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         }).lean();
-
-//         const imageMap = primaryImages.reduce((acc, img) => {
-//             acc[img.product_id] = img;
-//             return acc;
-//         }, {});
-
-//         const formattedProducts = products.map(product => {
-//             let discountAmount = 0;
-//             let applicableDiscounts = discountMap[product._id] || [];
-
-//             applicableDiscounts.forEach(discount => {
-//                 if (discount.type === "percent") {
-//                     let percentDiscount = product.price * (discount.value / 100);
-//                     if (discount.max_discount !== null) {
-//                         percentDiscount = Math.min(percentDiscount, discount.max_discount);
-//                     }
-//                     discountAmount = Math.max(discountAmount, percentDiscount);
-//                 } else if (discount.type === "fixed") {
-//                     discountAmount = Math.max(discountAmount, discount.value);
-//                 }
-//             });
-
-//             const discountedPrice = Math.max(0, product.price - discountAmount);
-
-//             return {
-//                 _id: product._id,
-//                 name: product.name,
-//                 description: product.description,
-//                 price: product.price,
-//                 discounted_price: discountedPrice,
-//                 average_rating: product.average_rating,
-//                 category_id: product.category_id._id,
-//                 brand_id: product.brand_id._id,
-//                 product_type_id: product.product_type_id._id,
-//                 category: product.category_id,
-//                 brand: product.brand_id,
-//                 product_type: product.product_type_id,
-//                 images: imageMap[product._id] ? [imageMap[product._id]] : [],
-//                 create_at: product.create_at,
-//                 update_at: product.updated_at
-//             };
-//         });
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Get Discounted Products Success!',
-//             data: {
-//                 currentPage: pageNumber,
-//                 totalPages,
-//                 totalProducts,
-//                 hasNextPage: pageNumber < totalPages,
-//                 hasPrevPage: pageNumber > 1,
-//                 data: formattedProducts
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error("Error fetching discounted products:", error);
-//         return res.status(500).json({ status: 500, message: "Internal Server Error" });
-//     }
-// });
 
 
 
@@ -3589,6 +3326,124 @@ const getDiscountedProductById = async (productId) => {
 //         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
 //     }
 // });
+
+
+
+
+
+
+
+
+const GHN_API = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
+
+const TOKEN_GHN = process.env.GHN_TOKEN;
+const getProvince = async (province_id) => {
+    try {
+        const response = await axios.get(`${GHN_API}/master-data/province`, {
+            headers: { Token: TOKEN_GHN }
+        });
+        const province = response.data.data.find(p => p.ProvinceID === province_id);
+        return province ? { id: province.ProvinceID, name: province.ProvinceName } : null;
+    } catch (error) {
+        console.error('Lỗi khi lấy tỉnh:', error.response?.data || error.message);
+        return null;
+    }
+};
+
+const getDistrict = async (district_id) => {
+    try {
+        const response = await axios.get(`${GHN_API}/master-data/district`, {
+            headers: { Token: TOKEN_GHN }
+        });
+        const district = response.data.data.find(d => d.DistrictID === district_id);
+        return district ? { id: district.DistrictID, name: district.DistrictName } : null;
+    } catch (error) {
+        console.error('Lỗi khi lấy quận/huyện:', error.response?.data || error.message);
+        return null;
+    }
+};
+
+const getWard = async (district_id, ward_id) => {
+    try {
+        const response = await axios.post(`${GHN_API}/master-data/ward`, { district_id }, {
+            headers: { Token: TOKEN_GHN }
+        });
+        const ward = response.data.data.find(w => w.WardCode === ward_id);
+        return ward ? { id: ward.WardCode, name: ward.WardName } : null;
+    } catch (error) {
+        console.error('Lỗi khi lấy phường/xã:', error.response?.data || error.message);
+        return null;
+    }
+};
+
+// const getUserAddress = async (user_id) => {
+//     try {
+//         if (!mongoose.Types.ObjectId.isValid(user_id)) {
+//             console.error('User ID không hợp lệ');
+//             return null;
+//         }
+
+//         const user = await Users.findById(user_id).lean();
+//         if (!user || !user.address) {
+//             console.log('Không có địa chỉ cho user:', user_id);
+//             return null;
+//         }
+//         const { _id, province_id, district_id, ward_id, street_address } = user.address;
+
+//         const [province, district, ward] = await Promise.all([
+//             getProvince(province_id),
+//             getDistrict(district_id),
+//             getWard(district_id, ward_id)
+//         ]);
+
+//         return {
+//             _id,
+//             province_id,
+//             district_id,
+//             ward_id,
+//             street_address,
+//             province,
+//             district,
+//             ward
+//         };
+//     } catch (error) {
+//         console.error('Lỗi khi lấy địa chỉ người dùng:', error.message);
+//         return null;
+//     }
+// };
+
+const getUserAddress = async (user_id) => {
+    try {
+        const user = await Users.findById(user_id).lean();
+
+        if (!user || !user.address) {
+            return null;
+        }
+
+        const { _id, province_id, district_id, ward_id, street_address } = user.address;
+   
+        const [province, district, ward] = await Promise.all([
+            getProvince(province_id),
+            getDistrict(district_id),
+            getWard(district_id, ward_id)
+        ]);
+
+        return {
+            _id,
+            province_id,
+            district_id,
+            ward_id,
+            street_address,
+            province,
+            district,
+            ward
+        };
+    } catch (error) {
+        return null;
+    }
+};
+
+
 
 
 
