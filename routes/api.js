@@ -1,6 +1,3 @@
-const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+=|<>?{}[\]~-]).{8,}$/;
-
-
 var express = require('express');
 var router = express.Router();
 
@@ -9,6 +6,12 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { encrypt } = require('../utils/crypto');
+const axios = require('axios');
+
+const passwordPattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+=|<>?{}[\]~-]).{8,}$/;
+const GHN_API = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
+const TOKEN_GHN = process.env.GHN_TOKEN;
+const SHOP_ID = process.env.GHN_SHOP_ID;
 
 const { checkPhoneVerification, checkUidAndPhoneNumber } = require('../utils/checkPhoneVerification');
 const { bucket } = require("../firebase/firebaseAdmin");
@@ -221,7 +224,7 @@ router.post('/user/login', async (req, res) => {
             { expiresIn: '7d' }
         );
         const userObj = user.toObject();
-        user.address = await getUserAddress(user._id);
+        userObj.address = await getUserAddress(user._id);
         delete userObj.password;
         res.status(200).json({
             status: 200,
@@ -243,40 +246,50 @@ router.post('/user/login', async (req, res) => {
 
 router.put('/user/address/update', authenticateToken, async (req, res) => {
     try {
-        const { user_id, province_id, district_id, ward_id, street_address } = req.body;
-        const authenticatedUserId = req.user_id;
+        console.log(req.body);
+        const { province_id, district_id, ward_id, street_address } = req.body;
+        const user_id = req.user_id;
 
-        if (!user_id) {
-            return res.status(400).json({ message: 'User ID is required' });
+        const user = await Users.findById(user_id);
+        if (!user) {
+            return res.status(404).json({ status: 404, message: "User not found!" });
         }
 
-        if (user_id !== authenticatedUserId) {
-            return res.status(403).json({ message: 'Permission denied: You can only update your own address' });
-        }
+        let updateData = {};
+        if (province_id !== undefined) updateData.province_id = Number(province_id);
+        if (district_id !== undefined) updateData.district_id = Number(district_id);
+        if (ward_id !== undefined) updateData.ward_id = Number(ward_id);
+        if (street_address !== undefined) updateData.street_address = street_address;
 
         let address = await UserAddress.findOne({ user_id });
 
         if (address) {
-            address.province_id = province_id;
-            address.district_id = district_id;
-            address.ward_id = ward_id;
-            address.street_address = street_address;
+            address = await UserAddress.findOneAndUpdate(
+                { user_id },
+                { $set: updateData },
+                { new: true }
+            );
         } else {
             address = new UserAddress({
                 user_id,
-                province_id,
-                district_id,
-                ward_id,
-                street_address
+                ...updateData
             });
+            await address.save();
         }
 
-        await address.save();
-        res.json({ message: 'Address updated successfully', address });
+        const formattedAddress = { ...address.toObject() };
+        delete formattedAddress.__v;
+
+        res.status(200).json({
+            status: 200,
+            message: "Address updated successfully!",
+            data: formattedAddress
+        });
+
 
     } catch (error) {
-        console.error('Lỗi cập nhật địa chỉ:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error("Error updating address:", error);
+        res.status(500).json({ status: 500, message: "Internal server error", error: error.message });
     }
 });
 
@@ -3330,13 +3343,10 @@ const getDiscountedProductById = async (productId) => {
 
 
 
-const GHN_API = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
-
-const TOKEN_GHN = process.env.GHN_TOKEN;
 const getProvince = async (province_id) => {
     try {
         const response = await axios.get(`${GHN_API}/master-data/province`, {
-            headers: { Token: TOKEN_GHN }
+            headers: { Token: TOKEN_GHN, ShopId: SHOP_ID }
         });
         const province = response.data.data.find(p => p.ProvinceID === province_id);
         return province ? { id: province.ProvinceID, name: province.ProvinceName } : null;
@@ -3349,7 +3359,7 @@ const getProvince = async (province_id) => {
 const getDistrict = async (district_id) => {
     try {
         const response = await axios.get(`${GHN_API}/master-data/district`, {
-            headers: { Token: TOKEN_GHN }
+            headers: { Token: TOKEN_GHN, ShopId: SHOP_ID }
         });
         const district = response.data.data.find(d => d.DistrictID === district_id);
         return district ? { id: district.DistrictID, name: district.DistrictName } : null;
@@ -3361,63 +3371,28 @@ const getDistrict = async (district_id) => {
 
 const getWard = async (district_id, ward_id) => {
     try {
-        const response = await axios.post(`${GHN_API}/master-data/ward`, { district_id }, {
-            headers: { Token: TOKEN_GHN }
+        const response = await axios.post(`${GHN_API}/master-data/ward`, { district_id: Number(district_id) }, {
+            headers: { Token: TOKEN_GHN, ShopId: SHOP_ID }
         });
-        const ward = response.data.data.find(w => w.WardCode === ward_id);
-        return ward ? { id: ward.WardCode, name: ward.WardName } : null;
+        const ward = response.data.data.find(w => Number(w.WardCode) === Number(ward_id)); // Chuyển cả 2 về số nguyên
+
+        return ward ? { id: Number(ward.WardCode), name: ward.WardName } : null;
     } catch (error) {
         console.error('Lỗi khi lấy phường/xã:', error.response?.data || error.message);
         return null;
     }
 };
 
-// const getUserAddress = async (user_id) => {
-//     try {
-//         if (!mongoose.Types.ObjectId.isValid(user_id)) {
-//             console.error('User ID không hợp lệ');
-//             return null;
-//         }
-
-//         const user = await Users.findById(user_id).lean();
-//         if (!user || !user.address) {
-//             console.log('Không có địa chỉ cho user:', user_id);
-//             return null;
-//         }
-//         const { _id, province_id, district_id, ward_id, street_address } = user.address;
-
-//         const [province, district, ward] = await Promise.all([
-//             getProvince(province_id),
-//             getDistrict(district_id),
-//             getWard(district_id, ward_id)
-//         ]);
-
-//         return {
-//             _id,
-//             province_id,
-//             district_id,
-//             ward_id,
-//             street_address,
-//             province,
-//             district,
-//             ward
-//         };
-//     } catch (error) {
-//         console.error('Lỗi khi lấy địa chỉ người dùng:', error.message);
-//         return null;
-//     }
-// };
 
 const getUserAddress = async (user_id) => {
     try {
-        const user = await Users.findById(user_id).lean();
-
-        if (!user || !user.address) {
+        const address = await UserAddress.findOne({ user_id }).lean();
+        if (!address) {
             return null;
         }
 
-        const { _id, province_id, district_id, ward_id, street_address } = user.address;
-   
+        const { _id, province_id, district_id, ward_id, street_address } = address;
+
         const [province, district, ward] = await Promise.all([
             getProvince(province_id),
             getDistrict(district_id),
@@ -3435,6 +3410,7 @@ const getUserAddress = async (user_id) => {
             ward
         };
     } catch (error) {
+        console.error('Lỗi khi lấy địa chỉ người dùng:', error.message);
         return null;
     }
 };
