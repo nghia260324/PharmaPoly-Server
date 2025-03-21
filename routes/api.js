@@ -258,7 +258,7 @@ router.put('/user/address/update', authenticateToken, async (req, res) => {
         let updateData = {};
         if (province_id !== undefined) updateData.province_id = Number(province_id);
         if (district_id !== undefined) updateData.district_id = Number(district_id);
-        if (ward_id !== undefined) updateData.ward_id = Number(ward_id);
+        if (ward_id !== undefined) updateData.ward_id = String(ward_id);
         if (street_address !== undefined) updateData.street_address = street_address;
 
         let address = await UserAddress.findOne({ user_id });
@@ -3375,14 +3375,16 @@ const getWard = async (district_id, ward_id) => {
         const response = await axios.post(`${GHN_API}/master-data/ward`, { district_id: Number(district_id) }, {
             headers: { Token: TOKEN_GHN, ShopId: SHOP_ID }
         });
-        const ward = response.data.data.find(w => Number(w.WardCode) === Number(ward_id)); // Chuyển cả 2 về số nguyên
 
-        return ward ? { WardCode: Number(ward.WardCode),DistrictID: ward.DistrictID, WardName: ward.WardName } : null;
+        const ward = response.data.data.find(w => w.WardCode === String(ward_id)); 
+
+        return ward ? { WardCode: ward.WardCode, DistrictID: ward.DistrictID, WardName: ward.WardName } : null;
     } catch (error) {
         console.error('Lỗi khi lấy phường/xã:', error.response?.data || error.message);
         return null;
     }
 };
+
 
 
 const getUserAddress = async (user_id) => {
@@ -3404,7 +3406,7 @@ const getUserAddress = async (user_id) => {
             _id,
             province_id,
             district_id,
-            ward_id,
+            ward_id: String(ward_id),
             street_address,
             province,
             district,

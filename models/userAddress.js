@@ -6,7 +6,7 @@ const UserAddress = new Schema({
     user_id: { type: Schema.Types.ObjectId, ref: 'user', required: true },
     province_id: { type: Number, required: true },
     district_id: { type: Number, required: true },  
-    ward_id: { type: Number, required: true },      
+    ward_id: { type: String, required: true },      
     street_address: { type: String, required: true } 
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
