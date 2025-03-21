@@ -276,10 +276,18 @@ router.put('/user/address/update', authenticateToken, async (req, res) => {
             });
             await address.save();
         }
-
+        const [province, district, ward] = await Promise.all([
+            getProvince(province_id),
+            getDistrict(district_id),
+            getWard(district_id, ward_id)
+        ]);
         const formattedAddress = { ...address.toObject() };
-        delete formattedAddress.__v;
+        formattedAddress.province = province;
+        formattedAddress.district = district;
+        formattedAddress.ward = ward;
 
+        delete formattedAddress.__v;
+        console.log(formattedAddress);
         res.status(200).json({
             status: 200,
             message: "Address updated successfully!",
