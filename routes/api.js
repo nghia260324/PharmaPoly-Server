@@ -250,10 +250,6 @@ router.put('/user/address/update', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: 'User ID is required' });
         }
 
-        if (!mongoose.Types.ObjectId.isValid(user_id)) {
-            return res.status(400).json({ message: 'Invalid User ID' });
-        }
-
         if (user_id !== authenticatedUserId) {
             return res.status(403).json({ message: 'Permission denied: You can only update your own address' });
         }
