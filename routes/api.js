@@ -567,6 +567,7 @@ router.post('/refresh-token', async (req, res) => {
         );
 
         const userObj = user.toObject();
+        userObj.address = await getUserAddress(user._id);
         delete userObj.password;
 
         res.json({
