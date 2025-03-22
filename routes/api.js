@@ -3476,7 +3476,7 @@ router.post("/calculate-shipping-fee", async (req, res) => {
             }
         );
         const services = servicesResponse.data.data;
-        console.log(services)
+        // console.log(services)
         if (!services || services.length === 0) {
             return res.status(400).json({ status: 400, message: "No available shipping services" });
         }
@@ -3513,11 +3513,12 @@ router.post("/calculate-shipping-fee", async (req, res) => {
             }
         );
 
-        return res.status(200).json({ 
-            status: 200, 
-            message: "Shipping fee calculated successfully!", 
-            data: shippingFeeResponse.data 
-        });
+        // return res.status(200).json({ 
+        //     status: 200, 
+        //     message: "Shipping fee calculated successfully!", 
+        //     data: shippingFeeResponse.data 
+        // });
+        res.json(shippingFeeResponse.data);
 
     } catch (error) {
         console.error("Error calculating shipping fee:", error);
