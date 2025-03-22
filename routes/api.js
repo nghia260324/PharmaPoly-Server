@@ -287,7 +287,7 @@ router.put('/user/address/update', authenticateToken, async (req, res) => {
         formattedAddress.ward = ward;
 
         delete formattedAddress.__v;
-        console.log(formattedAddress);
+        // console.log(formattedAddress);
         res.status(200).json({
             status: 200,
             message: "Address updated successfully!",
@@ -3384,7 +3384,7 @@ const getWard = async (district_id, ward_id) => {
             headers: { Token: TOKEN_GHN, ShopId: SHOP_ID }
         });
 
-        const ward = response.data.data.find(w => w.WardCode === String(ward_id)); 
+        const ward = response.data.data.find(w => w.WardCode === String(ward_id));
 
         return ward ? { WardCode: ward.WardCode, DistrictID: ward.DistrictID, WardName: ward.WardName } : null;
     } catch (error) {
@@ -3449,29 +3449,53 @@ const getShopDistrict = async () => {
 
 
 
-
-router.post("/calculate-shipping-fee", authenticateToken, async (req, res) => {
+router.post("/calculate-shipping-fee", async (req, res) => {
     try {
         const { to_district_id, to_ward_code } = req.body;
 
+        if (!to_district_id || !to_ward_code) {
+            return res.status(400).json({ status: 400, message: "Missing required fields: to_district_id, to_ward_code" });
+        }
+
         const from_district_id = await getShopDistrict();
         if (!from_district_id) {
-            return res.status(500).json({ error: "Không lấy được địa chỉ shop" });
+            return res.status(500).json({ status: 500, message: "Cannot retrieve shop address" });
         }
+
+        const servicesResponse = await axios.get(
+            `${GHN_API}/v2/shipping-order/available-services`,
+            {
+                params: {
+                    shop_id: SHOP_ID,
+                    from_district: from_district_id,
+                    to_district: to_district_id
+                },
+                headers: {
+                    "Token": TOKEN_GHN
+                }
+            }
+        );
+        const services = servicesResponse.data.data;
+        console.log(services)
+        if (!services || services.length === 0) {
+            return res.status(400).json({ status: 400, message: "No available shipping services" });
+        }
+
+        const service_id = services[0].service_id;
 
         const fixedWeight = 500;
         const fixedLength = 10;
         const fixedWidth = 10;
         const fixedHeight = 5;
 
-        const response = await axios.post(
+        const shippingFeeResponse = await axios.post(
             `${GHN_API}/v2/shipping-order/fee`,
             {
                 from_district_id,
                 to_district_id: parseInt(to_district_id, 10),
                 to_ward_code: String(to_ward_code),
-                service_id: 53320,
-                service_type_id: 2,
+                service_id,
+                service_type_id: services[0].service_type_id,
                 weight: fixedWeight,
                 length: fixedLength,
                 width: fixedWidth,
@@ -3489,9 +3513,19 @@ router.post("/calculate-shipping-fee", authenticateToken, async (req, res) => {
             }
         );
 
-        res.json(response.data);
+        return res.status(200).json({ 
+            status: 200, 
+            message: "Shipping fee calculated successfully!", 
+            data: shippingFeeResponse.data 
+        });
+
     } catch (error) {
-        res.status(500).json({ error: error.response?.data || error.message });
+        console.error("Error calculating shipping fee:", error);
+        return res.status(500).json({ 
+            status: 500, 
+            message: "Internal Server Error", 
+            error: error.response?.data || error.message 
+        });
     }
 });
 
