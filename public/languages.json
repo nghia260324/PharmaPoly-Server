@@ -7,7 +7,7 @@
       "product_type": "Product Type",
       "section": "Section",
       "language": "Language",
-      "name": "Name:",
+      "name": "Name",
       "description": "Description",
       "discount": "Discount",
       
@@ -125,7 +125,7 @@
       "product_type": "Loại sản phẩm",
       "section": "Mục nội dung",
       "language": "Ngôn ngữ",
-      "name": "Tên:",
+      "name": "Tên",
       "description": "Mô tả",
       "discount": "Mã giảm giá",
 

@@ -3427,12 +3427,37 @@ const getUserAddress = async (user_id) => {
 };
 
 
-
-
-
-router.post("/calculate-shipping-fee", async (req, res) => {
+const getShopDistrict = async () => {
     try {
-        const { from_district_id, to_district_id, to_ward_code } = req.body;
+        const response = await axios.get(`${GHN_API}/v2/shop/all`, {
+            headers: {
+                "Token": TOKEN_GHN
+            }
+        });
+
+        if (response.data.code === 200 && response.data.data.shops.length > 0) {
+            return response.data.data.shops[0].district_id;
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.error("Lỗi khi gọi API GHN:", error.message);
+        return null;
+    }
+};
+
+
+
+
+
+router.post("/calculate-shipping-fee", authenticateToken, async (req, res) => {
+    try {
+        const { to_district_id, to_ward_code } = req.body;
+
+        const from_district_id = await getShopDistrict();
+        if (!from_district_id) {
+            return res.status(500).json({ error: "Không lấy được địa chỉ shop" });
+        }
 
         const fixedWeight = 500;
         const fixedLength = 10;
@@ -3443,8 +3468,8 @@ router.post("/calculate-shipping-fee", async (req, res) => {
             `${GHN_API}/v2/shipping-order/fee`,
             {
                 from_district_id,
-                to_district_id,
-                to_ward_code,
+                to_district_id: parseInt(to_district_id, 10),
+                to_ward_code: String(to_ward_code),
                 service_id: 53320,
                 service_type_id: 2,
                 weight: fixedWeight,
