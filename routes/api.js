@@ -3430,8 +3430,45 @@ const getUserAddress = async (user_id) => {
 
 
 
+router.post("/calculate-shipping-fee", async (req, res) => {
+    try {
+        const { from_district_id, to_district_id, to_ward_code } = req.body;
 
+        const fixedWeight = 500;
+        const fixedLength = 10;
+        const fixedWidth = 10;
+        const fixedHeight = 5;
 
+        const response = await axios.post(
+            `${GHN_API}/v2/shipping-order/fee`,
+            {
+                from_district_id,
+                to_district_id,
+                to_ward_code,
+                service_id: 53320,
+                service_type_id: 2,
+                weight: fixedWeight,
+                length: fixedLength,
+                width: fixedWidth,
+                height: fixedHeight,
+                insurance_value: 1000000,
+                cod_failed_amount: 0,
+                coupon: null
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "Token": TOKEN_GHN,
+                    "ShopId": SHOP_ID
+                }
+            }
+        );
+
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: error.response?.data || error.message });
+    }
+});
 
 
 
