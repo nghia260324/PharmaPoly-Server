@@ -14,7 +14,7 @@ const TOKEN_GHN = process.env.GHN_TOKEN;
 const SHOP_ID = process.env.GHN_SHOP_ID;
 
 const { checkPhoneVerification, checkUidAndPhoneNumber } = require('../utils/checkPhoneVerification');
-const { bucket } = require("../firebase/firebaseAdmin");
+const { db, bucket } = require("../firebase/firebaseAdmin");
 
 const Users = require('../models/users');
 const Products = require('../models/products');
@@ -33,6 +33,8 @@ const Carts = require('../models/carts');
 const DiscountCodes = require('../models/discountCodes');
 const DiscountConditions = require('../models/discountConditions');
 const UserAddress = require('../models/userAddress');
+const Orders = require('../models/orders');
+const OrderItems = require('../models/orderItems');
 
 const upload = require('../config/common/upload');
 const { removeDiacritics } = require('../utils/textUtils');
@@ -3446,6 +3448,50 @@ const getShopDistrict = async () => {
     }
 };
 
+const getShopInfo = async () => {
+    try {
+        const response = await axios.get(`${GHN_API}/v2/shop/all`, {
+            headers: { "Token": TOKEN_GHN }
+        });
+
+        if (response.data.code === 200 && response.data.data.shops.length > 0) {
+            const shop = response.data.data.shops[0];
+            const districtInfo = await getDistrict(shop.district_id);
+            const wardInfo = await getWard(shop.district_id, shop.ward_code);
+            return {
+                from_name: shop.name,
+                from_phone: shop.phone,
+                from_address: shop.address,
+                from_ward_name: wardInfo.WardName,
+                from_ward_code: wardInfo.WardCode,
+                from_district_name: districtInfo.DistrictName,
+                from_district_id: shop.district_id
+            };
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.error("Lỗi khi lấy thông tin cửa hàng từ GHN:", error.message);
+        return null;
+    }
+};
+
+
+
+
+router.get("/shop-info", async (req, res) => {
+    try {
+        const shopInfo = await getShopInfo();
+        if (!shopInfo) {
+            return res.status(500).json({ status: 500, message: "Không lấy được thông tin cửa hàng từ GHN" });
+        }
+
+        res.status(200).json({ status: 200, message: "Lấy thông tin shop thành công", data: shopInfo });
+    } catch (error) {
+        console.error("Lỗi khi lấy thông tin cửa hàng:", error);
+        res.status(500).json({ status: 500, message: "Lỗi server", error: error.message });
+    }
+});
 
 
 
@@ -3457,82 +3503,333 @@ router.post("/calculate-shipping-fee", async (req, res) => {
             return res.status(400).json({ status: 400, message: "Missing required fields: to_district_id, to_ward_code" });
         }
 
-        const from_district_id = await getShopDistrict();
-        if (!from_district_id) {
-            return res.status(500).json({ status: 500, message: "Cannot retrieve shop address" });
-        }
+        const shippingFee = await calculateShippingFee(to_district_id, to_ward_code);
+        return res.status(200).json({
+            code: 200,
+            message: "Shipping fee calculated successfully!",
+            data: { total: shippingFee }
 
-        const servicesResponse = await axios.get(
-            `${GHN_API}/v2/shipping-order/available-services`,
-            {
-                params: {
-                    shop_id: SHOP_ID,
-                    from_district: from_district_id,
-                    to_district: to_district_id
-                },
-                headers: {
-                    "Token": TOKEN_GHN
-                }
-            }
-        );
-        const services = servicesResponse.data.data;
-        // console.log(services)
-        if (!services || services.length === 0) {
-            return res.status(400).json({ status: 400, message: "No available shipping services" });
-        }
-
-        const service_id = services[0].service_id;
-
-        const fixedWeight = 500;
-        const fixedLength = 10;
-        const fixedWidth = 10;
-        const fixedHeight = 5;
-
-        const shippingFeeResponse = await axios.post(
-            `${GHN_API}/v2/shipping-order/fee`,
-            {
-                from_district_id,
-                to_district_id: parseInt(to_district_id, 10),
-                to_ward_code: String(to_ward_code),
-                service_id,
-                service_type_id: services[0].service_type_id,
-                weight: fixedWeight,
-                length: fixedLength,
-                width: fixedWidth,
-                height: fixedHeight,
-                insurance_value: 1000000,
-                cod_failed_amount: 0,
-                coupon: null
-            },
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                    "Token": TOKEN_GHN,
-                    "ShopId": SHOP_ID
-                }
-            }
-        );
-
-        // return res.status(200).json({ 
-        //     status: 200, 
-        //     message: "Shipping fee calculated successfully!", 
-        //     data: shippingFeeResponse.data 
-        // });
-        res.json(shippingFeeResponse.data);
+        });
 
     } catch (error) {
-        console.error("Error calculating shipping fee:", error);
-        return res.status(500).json({ 
-            status: 500, 
-            message: "Internal Server Error", 
-            error: error.response?.data || error.message 
-        });
+        return res.status(500).json({ status: 500, message: error.message });
     }
 });
 
 
 
 
+router.post("/orders/create", authenticateToken, async (req, res) => {
+    try {
+        const { payment_method, items } = req.body;
+        const user_id = req.user_id;
+
+        if (!user_id) {
+            return res.status(401).json({ status: 401, message: "Unauthorized" });
+        }
+
+        const user = await Users.findById(user_id);
+        if (!user) {
+            return res.status(404).json({ status: 404, message: "User not found" });
+        }
+
+        const userAddress = await UserAddress.findOne({ user_id });
+        if (!userAddress) {
+            return res.status(404).json({ status: 404, message: "User address not found" });
+        }
+
+        const to_name = user.full_name;
+        const to_phone = user.shipping_phone_number;
+        const to_address = userAddress.street_address;
+        const to_district_id = userAddress.district_id;
+        const to_ward_code = userAddress.ward_id;
+
+        if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !items || items.length === 0) {
+            return res.status(400).json({ status: 400, message: "Missing required fields" });
+        }
+
+        const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
+
+        const totalItemPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const total_price = totalItemPrice + shipping_fee;
+
+        const newOrder = new Orders({
+            user_id,
+            to_name,
+            to_phone,
+            to_address,
+            to_district_id,
+            to_ward_code,
+            payment_method,
+            shipping_fee,
+            total_price,
+        });
+
+        await newOrder.save();
+
+        const orderItems = items.map(item => ({
+            order_id: newOrder._id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.price
+        }));
+
+
+        await OrderItems.insertMany(orderItems);
+        await db.ref("new_orders").set({ timestamp: Date.now()});
+
+        res.status(200).json({ status: 200, message: "Order created successfully", data: newOrder  });
+
+    } catch (error) {
+        console.error("Error creating order:", error);
+        return res.status(500).json({
+            status: 500,
+            message: "Internal Server Error",
+            error: error.response?.data || error.message
+        });
+    }
+});
+
+
+// router.post("/orders/create", authenticateToken, async (req, res) => {
+//     try {
+//         //const { to_name, to_phone, to_address, to_district_id, to_ward_code, payment_method, items } = req.body;
+//         const { payment_method, items } = req.body;
+//         //const user_id = "67b344c3744eaa2ff0f0ce7d";
+//         const user_id = req.user_id;
+
+//         if (!user_id) {
+//             return res.status(401).json({ status: 401, message: "Unauthorized" });
+//         }
+
+//         const user = await Users.findById(user_id);
+//         if (!user) {
+//             return res.status(404).json({ status: 404, message: "User not found" });
+//         }
+
+//         const userAddress = await UserAddress.findOne({ user_id });
+//         if (!userAddress) {
+//             return res.status(404).json({ status: 404, message: "User address not found" });
+//         }
+
+//         const to_name = user.full_name;
+//         const to_phone = user.shipping_phone_number;
+//         const to_address = userAddress.street_address;
+//         const to_district_id = userAddress.district_id;
+//         const to_ward_code = userAddress.ward_id;
+
+//         if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !items || items.length === 0) {
+//             return res.status(400).json({ status: 400, message: "Missing required fields" });
+//         }
+
+//         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
+
+//         const totalItemPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+//         const total_price = totalItemPrice + shipping_fee;
+
+//         const newOrder = new Orders({
+//             user_id,
+//             to_name,
+//             to_phone,
+//             to_address,
+//             to_district_id,
+//             to_ward_code,
+//             payment_method,
+//             shipping_fee,
+//             total_price,
+//         });
+
+//         await newOrder.save();
+
+//         const orderItems = items.map(item => ({
+//             order_id: newOrder._id,
+//             product_id: item.product_id,
+//             quantity: item.quantity,
+//             price: item.price
+//         }));
+
+
+//         await OrderItems.insertMany(orderItems);
+
+//         const productIds = items.map(item => item.product_id);
+
+//         const primaryImages = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         }).lean();
+
+//         const itemsWithImages = items.map(item => {
+//             const primaryImage = primaryImages.find(img => img.product_id.equals(item.product_id));
+//             return {
+//                 ...item,
+//                 image_url: primaryImage ? primaryImage.image_url : "",
+//             };
+//         });
+
+//         const shopInfo = await getShopInfo();
+
+//         const servicesResponse = await axios.get(`${GHN_API}/v2/shipping-order/available-services`, {
+//             params: { shop_id: SHOP_ID, from_district: shopInfo.from_district_id, to_district: to_district_id },
+//             headers: { "Token": TOKEN_GHN }
+//         });
+//         const services = servicesResponse.data.data;
+//         const service = services[0];
+
+//         const payment_type_id = payment_method === "COD" ? 2 : 1;        
+
+//         const ghnResponse = await axios.post(`${GHN_API}/v2/shipping-order/create`, {
+//             //payment_type_id: payment_method === "COD" ? 2 : 1,
+//             payment_type_id,
+//             note: "Giao hàng cẩn thận",
+//             required_note: "KHONGCHOXEMHANG",
+//             from_name: shopInfo.from_name,
+//             from_phone: shopInfo.from_phone,
+//             from_address: shopInfo.from_address,
+//             from_ward_name: shopInfo.from_ward_name,
+//             from_district_name: shopInfo.from_district_name,
+//             from_district_id: shopInfo.from_district_id,
+//             to_district_id,
+//             to_ward_code,
+//             to_name,
+//             to_phone,
+//             to_address,
+//             return_phone: shopInfo.from_phone,
+//             return_address: shopInfo.from_address,
+//             return_district_id: shopInfo.from_district_id,
+//             return_ward_code: shopInfo.from_ward_code,
+//             service_id: service.service_id,
+//             service_type_id: service.service_type_id,
+//             items: itemsWithImages.map(item => ({
+//                 name: item.name,
+//                 code: item.product_id,
+//                 quantity: item.quantity,
+//                 price: item.price,
+//                 weight: 1
+//                 //image_url: item.image_url
+//             })),
+//             weight: 1,
+//             cod_amount: payment_method === "COD" ? totalItemPrice : 0,
+//             insurance_value: 1000000,
+//         }, {
+//             headers: { "Content-Type": "application/json", "Token": TOKEN_GHN, "ShopId": SHOP_ID }
+//         });
+
+//         if (ghnResponse.data.code !== 200) {
+//             return res.status(500).json({ status: 500, message: "Failed to create GHN order", error: ghnResponse.data });
+//         }
+
+//         const order_code = ghnResponse.data.data.order_code;
+
+//         //const order_code = generateOrderCode();
+
+//         await Orders.findByIdAndUpdate(newOrder._id, { order_code });
+//         const updatedOrder = await Orders.findById(newOrder._id);
+//         await db.ref("new_orders").set({ timestamp: Date.now(), order_code });
+
+//         res.status(200).json({ status: 200, message: "Order created successfully", order: updatedOrder });
+
+//     } catch (error) {
+//         console.error("Error creating order:", error);
+//         return res.status(500).json({
+//             status: 500,
+//             message: "Internal Server Error",
+//             error: error.response?.data || error.message
+//         });
+//     }
+// });
+
+
+router.patch("/admin/orders/:order_id/confirm", async (req, res) => {
+    try {
+        const { order_id } = req.params;
+
+        // Tìm đơn hàng trong MongoDB
+        const order = await Orders.findById(order_id);
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Đơn hàng không tồn tại" });
+        }
+
+        if (order.status !== "pending") {
+            return res.status(400).json({ success: false, message: "Chỉ có thể xác nhận đơn hàng ở trạng thái pending" });
+        }
+
+        if (!order.order_code) {
+            return res.status(400).json({ success: false, message: "Đơn hàng chưa có mã GHN" });
+        }
+
+        // Gửi yêu cầu xác nhận lấy hàng lên GHN
+        const ghnResponse = await axios.post(`${GHN_API}/v2/shipping-order/confirm`, {
+            order_code: order.order_code
+        }, {
+            headers: { "Token": TOKEN_GHN }
+        });
+
+        if (ghnResponse.data.code !== 200) {
+            return res.status(500).json({ success: false, message: "GHN không xác nhận được đơn hàng", error: ghnResponse.data });
+        }
+
+        // Cập nhật trạng thái đơn hàng trong MongoDB
+        order.status = "confirmed";
+        await order.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã xác nhận đơn hàng thành công",
+            data: order
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Lỗi server",
+            error: error.response?.data || error.message
+        });
+    }
+});
+
+
+
+const calculateShippingFee = async (to_district_id, to_ward_code) => {
+    try {
+        const from_district_id = await getShopDistrict();
+        if (!from_district_id) throw new Error("Cannot retrieve shop address");
+
+        const servicesResponse = await axios.get(`${GHN_API}/v2/shipping-order/available-services`, {
+            params: { shop_id: SHOP_ID, from_district: from_district_id, to_district: to_district_id },
+            headers: { "Token": TOKEN_GHN }
+        });
+
+        const services = servicesResponse.data.data;
+        if (!services || services.length === 0) throw new Error("No available shipping services");
+
+        const service = services[0];
+        const fixedWeight = 1;
+        const fixedLength = 1;
+        const fixedWidth = 1;
+        const fixedHeight = 1;
+        const shippingFeeResponse = await axios.post(`${GHN_API}/v2/shipping-order/fee`, {
+            from_district_id,
+            to_district_id: parseInt(to_district_id, 10),
+            to_ward_code: String(to_ward_code),
+            service_id: service.service_id,
+            service_type_id: service.service_type_id,
+            weight: fixedWeight,
+            length: fixedLength,
+            width: fixedWidth,
+            height: fixedHeight,
+            insurance_value: 1000000,
+            cod_failed_amount: 0,
+            coupon: null
+        }, {
+            headers: { "Content-Type": "application/json", "Token": TOKEN_GHN, "ShopId": SHOP_ID }
+        });
+
+        return shippingFeeResponse.data.data.total;
+    } catch (error) {
+        console.error("Error calculating shipping fee:", error);
+        throw new Error(error.response?.data?.message || "Shipping fee calculation failed");
+    }
+};
 
 
 

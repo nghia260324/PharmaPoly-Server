@@ -32,11 +32,12 @@ if (fs.existsSync("./firebase/firebaseAdmin.json")) {
 }
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://pharmapoly-62b41-default-rtdb.firebaseio.com",
 });
 
 const auth = admin.auth();
 const storage = admin.storage();
 const bucket = storage.bucket("pharmapoly-62b41.firebasestorage.app"); 
-
-module.exports = { admin, auth, bucket };
+const db = admin.database();
+module.exports = { admin, auth, bucket, db };

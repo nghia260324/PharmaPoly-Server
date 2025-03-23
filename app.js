@@ -18,6 +18,7 @@ const userRouter = require("./routes/userRouter");
 const dashboardRouter = require("./routes/dashboardRouter");
 const discountRouter = require("./routes/discountRouter");
 const productImageRouter = require("./routes/productImageRouter");
+const orderRouter = require("./routes/orderRouter");
 const authenticateToken = require("./middlewares/authenticateToken");
 
 var app = express();
@@ -64,6 +65,7 @@ app.use("/dashboards", authenticateToken, dashboardRouter);
 // app.use("/discounts", authenticateToken, discountRouter);
 app.use("/discounts", discountRouter);
 app.use("/users", authenticateToken, userRouter);
+app.use("/orders", authenticateToken, orderRouter);
 
 // hbs.registerHelper('formatType', function(type) {
 //   const formattedTypes = {
@@ -99,19 +101,60 @@ hbs.registerHelper('formatDiscountField', function (value, fieldType) {
   return value;
 });
 
+hbs.registerHelper("getStatusClass", function (status) {
+  switch (status) {
+      case "pending": return "bg-warning";
+      case "confirmed": return "bg-primary";
+      case "shipping": return "bg-info";
+      case "delivered": return "bg-success";
+      case "canceled": return "bg-danger";
+      default: return "bg-secondary";
+  }
+});
 
+hbs.registerHelper("getStatusText", function (status) {
+  switch (status) {
+      case "pending": return "Chờ xác nhận";
+      case "confirmed": return "Đã xác nhận";
+      case "shipping": return "Đang giao";
+      case "delivered": return "Đã giao";
+      case "canceled": return "Đã hủy";
+      default: return "Không xác định";
+  }
+});
+
+hbs.registerHelper("getPaymentClass", function (method) {
+  switch (method) {
+      case "COD": return "bg-secondary";
+      case "MOMO": return "bg-pink";
+      case "VNPAY": return "bg-blue";
+      default: return "bg-dark";
+  }
+});
+hbs.registerHelper("gt", function (a, b) {
+  return a > b;
+});
+hbs.registerHelper("lt", function (a, b) {
+  return a < b;
+});
 hbs.registerHelper("eq", function (a, b) {
   return a === b;
 });
-
+hbs.registerHelper("multiply", function (a, b) {
+  return a * b;
+});
 hbs.registerHelper("addOne", function (value) {
   return value + 1;
 });
 hbs.registerHelper("json", function (context) {
   return JSON.stringify(context);
 });
-
-
+hbs.registerHelper("add", function (a, b) {
+  return a + b;
+});
+hbs.registerHelper("sub", function (a, b) {
+  return a - b;
+});
 database.connect();
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

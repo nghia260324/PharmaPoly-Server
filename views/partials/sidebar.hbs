@@ -9,6 +9,11 @@
       </a>
     </li>
     <li class="nav-item">
+      <a class="nav-link text-white" href="/orders">
+        <i class="bi bi-card-checklist"></i> <span data-lang="orders">Order</span>
+      </a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link text-white" href="/products">
         <i class="bi bi-box"></i> <span data-lang="product">Product</span>
       </a>
@@ -131,7 +136,7 @@
     const navLinks = document.querySelectorAll('.nav-link');
     const currentPath = window.location.pathname;
 
-       navLinks.forEach(link => {
+    navLinks.forEach(link => {
       if (link.getAttribute('href') === currentPath) {
         link.classList.add('active');
 

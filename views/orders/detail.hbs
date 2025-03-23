@@ -1,0 +1,147 @@
+{{!-- <div class="container mt-4">
+    <h3 class="mb-4">Chi Tiết Đơn Hàng #123456</h3>
+
+    <!-- Thông tin đơn hàng -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Thông Tin Đơn Hàng</h5>
+            <p><strong>Khách hàng:</strong> Nguyễn Văn A</p>
+            <p><strong>Ngày đặt:</strong> 20/03/2025</p>
+            <p><strong>Phương thức thanh toán:</strong> <span class="badge bg-primary">MOMO</span></p>
+            <p><strong>Tổng tiền:</strong> 1,500,000 VND</p>
+            <p><strong>Trạng thái:</strong> <span class="status-badge bg-warning">Chờ xác nhận</span></p>
+
+            <div class="mt-3">
+                <label for="orderStatus" class="form-label">Cập nhật trạng thái:</label>
+                <select class="form-select w-50" id="orderStatus">
+                    <option value="confirmed">Đã xác nhận</option>
+                    <option value="ready_to_pick">Chờ lấy hàng</option>
+                    <option value="delivering">Đang giao hàng</option>
+                    <option value="delivered">Giao hàng thành công</option>
+                    <option value="canceled">Đã hủy</option>
+                </select>
+                <button class="btn btn-success mt-3">Lưu trạng thái</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách sản phẩm -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Danh Sách Sản Phẩm</h5>
+            <table class="table table-bordered mt-3">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Số lượng</th>
+                        <th>Giá</th>
+                        <th>Tổng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>Samsung Galaxy S24</td>
+                        <td>1</td>
+                        <td>30,000,000 VND</td>
+                        <td>30,000,000 VND</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>Ốp lưng</td>
+                        <td>1</td>
+                        <td>500,000 VND</td>
+                        <td>500,000 VND</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div> --}}
+
+<div class="container mt-4">
+    <h3 class="mb-4">Chi Tiết Đơn Hàng #{{order.order_code}}</h3>
+
+    <!-- Thông tin đơn hàng -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Thông Tin Đơn Hàng</h5>
+            <p><strong>Khách hàng:</strong> {{order.user_id.name}}</p>
+            <p class="date-format" data-created-at="{{order.created_at}}"><strong>Ngày đặt:</strong> {{order.created_at}}</p>
+            <p><strong>Phương thức thanh toán:</strong> <span class="badge bg-primary">{{order.payment_method}}</span>
+            </p>
+            <p><strong>Tổng tiền:</strong> {{order.total_price}} VND</p>
+            <p><strong>Trạng thái:</strong> <span class="status-badge bg-warning">{{order.status}}</span></p>
+
+            <div class="mt-3">
+                <label for="orderStatus" class="form-label">Cập nhật trạng thái:</label>
+                <select class="form-select w-50" id="orderStatus">
+                    <option value="confirmed" {{#if (eq order.status "confirmed" )}}selected{{/if}}>Đã xác nhận</option>
+                    <option value="ready_to_pick" {{#if (eq order.status "ready_to_pick" )}}selected{{/if}}>Chờ lấy hàng
+                    </option>
+                    <option value="delivering" {{#if (eq order.status "delivering" )}}selected{{/if}}>Đang giao hàng
+                    </option>
+                    <option value="delivered" {{#if (eq order.status "delivered" )}}selected{{/if}}>Giao hàng thành công
+                    </option>
+                    <option value="canceled" {{#if (eq order.status "canceled" )}}selected{{/if}}>Đã hủy</option>
+                </select>
+                <button class="btn btn-success mt-3">Lưu trạng thái</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách sản phẩm -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Danh Sách Sản Phẩm</h5>
+            <table class="table table-bordered mt-3">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Số lượng</th>
+                        <th>Giá</th>
+                        <th>Tổng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each orderItems}}
+                    <tr>
+                        <td>{{@index}}</td>
+                        <td>{{this.product_id.name}}</td>
+                        <td>{{this.quantity}}</td>
+                        <td>{{this.price}} VND</td>
+                        <td>{{multiply this.quantity this.price}} VND</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        formatDates();
+
+        function formatDates() {
+            document.querySelectorAll(".date-format").forEach(element => {
+                const timestamp = element.dataset.createdAt;
+                if (timestamp) {
+                    const date = new Date(timestamp);
+                    element.innerText = date.toLocaleString("vi-VN", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false
+                    });
+                }
+            });
+        }
+
+    });
+</script>

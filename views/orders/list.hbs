@@ -1,0 +1,166 @@
+<div class="container mt-5">
+    <div class="product-header mb-4 p-3 bg-light rounded">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="h5 mb-0"><span data-lang="orders">Orders</span></span>
+        </div>
+    </div>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Mã đơn</th>
+                <th>Khách hàng</th>
+                <th>Tổng tiền</th>
+                <th>Trạng thái</th>
+                <th>Ngày đặt</th>
+                <th>Phương thức thanh toán</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each orders}}
+            <tr>
+                <td>#{{this.order_code}}</td>
+                <td>{{this.to_name}}</td>
+                <td>{{this.total_price}} VND</td>
+                <td>
+                    <span class="badge {{getStatusClass this.status}}">{{getStatusText this.status}}</span>
+                </td>
+
+
+                <td class="date-format" data-created-at="{{this.created_at}}">{{this.created_at}}</td>
+                <td>
+                    <span class="badge {{getPaymentClass this.payment_method}}">{{this.payment_method}}</span>
+                </td>
+                <td><a href="/orders/{{this._id}}/detail" class="btn btn-primary btn-sm">Chi tiết</a></td>
+
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+
+    <nav>
+        <ul class="pagination justify-content-center">
+            {{#if (gt currentPage 1)}}
+            <li class="page-item">
+                <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
+            </li>
+            {{/if}}
+
+            <li class="page-item disabled">
+                <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+            </li>
+
+            {{#if (lt currentPage totalPages)}}
+            <li class="page-item">
+                <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+            </li>
+            {{/if}}
+        </ul>
+    </nav>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        formatDates();
+
+        if (event.target.classList.contains("view-detail")) {
+            const orderId = event.target.dataset.id;
+            window.location.href = `/orders/${orderId}/detail`;
+        }
+
+        const socket = io();
+        socket.on("new_order", function (order) {
+            const tableBody = document.querySelector("table tbody");
+            const rows = tableBody.querySelectorAll("tr");
+
+            const newRow = document.createElement("tr");
+            newRow.innerHTML = `
+        <td>#${order.order_code || ''}</td>
+        <td>${order.to_name}</td>
+        <td>${order.total_price} VND</td>
+        <td>
+            <span class="badge ${getStatusClass(order.status)}">${getStatusText(order.status)}</span>
+        </td>
+         <td class="date-format" data-created-at="${order.created_at}"></td>
+        <td>
+            <span class="badge ${getPaymentClass(order.payment_method)}">${order.payment_method}</span>
+        </td>
+        <td><a href="/orders/{{this._id}}/detail" class="btn btn-primary btn-sm">Chi tiết</a></td>
+    `;
+
+            if (rows.length >= Number("{{limit}}")) {
+                tableBody.removeChild(rows[rows.length - 1]);
+            }
+
+            tableBody.prepend(newRow);
+            formatDates();
+        });
+        function formatDates() {
+            document.querySelectorAll(".date-format").forEach(element => {
+                const timestamp = element.dataset.createdAt;
+                if (timestamp) {
+                    const date = new Date(timestamp);
+                    element.innerText = date.toLocaleString("vi-VN", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false
+                    });
+                }
+            });
+        }
+
+        function getStatusClass(status) {
+            switch (status) {
+                case "pending": return "bg-warning";
+                case "confirmed": return "bg-primary";
+                case "ready_to_pick": return "bg-info";
+                case "picking": return "bg-info";
+                case "picked": return "bg-success";
+                case "delivering": return "bg-primary";
+                case "money_collect_delivering": return "bg-primary";
+                case "delivered": return "bg-success";
+                case "delivery_fail": return "bg-danger";
+                case "waiting_to_return": return "bg-warning";
+                case "return": return "bg-secondary";
+                case "returned": return "bg-success";
+                case "return_fail": return "bg-danger";
+                case "canceled": return "bg-danger";
+                default: return "bg-secondary";
+            }
+        }
+
+        function getStatusText(status) {
+            switch (status) {
+                case "pending": return "Chờ xác nhận";
+                case "confirmed": return "Đã xác nhận";
+                case "ready_to_pick": return "Chờ lấy hàng";
+                case "picking": return "Đang lấy hàng";
+                case "picked": return "Đã lấy hàng";
+                case "delivering": return "Đang giao";
+                case "money_collect_delivering": return "Đang giao (COD)";
+                case "delivered": return "Giao thành công";
+                case "delivery_fail": return "Giao thất bại";
+                case "waiting_to_return": return "Chờ hoàn hàng";
+                case "return": return "Đang hoàn hàng";
+                case "returned": return "Đã hoàn hàng";
+                case "return_fail": return "Hoàn hàng thất bại";
+                case "canceled": return "Đã hủy";
+                default: return "Không xác định";
+            }
+        }
+
+        function getPaymentClass(method) {
+            switch (method) {
+                case "COD": return "bg-secondary";
+                case "MOMO": return "bg-pink";
+                case "VNPAY": return "bg-blue";
+                default: return "bg-dark";
+            }
+        }
+    });
+</script>
