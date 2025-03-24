@@ -3192,168 +3192,6 @@ const getDiscountedProductById = async (productId) => {
 
 
 
-
-
-
-// router.get('/search', async (req, res) => {
-//     try {
-//         let { keyword, page = 1, limit = 10 } = req.query;
-
-//         if (!keyword) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: 'Missing required field: keyword'
-//             });
-//         }
-
-//         const pageNumber = parseInt(page);
-//         let limitNumber = parseInt(limit);
-//         if (limitNumber > 20) limitNumber = 20;
-
-//         const skip = (pageNumber - 1) * limitNumber;
-
-//         const normalizedKeyword = removeDiacritics(keyword);
-//         const words = normalizedKeyword.trim().split(/\s+/);
-
-//        const products = await Products.find()
-//             .populate('category_id', '_id name')
-//             .populate('brand_id', '_id name description')
-//             .populate('product_type_id', '_id name')
-//             .lean();
-
-//         const filteredProducts = products.filter(product => {
-//             const normalizedName = removeDiacritics(product.name);
-//             return words.every(word => normalizedName.includes(word));
-//         });
-
-//         const totalProducts = filteredProducts.length;
-//         const totalPages = Math.ceil(totalProducts / limitNumber);
-//         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
-
-//         const productIds = paginatedProducts.map(p => p._id);
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         }).lean();
-
-//         const imageMap = primaryImages.reduce((acc, img) => {
-//             acc[img.product_id] = img;
-//             return acc;
-//         }, {});
-
-//         const formattedProducts = paginatedProducts.map(product => ({
-//             _id: product._id,
-//             name: product.name,
-//             description: product.description,
-//             price: product.price,
-//             average_rating: product.average_rating,
-//             category_id: product.category_id._id,
-//             brand_id: product.brand_id._id,
-//             product_type_id: product.product_type_id._id,
-//             category: product.category_id,
-//             brand: product.brand_id,
-//             product_type: product.product_type_id,
-//             images: imageMap[product._id] ? [imageMap[product._id]] : [],
-//             create_at: product.createdAt,
-//             update_at: product.updatedAt
-//         }));
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Search completed successfully!',
-//             data: {
-//                 currentPage: pageNumber,
-//                 totalPages,
-//                 totalProducts,
-//                 hasNextPage: pageNumber < totalPages,
-//                 hasPrevPage: pageNumber > 1,
-//                 data: formattedProducts
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error("Search error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
-
-
-
-// router.get('/search', async (req, res) => {
-//     try {
-//         let { keyword, page = 1, limit = 10, order = 'asc' } = req.query;
-
-//         if (!keyword) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: 'Missing required field: keyword'
-//             });
-//         }
-
-//         const pageNumber = parseInt(page);
-//         let limitNumber = parseInt(limit);
-//         if (limitNumber > 20) limitNumber = 20;
-//         const skip = (pageNumber - 1) * limitNumber;
-
-//         const normalizedKeyword = removeDiacritics(keyword);
-//         const words = normalizedKeyword.trim().split(/\s+/);
-
-//         let products = await Products.find()
-//             .populate('category_id', '_id name')
-//             .populate('brand_id', '_id name description')
-//             .populate('product_type_id', '_id name')
-//             .lean();
-
-//         let filteredProducts = products.filter(product => {
-//             const normalizedName = removeDiacritics(product.name);
-//             return words.every(word => normalizedName.includes(word));
-//         });
-
-//         const sortOrder = order === 'desc' ? -1 : 1;
-//         filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
-
-//         const totalProducts = filteredProducts.length;
-//         const totalPages = Math.ceil(totalProducts / limitNumber);
-//         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
-
-//         const categories = await Categories.find({
-//             name: { $regex: new RegExp(normalizedKeyword, 'i') }
-//         }).limit(5).lean();
-
-//         const brands = await Brands.find({
-//             name: { $regex: new RegExp(normalizedKeyword, 'i') }
-//         }).limit(5).lean();
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Search completed successfully!',
-//             data: {
-//                 products: {
-//                     currentPage: pageNumber,
-//                     totalPages,
-//                     totalProducts,
-//                     hasNextPage: pageNumber < totalPages,
-//                     hasPrevPage: pageNumber > 1,
-//                     data: paginatedProducts
-//                 },
-//                 categories,
-//                 brands
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error("Search error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
-
-
-
-
-
-
-
-
 const getProvince = async (province_id) => {
     try {
         const response = await axios.get(`${GHN_API}/master-data/province`, {
@@ -3576,7 +3414,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
 
         await OrderItems.insertMany(orderItems);
-        await db.ref("new_orders").set({ timestamp: Date.now()});
+        await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
 
         res.status(200).json({ status: 200, message: "Order created successfully", data: newOrder  });
 
@@ -3589,7 +3427,6 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         });
     }
 });
-
 
 // router.post("/orders/create", authenticateToken, async (req, res) => {
 //     try {
@@ -3739,55 +3576,52 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 // });
 
 
-router.patch("/admin/orders/:order_id/confirm", async (req, res) => {
-    try {
-        const { order_id } = req.params;
+// router.patch("/orders/:order_id/confirm", async (req, res) => {
+//     try {
+//         const { order_id } = req.params;
 
-        // Tìm đơn hàng trong MongoDB
-        const order = await Orders.findById(order_id);
-        if (!order) {
-            return res.status(404).json({ success: false, message: "Đơn hàng không tồn tại" });
-        }
+//         // Tìm đơn hàng trong MongoDB
+//         const order = await Orders.findById(order_id);
+//         if (!order) {
+//             return res.status(404).json({ success: false, message: "Đơn hàng không tồn tại" });
+//         }
 
-        if (order.status !== "pending") {
-            return res.status(400).json({ success: false, message: "Chỉ có thể xác nhận đơn hàng ở trạng thái pending" });
-        }
+//         if (order.status !== "pending") {
+//             return res.status(400).json({ success: false, message: "Chỉ có thể xác nhận đơn hàng ở trạng thái pending" });
+//         }
 
-        if (!order.order_code) {
-            return res.status(400).json({ success: false, message: "Đơn hàng chưa có mã GHN" });
-        }
+//         if (!order.order_code) {
+//             return res.status(400).json({ success: false, message: "Đơn hàng chưa có mã GHN" });
+//         }
 
-        // Gửi yêu cầu xác nhận lấy hàng lên GHN
-        const ghnResponse = await axios.post(`${GHN_API}/v2/shipping-order/confirm`, {
-            order_code: order.order_code
-        }, {
-            headers: { "Token": TOKEN_GHN }
-        });
+//         const ghnResponse = await axios.post(`${GHN_API}/v2/shipping-order/confirm`, {
+//             order_code: order.order_code
+//         }, {
+//             headers: { "Token": TOKEN_GHN }
+//         });
 
-        if (ghnResponse.data.code !== 200) {
-            return res.status(500).json({ success: false, message: "GHN không xác nhận được đơn hàng", error: ghnResponse.data });
-        }
+//         if (ghnResponse.data.code !== 200) {
+//             return res.status(500).json({ success: false, message: "GHN không xác nhận được đơn hàng", error: ghnResponse.data });
+//         }
 
-        // Cập nhật trạng thái đơn hàng trong MongoDB
-        order.status = "confirmed";
-        await order.save();
+//         // Cập nhật trạng thái đơn hàng trong MongoDB
+//         order.status = "confirmed";
+//         await order.save();
 
-        return res.status(200).json({
-            success: true,
-            message: "Đã xác nhận đơn hàng thành công",
-            data: order
-        });
+//         return res.status(200).json({
+//             success: true,
+//             message: "Đã xác nhận đơn hàng thành công",
+//             data: order
+//         });
 
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: "Lỗi server",
-            error: error.response?.data || error.message
-        });
-    }
-});
-
-
+//     } catch (error) {
+//         return res.status(500).json({
+//             success: false,
+//             message: "Lỗi server",
+//             error: error.response?.data || error.message
+//         });
+//     }
+// });
 
 const calculateShippingFee = async (to_district_id, to_ward_code) => {
     try {
@@ -3833,4 +3667,4 @@ const calculateShippingFee = async (to_district_id, to_ward_code) => {
 
 
 
-module.exports = router;
+module.exports = { router, getUserAddress, getShopInfo };
