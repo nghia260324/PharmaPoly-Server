@@ -4,6 +4,34 @@
             <span class="h5 mb-0"><span data-lang="orders">Orders</span></span>
         </div>
     </div>
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input type="text" id="searchOrder" class="form-control" placeholder="Tìm theo mã đơn hoặc tên khách hàng"
+                value="{{search}}">
+        </div>
+        <div class="col-md-4">
+            <select id="filterStatus" class="form-select">
+                <option value="">Tất cả trạng thái</option>
+                <option value="pending" {{#ifCond filterStatus "pending" }}selected{{/ifCond}}>Chờ xác nhận</option>
+                <option value="confirmed" {{#ifCond filterStatus "confirmed" }}selected{{/ifCond}}>Đã xác nhận</option>
+                <option value="delivering" {{#ifCond filterStatus "delivering" }}selected{{/ifCond}}>Đang giao</option>
+                <option value="delivered" {{#ifCond filterStatus "delivered" }}selected{{/ifCond}}>Giao thành công
+                </option>
+                <option value="canceled" {{#ifCond filterStatus "canceled" }}selected{{/ifCond}}>Đã hủy</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select id="sortOrders" class="form-select">
+                <option value="created_at_desc" {{#ifCond sort "created_at_desc" }}selected{{/ifCond}}>Mới nhất</option>
+                <option value="created_at_asc" {{#ifCond sort "created_at_asc" }}selected{{/ifCond}}>Cũ nhất</option>
+                <option value="total_price_desc" {{#ifCond sort "total_price_desc" }}selected{{/ifCond}}>Giá cao nhất
+                </option>
+                <option value="total_price_asc" {{#ifCond sort "total_price_asc" }}selected{{/ifCond}}>Giá thấp nhất
+                </option>
+            </select>
+        </div>
+    </div>
+
     <table class="table table-striped">
         <thead>
             <tr>
@@ -19,7 +47,13 @@
         <tbody>
             {{#each orders}}
             <tr>
-                <td>#{{this.order_code}}</td>
+                <td>
+                    {{#if this.order_code}}
+                    #{{this.order_code}}
+                    {{else}}
+                    <span class="text-muted">Chưa có mã</span>
+                    {{/if}}
+                </td>
                 <td>{{this.to_name}}</td>
                 <td>{{this.total_price}} VND</td>
                 <td>
@@ -65,11 +99,6 @@
     document.addEventListener("DOMContentLoaded", function () {
         formatDates();
 
-        if (event.target.classList.contains("view-detail")) {
-            const orderId = event.target.dataset.id;
-            window.location.href = `/orders/${orderId}/detail`;
-        }
-
         const socket = io();
         socket.on("new_order", function (order) {
             const tableBody = document.querySelector("table tbody");
@@ -77,7 +106,7 @@
 
             const newRow = document.createElement("tr");
             newRow.innerHTML = `
-        <td>#${order.order_code || ''}</td>
+        <td>${order.order_code ? "#" + order.order_code : '<span class="text-muted">Chưa có mã</span>'}</td>
         <td>${order.to_name}</td>
         <td>${order.total_price} VND</td>
         <td>
@@ -87,7 +116,7 @@
         <td>
             <span class="badge ${getPaymentClass(order.payment_method)}">${order.payment_method}</span>
         </td>
-        <td><a href="/orders/{{this._id}}/detail" class="btn btn-primary btn-sm">Chi tiết</a></td>
+        <td><a href="/orders/${order._id}/detail" class="btn btn-primary btn-sm">Chi tiết</a></td>
     `;
 
             if (rows.length >= Number("{{limit}}")) {
