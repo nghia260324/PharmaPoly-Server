@@ -879,33 +879,7 @@ router.get('/product/top-rated', authenticateToken, async (req, res) => {
         const totalProducts = await Products.countDocuments();
         const totalPages = Math.ceil(totalProducts / limitNumber);
 
-        const productIds = products.map(p => p._id);
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        }).lean();
-
-        const imageMap = primaryImages.reduce((acc, img) => {
-            acc[img.product_id] = img;
-            return acc;
-        }, {});
-
-        const formattedProducts = products.map(product => ({
-            _id: product._id,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            average_rating: product.average_rating,
-            category_id: product.category_id._id,
-            brand_id: product.brand_id._id,
-            product_type_id: product.product_type_id._id,
-            category: product.category_id,
-            brand: product.brand_id,
-            product_type: product.product_type_id,
-            images: imageMap[product._id] ? [imageMap[product._id]] : [],
-            create_at: product.createdAt,
-            update_at: product.updatedAt
-        }));
+        const formattedProducts = await Promise.all(products.map(p => getProductDetails(p._id)));
 
         return res.status(200).json({
             status: 200,
@@ -925,6 +899,46 @@ router.get('/product/top-rated', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 });
+
+const getProductDetails = async (product_id) => {
+    try {
+        const product = await Products.findById(product_id)
+            .populate('category_id', '_id name')
+            .populate('brand_id', '_id name description')
+            .populate('product_type_id', '_id name')
+            .lean();
+
+        if (!product) {
+            return null;
+        }
+
+        const primaryImage = await ProductImages.findOne({
+            product_id: product._id,
+            is_primary: true
+        }).lean();
+
+        return {
+            _id: product._id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            average_rating: product.average_rating,
+            category_id: product.category_id?._id,
+            brand_id: product.brand_id?._id,
+            product_type_id: product.product_type_id?._id,
+            category: product.category_id,
+            brand: product.brand_id,
+            product_type: product.product_type_id,
+            images: primaryImage ? [primaryImage] : [],
+            created_at: product.createdAt,
+            updated_at: product.updatedAt
+        };
+
+    } catch (error) {
+        console.error("Error fetching product details:", error);
+        return null;
+    }
+};
 
 
 // Lấy sản phẩm theo id
@@ -3503,9 +3517,9 @@ router.get("/orders", authenticateToken, async (req, res) => {
             });
         }
 
-        const orders = await Orders.find({ 
-            user_id: user_id, 
-            status: { $in: statusGroups[group] } 
+        const orders = await Orders.find({
+            user_id: user_id,
+            status: { $in: statusGroups[group] }
         }).sort({ createdAt: -1 }).lean();
 
         if (orders.length === 0) {
@@ -3521,9 +3535,14 @@ router.get("/orders", authenticateToken, async (req, res) => {
         const orderItems = await OrderItems.find({ order_id: { $in: orderIds } })
             .lean();
 
+        const itemsWithProducts = await Promise.all(orderItems.map(async (item) => {
+            const product = await getProductDetails(item.product_id);
+            return { ...item, product };
+        }));
+
         const ordersWithItems = orders.map(order => ({
             ...order,
-            items: orderItems.filter(item => item.order_id.toString() === order._id.toString())
+            items: itemsWithProducts.filter(item => item.order_id.toString() === order._id.toString())
         }));
 
         res.status(200).json({
