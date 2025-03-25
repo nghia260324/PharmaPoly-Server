@@ -3560,6 +3560,50 @@ router.get("/orders", authenticateToken, async (req, res) => {
     }
 });
 
+router.get("/orders/:id/detail", authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user_id = req.user_id;
+
+        const order = await Orders.findOne({ _id: id, user_id }).lean();
+        if (!order) {
+            return res.status(404).json({
+                status: 404,
+                message: "Order not found!"
+            });
+        }
+
+        const orderItems = await OrderItems.find({ order_id: id }).lean();
+
+        const itemsWithProducts = await Promise.all(orderItems.map(async (item) => {
+            const product = await getProductDetails(item.product_id);
+            return { ...item, product };
+        }));
+        const district = await getDistrict(order.to_district_id);
+        const province = await getProvince(district.ProvinceID);
+        const ward = await getWard(order.to_district_id, order.to_ward_code);
+        res.status(200).json({
+            status: 200,
+            message: "Success",
+            data: {
+                ...order,
+                district,
+                province,
+                ward,
+                items: itemsWithProducts
+            }
+        });
+
+    } catch (error) {
+        console.error("Error retrieving order details:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error!"
+        });
+    }
+});
+
+
 router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -3574,12 +3618,19 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
 
         if (order.status === "pending") {
             order.status = "canceled";
-        } else if (order.status === "confirmed") {
+            await order.save();
+            return res.status(200).json({
+                status: 200,
+                message: "Order canceled successfully!"
+            });
+        }
+
+        if (order.status === "confirmed" || order.status === "ready_to_pick") {
             order.cancel_request = true;
-        } else {
-            return res.status(400).json({
-                status: 400,
-                message: "This order cannot be canceled!"
+            await order.save();
+            return res.status(200).json({
+                status: 200,
+                message: "Order cancellation request submitted, waiting for admin approval!"
             });
         }
 
