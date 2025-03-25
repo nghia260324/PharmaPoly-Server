@@ -11,30 +11,75 @@ const TOKEN_GHN = process.env.GHN_TOKEN;
 const SHOP_ID = process.env.GHN_SHOP_ID;
 
 
-router.get('/', async function (req, res, next) {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
+// router.get('/', async function (req, res, next) {
+//     try {
+//         const page = parseInt(req.query.page) || 1;
+//         const limit = parseInt(req.query.limit) || 10;
+//         const skip = (page - 1) * limit;
 
-        const orders = await Orders.find()
-            .sort({ created_at: -1 })
-            .skip(skip)
-            .limit(limit);
+//         const orders = await Orders.find()
+//             .sort({ created_at: -1 })
+//             .skip(skip)
+//             .limit(limit);
 
-        const totalOrders = await Orders.countDocuments();
-        const totalPages = Math.ceil(totalOrders / limit);
+//         const totalOrders = await Orders.countDocuments();
+//         const totalPages = Math.ceil(totalOrders / limit);
 
-        res.render('orders/list', {
-            orders: orders,
-            currentPage: page,
-            totalPages: totalPages,
-            limit: limit
-        });
-    } catch (error) {
-        next(error);
+//         res.render('orders/list', {
+//             orders: orders,
+//             currentPage: page,
+//             totalPages: totalPages,
+//             limit: limit
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// });
+
+
+
+
+
+router.get("/", async (req, res) => {
+    const { page = 1, limit = 10, search, status, sort } = req.query;
+    let query = {};
+
+    if (search) {
+        query.$or = [
+            { order_code: { $regex: search, $options: "i" } },
+            { to_name: { $regex: search, $options: "i" } }
+        ];
     }
+
+    if (status) query.status = status;
+
+    let sortOption = { created_at: -1 };
+    if (sort === "created_at_asc") sortOption = { created_at: 1 };
+    if (sort === "total_price_desc") sortOption = { total_price: -1 };
+    if (sort === "total_price_asc") sortOption = { total_price: 1 };
+
+    const orders = await Orders.find(query)
+        .sort(sortOption)
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+    const totalOrders = await Orders.countDocuments(query);
+    const totalPages = Math.ceil(totalOrders / limit);
+
+    res.render("orders/list", {
+        orders,
+        currentPage: parseInt(page),
+        totalPages,
+        search,
+        filterStatus: status,
+        sort,
+        limit
+    });
 });
+
+
+
+
 
 // router.get("/:id/detail", async function (req, res, next) {
 //     try {
@@ -91,12 +136,6 @@ router.get("/:id/detail", async function (req, res, next) {
         next(error);
     }
 });
-
-
-
-
-
-
 
 
 
@@ -216,8 +255,6 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
 
         const order_code = ghnResponse.data.data.order_code;
 
-        //await Orders.findByIdAndUpdate(order_id, { order_code });
-        //await db.ref("new_orders").set({ timestamp: Date.now(), order_code });
         order.status = "ready_to_pick";
         order.order_code = order_code;
         await order.save();
@@ -235,7 +272,26 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
 });
 
 
+router.post("/:orderId/cancel/approve", async (req, res) => {
+    const order = await Orders.findById(req.params.orderId);
+    if (!order || !order.cancel_request) return res.status(404).json({ message: "Không có yêu cầu hủy" });
 
+    order.status = "canceled";
+    order.cancel_request = false;
+    await order.save();
+
+    res.json({ message: "Đơn hàng đã được hủy" });
+});
+
+router.post("/:orderId/return", async (req, res) => {
+    const order = await Orders.findById(req.params.orderId);
+    if (!order || order.status !== "delivered") return res.status(400).json({ message: "Không thể đổi trả" });
+
+    order.return_request = true;
+    await order.save();
+
+    res.json({ message: "Đã gửi yêu cầu đổi trả" });
+});
 
 
 router.post("/:orderId/cancel", async (req, res) => {
@@ -249,6 +305,26 @@ router.post("/:orderId/cancel", async (req, res) => {
 
         if (!["pending", "confirmed", "ready_to_pick"].includes(order.status)) {
             return res.status(400).json({ status: 400, message: "Cannot cancel order in this status" });
+        }
+
+        if (order.status === "ready_to_pick") {
+            try {
+                const ghnResponse = await axios.post(`${GHN_API}/v2/switch-status/cancel`, {
+                    order_codes: [order.order_code]
+                }, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Token": TOKEN_GHN
+                    }
+                });
+
+                if (ghnResponse.data.code !== 200) {
+                    return res.status(400).json({ status: 400, message: "Failed to cancel order on GHN", error: ghnResponse.data });
+                }
+            } catch (ghnError) {
+                console.error("Error canceling order on GHN:", ghnError.response?.data || ghnError.message);
+                return res.status(500).json({ status: 500, message: "Failed to cancel order on GHN", error: ghnError.message });
+            }
         }
 
         order.status = "canceled";

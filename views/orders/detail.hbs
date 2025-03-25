@@ -1,4 +1,9 @@
 <div class="container mt-4">
+    <a href="/orders" class="btn btn-outline-secondary mb-3">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+
+
     <h3 class="mb-4">Chi Tiết Đơn Hàng #{{order.order_code}}</h3>
 
     <!-- Thông tin đơn hàng -->
@@ -33,6 +38,7 @@
                     <option value="canceled">Đã hủy</option>
                     {{else if (eq order.status "ready_to_pick")}}
                     <option value="delivering">Đang giao hàng</option>
+                    <option value="canceled">Đã hủy</option>
                     {{/if}}
                 </select>
 
@@ -47,30 +53,30 @@
     <div class="card">
         <div class="card-body">
             <h5 class="card-title">Danh Sách Sản Phẩm</h5>
-           <table class="table table-bordered mt-3">
-    <thead class="table-light">
-        <tr>
-            <th>#</th>
-            <th>Hình ảnh</th>
-            <th>Tên sản phẩm</th>
-            <th>Số lượng</th>
-            <th>Giá</th>
-            <th>Tổng</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{#each orderItems}}
-        <tr>
-            <td>{{addOne @index}}</td>
-            <td><img src="{{this.image_url}}" alt="Hình ảnh sản phẩm" width="50"></td>
-            <td>{{this.product_id.name}}</td>
-            <td>{{this.quantity}}</td>
-            <td>{{this.price}} VND</td>
-            <td>{{multiply this.quantity this.price}} VND</td>
-        </tr>
-        {{/each}}
-    </tbody>
-</table>
+            <table class="table table-bordered mt-3">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Hình ảnh</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Số lượng</th>
+                        <th>Giá</th>
+                        <th>Tổng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each orderItems}}
+                    <tr>
+                        <td>{{addOne @index}}</td>
+                        <td><img src="{{this.image_url}}" alt="Hình ảnh sản phẩm" width="50"></td>
+                        <td>{{this.product_id.name}}</td>
+                        <td>{{this.quantity}}</td>
+                        <td>{{this.price}} VND</td>
+                        <td>{{multiply this.quantity this.price}} VND</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
 
         </div>
     </div>

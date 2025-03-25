@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 const Orders = new Schema({
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
-    order_code: { type: String},
+    order_code: { type: String },
     to_name: String,
     to_phone: String,
     to_address: String,
@@ -14,7 +14,7 @@ const Orders = new Schema({
     total_price: { type: Number, required: true },
     status: {
         type: String,
-          enum: [
+        enum: [
             "pending", // Đơn hàng đang chờ xác nhận
             "confirmed", // Đơn hàng đã được xác nhận, chuẩn bị gửi GHN
             "ready_to_pick", // Đơn hàng đã gửi GHN, chờ lấy hàng
@@ -32,9 +32,13 @@ const Orders = new Schema({
         ],
         default: "pending"
     },
-    cancel_request: { 
-        type: Boolean, 
-        default: false 
+    cancel_request: {
+        type: Boolean,
+        default: false
+    },
+    return_request: {
+        type: Boolean,
+        default: false
     },
     created_at: { type: Date, default: Date.now }
 }, {

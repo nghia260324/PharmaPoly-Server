@@ -41,6 +41,13 @@ const { removeDiacritics } = require('../utils/textUtils');
 
 
 const MAX_QUANTITY_PER_PRODUCT = 20;
+const statusGroups = {
+    processing: ["pending", "confirmed", "ready_to_pick"],
+    shipping: ["picking", "picked", "delivering", "money_collect_delivering"],
+    delivered: ["delivered"],
+    returning: ["waiting_to_return", "return", "returned", "return_fail"],
+    canceled: ["canceled", "delivery_fail"]
+};
 
 function authenticateToken(req, res, next) {
     // if (process.env.NODE_ENV === 'development') {
@@ -251,6 +258,10 @@ router.put('/user/address/update', authenticateToken, async (req, res) => {
         //console.log(req.body);
         const { province_id, district_id, ward_id, street_address } = req.body;
         const user_id = req.user_id;
+
+        if (!province_id && !district_id && !ward_id && !street_address) {
+            return res.status(400).json({ status: 400, message: "No data to update!" });
+        }
 
         const user = await Users.findById(user_id);
         if (!user) {
@@ -2327,8 +2338,8 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
 
 router.post('/question/create', authenticateToken, async (req, res) => {
     try {
-        const { user_id, product_id, content } = req.body;
-
+        const { product_id, content } = req.body;
+        const user_id = req.user_id;
         if (!user_id || !product_id || !content) {
             return res.status(400).json({
                 status: 400,
@@ -3355,8 +3366,6 @@ router.post("/calculate-shipping-fee", async (req, res) => {
 });
 
 
-
-
 router.post("/orders/create", authenticateToken, async (req, res) => {
     try {
         const { payment_method, items } = req.body;
@@ -3412,11 +3421,11 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             price: item.price
         }));
 
-
         await OrderItems.insertMany(orderItems);
+        await CartItems.deleteMany({ user_id, _id: { $in: items.map(item => item._id) } });
         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
 
-        res.status(200).json({ status: 200, message: "Order created successfully", data: newOrder  });
+        res.status(200).json({ status: 200, message: "Order created successfully", data: newOrder });
 
     } catch (error) {
         console.error("Error creating order:", error);
@@ -3427,6 +3436,150 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         });
     }
 });
+
+
+// router.post("/orders/payment", authenticateToken, async (req, res) => {
+//     try {
+//         const { payment_method, total_price } = req.body;
+//         const user_id = req.user_id;
+
+//         if (!user_id || !payment_method || !total_price) {
+//             return res.status(400).json({ status: 400, message: "Missing required fields" });
+//         }
+
+//         const paymentUrl = await createPaymentLink(user_id, total_price);
+
+//         res.status(200).json({ status: 200, message: "Payment link generated", data: { paymentUrl } });
+//     } catch (error) {
+//         console.error("Error processing payment:", error);
+//         res.status(500).json({ status: 500, message: "Internal Server Error" });
+//     }
+// });
+// router.post("/orders/payment/callback", async (req, res) => {
+//     try {
+//         const { user_id, payment_status, payment_method, total_price } = req.body;
+
+//         if (payment_status !== "success") {
+//             return res.status(400).json({ status: 400, message: "Payment failed or canceled" });
+//         }
+
+//         const user = await Users.findById(user_id);
+//         if (!user) return res.status(404).json({ status: 404, message: "User not found" });
+
+//         const userAddress = await UserAddress.findOne({ user_id });
+//         if (!userAddress) return res.status(404).json({ status: 404, message: "User address not found" });
+
+//         const order = new Orders({
+//             user_id,
+//             to_name: user.full_name,
+//             to_phone: user.shipping_phone_number,
+//             to_address: userAddress.street_address,
+//             to_district_id: userAddress.district_id,
+//             to_ward_code: userAddress.ward_id,
+//             payment_method,
+//             shipping_fee: await calculateShippingFee(userAddress.district_id, userAddress.ward_id),
+//             total_price
+//         });
+
+//         await order.save();
+//         res.status(200).json({ status: 200, message: "Order created successfully", data: order });
+
+//     } catch (error) {
+//         console.error("Error creating order after payment:", error);
+//         res.status(500).json({ status: 500, message: "Internal Server Error" });
+//     }
+// });
+
+
+router.get("/orders", authenticateToken, async (req, res) => {
+    try {
+        const { group } = req.query;
+        const user_id = req.user_id;
+
+        if (!statusGroups[group]) {
+            return res.status(400).json({
+                status: 400,
+                message: "Invalid order status group!"
+            });
+        }
+
+        const orders = await Orders.find({ 
+            user_id: user_id, 
+            status: { $in: statusGroups[group] } 
+        }).sort({ createdAt: -1 }).lean();
+
+        if (orders.length === 0) {
+            return res.status(200).json({
+                status: 200,
+                message: "No orders found",
+                data: []
+            });
+        }
+
+        const orderIds = orders.map(order => order._id);
+
+        const orderItems = await OrderItems.find({ order_id: { $in: orderIds } })
+            .lean();
+
+        const ordersWithItems = orders.map(order => ({
+            ...order,
+            items: orderItems.filter(item => item.order_id.toString() === order._id.toString())
+        }));
+
+        res.status(200).json({
+            status: 200,
+            message: "Success",
+            data: ordersWithItems
+        });
+
+    } catch (error) {
+        console.error("Error retrieving orders:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error!"
+        });
+    }
+});
+
+router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const order = await Orders.findById(id);
+
+        if (!order) {
+            return res.status(404).json({
+                status: 404,
+                message: "Order not found!"
+            });
+        }
+
+        if (order.status === "pending") {
+            order.status = "canceled";
+        } else if (order.status === "confirmed") {
+            order.cancel_request = true;
+        } else {
+            return res.status(400).json({
+                status: 400,
+                message: "This order cannot be canceled!"
+            });
+        }
+
+        await order.save();
+        res.status(200).json({
+            status: 200,
+            message: "Order cancellation request submitted successfully!"
+        });
+
+    } catch (error) {
+        console.error("Error canceling order:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error!"
+        });
+    }
+});
+
+
 
 // router.post("/orders/create", authenticateToken, async (req, res) => {
 //     try {
