@@ -135,6 +135,41 @@ app.post('/webhook/ghn', async (req, res) => {
   }
 });
 
+app.post("/webhook/payment", async (req, res) => {
+  try {
+      const { transaction_id, amount, status, addInfo } = req.body;
+
+      if (!transaction_id || !amount || !status || !addInfo) {
+          return res.status(400).json({ status: 400, message: "Missing required fields" });
+      }
+
+      // Tách `user_id` và `order_id` từ `addInfo`
+      const userId = addInfo.substring(0, 24);
+      const orderId = addInfo.substring(24, 48);
+
+      // Kiểm tra đơn hàng có tồn tại không
+      const order = await Orders.findById(orderId);
+      if (!order) {
+          return res.status(404).json({ status: 404, message: "Order not found" });
+      }
+
+      // Nếu thanh toán thành công, cập nhật trạng thái đơn hàng
+      if (status === "PAID") {
+          order.payment_status = "PAID";
+          order.transaction_id = transaction_id;
+          await order.save();
+      }
+
+      res.json({ status: 200, message: "Webhook received successfully" });
+  } catch (error) {
+      console.error("Webhook Error:", error);
+      res.status(500).json({ status: 500, message: "Internal Server Error" });
+  }
+});
+
+
+
+
 hbs.registerHelper("ifCond", function (v1, v2, options) {
   return v1 === v2 ? options.fn(this) : options.inverse(this);
 });

@@ -51,7 +51,17 @@ router.get("/", async (req, res) => {
         ];
     }
 
-    if (status) query.status = status;
+    //if (status) query.status = status;
+    if (status) {
+        if (status === "cancel_request") {
+            query.cancel_request = true;
+        } else if (status === "return_request") {
+            query.return_request = true;
+        } else {
+            query.status = status;
+        }
+    }
+
 
     let sortOption = { created_at: -1 };
     if (sort === "created_at_asc") sortOption = { created_at: 1 };
@@ -70,7 +80,6 @@ router.get("/", async (req, res) => {
         orders,
         currentPage: parseInt(page),
         totalPages,
-        search,
         filterStatus: status,
         sort,
         limit

@@ -15,158 +15,17 @@ const ProductSections = require('../models/productSections');
 const ProductSectionDetails = require('../models/productSectionDetails');
 const Uploads = require('../config/common/upload');
 
-router.get('/', async function (req, res, next) {
-    try {
-        const [products, categories, sections, brands, productTypes] = await Promise.all([
-            Products.find(),
-            Categories.find(),
-            Sections.find(),
-            Brands.find(),
-            ProductTypes.find()
-        ]);
 
-        const productIds = products.map(p => p._id);
-        const images = await ProductImages.find({ product_id: { $in: productIds }, is_primary: true }).lean();
-
-        const productMap = images.reduce((acc, img) => {
-            acc[img.product_id] = img.image_url;
-            return acc;
-        }, {});
-
-        products.forEach(p => {
-            p.image = productMap[p._id];
-        });
-
-        res.render('products/list', {
-            products,
-            categories,
-            sections,
-            brands,
-            productTypes
-        });
-    } catch (error) {
-        next(error);
-    }
-});
-
-// router.post('/add', Uploads.array('images', 10), async (req, res) => {
+// router.get('/', async function (req, res, next) {
 //     try {
-//         const data = req.body;
-//         const files = req.files;
+//         const [products, categories, sections, brands, productTypes] = await Promise.all([
+//             Products.find(),
+//             Categories.find(),
+//             Sections.find(),
+//             Brands.find(),
+//             ProductTypes.find()
+//         ]);
 
-//         if (!data.name || !data.category_id || !data.brand_id || !data.product_type_id || !data.price || !data.short_description || !data.specification || !data.origin_country || !data.manufacturer) {
-//             return res.status(400).json({ status: 400, messenger: "Please provide all required product information!" });
-//         }
-
-//         const newProduct = new Products({
-//             name: data.name,
-//             category_id: data.category_id,
-//             brand_id: data.brand_id,
-//             product_type_id: data.product_type_id,
-//             price: data.price,
-//             short_description: data.short_description,
-//             specification: data.specification,
-//             origin_country: data.origin_country,
-//             manufacturer: data.manufacturer,
-//         });
-//         const savedProduct = await newProduct.save();
-
-//         let imageDocs = [];
-//         if (files && files.length > 0) {
-//             imageDocs = files.map((file, index) => ({
-//                 product_id: savedProduct._id,
-//                 image_url: `/uploads/${file.filename}`,
-//                 is_primary: index === 0,
-//                 sort_order: index,
-//             }));
-
-//             await ProductImages.insertMany(imageDocs);
-//         }
-
-//         let savedSections = [];
-//         if (data.sections) {
-//             const sections = JSON.parse(data.sections);
-
-//             for (const section of sections) {
-//                 const newProductSection = new ProductSections({
-//                     product_id: savedProduct._id,
-//                     section_id: section.section_id,
-//                 });
-
-//                 const savedSection = await newProductSection.save();
-//                 savedSections.push(savedSection);
-
-//                 if (section.details && section.details.length > 0) {
-//                     const sectionDetails = section.details.map(detail => ({
-//                         product_section_id: savedSection._id,
-//                         title: detail.title,
-//                         content: detail.content,
-//                     }));
-
-//                     await ProductSectionDetails.insertMany(sectionDetails);
-//                 }
-//             }
-//         }
-
-//         res.json({
-//             status: 200,
-//             message: `Product "${data.name}" has been added successfully!`,
-//             data: { product: savedProduct, images: imageDocs },
-//         });
-//     } catch (error) {
-//         console.error("Error deleting product:", error);
-//         res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
-//     }
-// });
-
-// router.delete('/delete/:id', async (req, res) => {
-//     try {
-//         const { id } = req.params;
-
-//         const product = await Products.findById(id);
-//         if (!product) {
-//             return res.status(404).json({ status: 404, message: "Product not found!" });
-//         }
-
-//         const images = await ProductImages.find({ product_id: id });
-
-//         images.forEach(image => {
-//             const imagePath = path.join(__dirname, '../public', image.image_url);
-//             console.log(`Deleting image: ${imagePath}`);
-//             if (fs.existsSync(imagePath)) {
-//                 fs.unlinkSync(imagePath);
-//             } else {
-//                 console.warn(`File not found: ${imagePath}`);
-//             }
-//         });
-
-//         await ProductImages.deleteMany({ product_id: id });
-
-//         const productSections = await ProductSections.find({ product_id: id });
-
-//         for (const section of productSections) {
-//             await ProductSectionDetails.deleteMany({ product_section_id: section._id });
-//         }
-
-//         await ProductSections.deleteMany({ product_id: id });
-
-//         await Products.findByIdAndDelete(id);
-
-//         res.json({
-//             status: 200,
-//             message: `Product "${product.name}" deleted successfully!`
-//         });
-//     } catch (error) {
-//         console.error("Error deleting product:", error);
-//         res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
-//     }
-// });
-
-
-
-// router.get('/all', async function (req, res, next) {
-//     try {
-//         const products = await Products.find().lean();
 //         const productIds = products.map(p => p._id);
 //         const images = await ProductImages.find({ product_id: { $in: productIds }, is_primary: true }).lean();
 
@@ -176,166 +35,80 @@ router.get('/', async function (req, res, next) {
 //         }, {});
 
 //         products.forEach(p => {
-//             p.image = productMap[p._id] || null;
+//             p.image = productMap[p._id];
 //         });
 
-//         res.json(products);
+//         res.render('products/list', {
+//             products,
+//             categories,
+//             sections,
+//             brands,
+//             productTypes
+//         });
 //     } catch (error) {
 //         next(error);
 //     }
 // });
 
-// router.get('/id/:id', async function (req, res, next) {
-//     try {
-//         const { id } = req.params;
-//         const product = await Products
-//             .findById(id)
-//             .populate('category_id')
-//             .populate('brand_id')
-//             .populate('product_type_id')
-//             .lean();
-//         if (!product) {
-//             return res.status(404).json({ message: 'Product not found' });
-//         }
-//         const images = await ProductImages.find({ product_id: id })
-//             .sort({ sort_order: 1 })
-//             .lean();
+router.get("/", async (req, res) => {
+    const { page = 1, limit = 10, search, sort } = req.query;
+    let query = {};
 
-//         product.images = images;
+    if (search) {
+        query.name = { $regex: search, $options: "i" };
+    }
 
+    let sortOption = { created_at: -1 };
+    if (sort === "name_asc") sortOption = { name: 1 };
+    if (sort === "name_desc") sortOption = { name: -1 };
+    if (sort === "price_asc") sortOption = { price: 1 };
+    if (sort === "price_desc") sortOption = { price: -1 };
 
-//         const productSections = await ProductSections.find({ product_id: id }).lean();
+    const [categories, sections, brands, productTypes] = await Promise.all([
+        Categories.find(),
+        Sections.find(),
+        Brands.find(),
+        ProductTypes.find()
+    ]);
 
-//         for (const section of productSections) {
-//             section.details = await ProductSectionDetails.find({ product_section_id: section._id }).lean();
-//         }
+    const products = await Products.find(query)
+        .sort(sortOption)
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit))
+        .lean();
 
-//         product.sections = productSections;
+    // Lấy danh sách ảnh chính của các sản phẩm
+    const productIds = products.map(p => p._id);
+    const images = await ProductImages.find({ product_id: { $in: productIds }, is_primary: true }).lean();
 
+    // Tạo mapping giữa product_id và image_url
+    const productMap = images.reduce((acc, img) => {
+        acc[img.product_id] = img.image_url;
+        return acc;
+    }, {});
 
-//         res.json(product);
-//     } catch (error) {
-//         console.error("Error:", error)
-//     }
-// });
+    // Gán ảnh cho từng sản phẩm
+    products.forEach(p => {
+        p.image = productMap[p._id] || "/default-image.jpg"; // Ảnh mặc định nếu không có ảnh chính
+    });
 
-// router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
-//     try {
-//         const productId = req.params.id;
-//         const data = req.body;
-//         const files = req.files;
+    const totalProducts = await Products.countDocuments(query);
+    const totalPages = Math.ceil(totalProducts / limit);
 
-//         if (!data.name || !data.category_id || !data.brand_id || !data.product_type_id || !data.price || !data.short_description || !data.specification || !data.origin_country || !data.manufacturer) {
-//             return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
-//         }
+    res.render("products/list", {
+        products,
+        categories,
+        sections,
+        brands,
+        productTypes,
+        currentPage: parseInt(page),
+        totalPages,
+        search,
+        sort,
+        limit
+    });
+});
 
-//         // Update product information
-//         const updatedProduct = await Products.findByIdAndUpdate(productId, {
-//             name: data.name,
-//             category_id: data.category_id,
-//             brand_id: data.brand_id,
-//             product_type_id: data.product_type_id,
-//             price: data.price,
-//             short_description: data.short_description,
-//             specification: data.specification,
-//             origin_country: data.origin_country,
-//             manufacturer: data.manufacturer,
-//         }, { new: true });
-
-//         if (!updatedProduct) {
-//             return res.status(404).json({ status: 404, message: "Product not found!" });
-//         }
-
-//         const deletedImageIds = JSON.parse(data.deleted_images);
-//         if (deletedImageIds.length > 0) {
-//             await ProductImages.deleteMany({ _id: { $in: deletedImageIds } });
-//         }
-
-//         const updatedImages = JSON.parse(data.updateImages);
-
-//         for (let img of updatedImages) {
-//             await ProductImages.findByIdAndUpdate(img.id, {
-//                 is_primary: img.is_primary,
-//                 sort_order: img.sort_order
-//             });
-//         }
-//         const sortOrders = JSON.parse(data.new_images_sort_order);
-//         if (files && files.length > 0) {
-//             files.forEach(async (file, index) => {
-//                 const sortOrder = sortOrders[index];
-//                 console.log(sortOrder);
-//                 await ProductImages.create({
-//                     product_id: productId,
-//                     image_url: `/uploads/${file.filename}`,
-//                     is_primary: sortOrder === 0,
-//                     sort_order: sortOrder
-//                 });
-//             });
-//         }
-
-
-//         if (data.sections) {
-//             const sections = JSON.parse(data.sections);
-
-//             const oldSections = await ProductSections.find({ product_id: productId });
-//             const oldSectionIds = oldSections.map(section => section._id);
-//             await ProductSections.deleteMany({ product_id: productId });
-//             await ProductSectionDetails.deleteMany({ product_section_id: { $in: oldSectionIds } });
-
-//             for (const section of sections) {
-//                 const newProductSection = new ProductSections({
-//                     product_id: productId,
-//                     section_id: section.section_id,
-//                 });
-//                 const savedSection = await newProductSection.save();
-
-//                 if (section.details && section.details.length > 0) {
-//                     const sectionDetails = section.details.map(detail => ({
-//                         product_section_id: savedSection._id,
-//                         title: detail.title,
-//                         content: detail.content,
-//                     }));
-//                     await ProductSectionDetails.insertMany(sectionDetails);
-//                 }
-//             }
-//         }
-
-//         res.json({
-//             status: 200,
-//             message: `Product "${data.name}" has been updated successfully!`,
-//             data: { product: updatedProduct, images: [] },
-//         });
-//     } catch (error) {
-//         console.error("Error updating product:", error);
-//         res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
-//     }
-// });
-
-// router.delete('/delete/:id', async (req, res) => {
-//     try {
-//         const productId = req.params.id;
-
-//         const product = await Products.findById(productId);
-//         if (!product) {
-//             return res.status(404).json({ status: 404, message: "Product not found!" });
-//         }
-
-//         await ProductImages.deleteMany({ product_id: productId });
-
-//         const productSections = await ProductSections.find({ product_id: productId });
-//         const productSectionIds = productSections.map(section => section._id);
-
-//         await ProductSectionDetails.deleteMany({ product_section_id: { $in: productSectionIds } });
-//         await ProductSections.deleteMany({ product_id: productId });
-
-//         await Products.findByIdAndDelete(productId);
-
-//         res.json({ status: 200, message: `Product "${product.name}" has been deleted successfully!` });
-//     } catch (error) {
-//         console.error("Error deleting product:", error);
-//         res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
-//     }
-// });
 
 
 router.post('/add', Uploads.array('images', 10), async (req, res) => {
@@ -343,7 +116,17 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
         const data = req.body;
         const files = req.files;
 
-        if (!data.name || !data.category_id || !data.brand_id || !data.product_type_id || !data.price || !data.short_description || !data.specification || !data.origin_country || !data.manufacturer) {
+        if (!data.name ||
+            !data.category_id ||
+            !data.brand_id ||
+            !data.product_type_id ||
+            !data.price ||
+            !data.short_description ||
+            !data.specification ||
+            !data.origin_country ||
+            !data.manufacturer ||
+            !data.stock_quantity ||
+            !data.expiry_date) {
             return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
         }
 
@@ -357,6 +140,8 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
             specification: data.specification,
             origin_country: data.origin_country,
             manufacturer: data.manufacturer,
+            stock_quantity: data.stock_quantity,
+            expiry_date: new Date(data.expiry_date),
         });
         const savedProduct = await newProduct.save();
 
@@ -398,7 +183,7 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
             try {
                 const sections = typeof data.sections === "string" ? JSON.parse(data.sections) : data.sections;
 
-                let uniqueSections = new Set(); // Dùng để kiểm tra section_id trùng
+                let uniqueSections = new Set();
 
                 for (const section of sections) {
                     if (uniqueSections.has(section.section_id)) {
@@ -407,8 +192,7 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
                             message: `Section "${section.section_id}" đã tồn tại, vui lòng chọn section khác!`
                         });
                     }
-
-                    uniqueSections.add(section.section_id); // Thêm vào Set nếu chưa có
+                    uniqueSections.add(section.section_id);
 
                     const newProductSection = new ProductSections({
                         product_id: savedProduct._id,
@@ -542,7 +326,17 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
         const data = req.body;
         const files = req.files;
 
-        if (!data.name || !data.category_id || !data.brand_id || !data.product_type_id || !data.price || !data.short_description || !data.specification || !data.origin_country || !data.manufacturer) {
+        if (!data.name ||
+            !data.category_id ||
+            !data.brand_id ||
+            !data.product_type_id ||
+            !data.price ||
+            !data.short_description ||
+            !data.specification ||
+            !data.origin_country ||
+            !data.manufacturer ||
+            !data.stock_quantity ||
+            !data.expiry_date) {
             return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
         }
 
@@ -556,6 +350,8 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
             specification: data.specification,
             origin_country: data.origin_country,
             manufacturer: data.manufacturer,
+            stock_quantity: data.stock_quantity,
+            expiry_date: new Date(data.expiry_date),
         }, { new: true });
 
         if (!updatedProduct) {
@@ -605,7 +401,7 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
             const oldSectionIds = oldSections.map(section => section._id);
             await ProductSections.deleteMany({ product_id: productId });
             await ProductSectionDetails.deleteMany({ product_section_id: { $in: oldSectionIds } });
-            
+
             for (const section of sections) {
                 const newProductSection = new ProductSections({
                     product_id: productId,

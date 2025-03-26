@@ -46,7 +46,7 @@ const statusGroups = {
     shipping: ["picking", "picked", "delivering", "money_collect_delivering"],
     delivered: ["delivered"],
     returning: ["waiting_to_return", "return", "returned", "return_fail"],
-    canceled: ["canceled", "delivery_fail"]
+    canceled: ["canceled", "delivery_fail"],
 };
 
 function authenticateToken(req, res, next) {
@@ -3451,6 +3451,23 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
     }
 });
 
+function generateVietQRQuickLink(amount, orderId, userId) {
+    const bankId = process.env.BANK_ID;
+    const accountNo = process.env.ACCOUNT_NO;
+    const template = process.env.TEMPLATE || "compact";
+    const addInfo = encodeURIComponent(`${userId}${orderId}`);
+
+    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${amount}&addInfo=${addInfo}`;
+}
+
+router.get("/test/qr", (req, res) => {
+    const amount = req.query.amount || 2000;
+    const orderId = req.query.order_id || "TEST123";
+    const userId = req.query.user_id || "USER999";
+
+    const qrCodeUrl = generateVietQRQuickLink(amount, orderId, userId);
+    res.json({ status: 200, qr_code: qrCodeUrl });
+});
 
 // router.post("/orders/payment", authenticateToken, async (req, res) => {
 //     try {
@@ -3520,7 +3537,7 @@ router.get("/orders", authenticateToken, async (req, res) => {
         const orders = await Orders.find({
             user_id: user_id,
             status: { $in: statusGroups[group] }
-        }).sort({ createdAt: -1 }).lean();
+        }).sort({ created_at: -1 }).lean();
 
         if (orders.length === 0) {
             return res.status(200).json({
@@ -3544,7 +3561,7 @@ router.get("/orders", authenticateToken, async (req, res) => {
             ...order,
             items: itemsWithProducts.filter(item => item.order_id.toString() === order._id.toString())
         }));
-
+        
         res.status(200).json({
             status: 200,
             message: "Success",

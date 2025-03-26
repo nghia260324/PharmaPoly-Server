@@ -1,4 +1,4 @@
-<div class="p-4">
+{{!-- <div class="p-4">
     <div id="productSection" class="product-section">
 
         <div class="product-header mb-4 p-3 bg-light rounded">
@@ -23,8 +23,10 @@
 
                     <div class="col-md-9 p-3">
                         <h6 class="mb-1"><strong><span data-lang="name">Name:</span></strong> {{this.name}}</h6>
-                        <p class="mb-1 small"><strong><span data-lang="price">Price:</span></strong> {{this.price}} VND</p>
-                        <p class="mb-0 small"><strong><span data-lang="rating">Rating:</span></strong> {{this.average_rating}}/5 ({{this.review_count}}
+                        <p class="mb-1 small"><strong><span data-lang="price">Price:</span></strong> {{this.price}} VND
+                        </p>
+                        <p class="mb-0 small"><strong><span data-lang="rating">Rating:</span></strong>
+                            {{this.average_rating}}/5 ({{this.review_count}}
                             đánh giá)</p>
                     </div>
 
@@ -41,14 +43,95 @@
             {{/each}}
         </div>
     </div>
+</div> --}}
+
+
+<div class="container mt-5">
+    <div class="product-header mb-4 p-3 bg-light rounded">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="h5 mb-0"><span data-lang="product">Products</span></span>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="bi bi-plus-circle"></i> <span data-lang="add_new_product">Add New Product</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-2 align-items-center mb-3">
+        <div class="col-md-4">
+            <input type="text" id="searchProduct" class="form-control" placeholder="Tìm theo tên sản phẩm"
+                value="{{search}}">
+        </div>
+        <div class="col-md-4">
+            <select id="sortProducts" class="form-select">
+                <option value="name_asc" {{#ifCond sort "name_asc" }}selected{{/ifCond}}>Tên A-Z</option>
+                <option value="name_desc" {{#ifCond sort "name_desc" }}selected{{/ifCond}}>Tên Z-A</option>
+                <option value="price_asc" {{#ifCond sort "price_asc" }}selected{{/ifCond}}>Giá thấp đến cao</option>
+                <option value="price_desc" {{#ifCond sort "price_desc" }}selected{{/ifCond}}>Giá cao đến thấp</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button id="btnSearchProduct" class="btn btn-primary w-100">Tìm kiếm</button>
+        </div>
+    </div>
+
+    <div id="productList" class="product-list">
+        {{#each products}}
+        <div class="product-card p-2" data-id="{{this._id}}">
+            <div class="d-flex justify-content-between align-items-center">
+
+                <div class="col-md-1">
+                    <img src="{{this.image}}" class="img-fluid rounded"
+                        style="width: 100px; aspect-ratio: 1/1; object-fit: cover;" alt="{{this.name}}">
+                </div>
+
+                <div class="col-md-9 p-3">
+                    <h6 class="mb-1"><strong><span data-lang="name">Name:</span></strong> {{this.name}}</h6>
+                    <p class="mb-1 small"><strong><span data-lang="price">Price:</span></strong> {{this.price}} VND</p>
+                </div>
+
+                <div class="col-md-2 d-flex align-items-center justify-content-end">
+                    <button class="btn btn-sm btn-warning me-2 edit-product">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-product">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {{/each}}
+    </div>
+
+    <nav>
+        <ul class="pagination justify-content-center">
+            {{#if (gt currentPage 1)}}
+            <li class="page-item">
+                <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
+            </li>
+            {{/if}}
+
+            <li class="page-item disabled">
+                <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+            </li>
+
+            {{#if (lt currentPage totalPages)}}
+            <li class="page-item">
+                <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+            </li>
+            {{/if}}
+        </ul>
+    </nav>
 </div>
+
+
 
 <!-- Modal Add Product -->
 <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addProductModalLabel"><span data-lang="add_new_product">Add New Product</span></h5>
+                <h5 class="modal-title" id="addProductModalLabel"><span data-lang="add_new_product">Add New
+                        Product</span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -57,15 +140,18 @@
                         <div class="col-md-6">
                             <!-- Product Name -->
                             <div class="mb-3">
-                                <label for="productName" class="form-label"><span data-lang="product_name">Product Name</span></label>
+                                <label for="productName" class="form-label"><span data-lang="product_name">Product
+                                        Name</span></label>
                                 <input type="text" class="form-control" id="productName" required>
                             </div>
 
                             <!-- Category -->
                             <div class="mb-3">
-                                <label for="productCategory" class="form-label"><span data-lang="category">Category</span></label>
+                                <label for="productCategory" class="form-label"><span
+                                        data-lang="category">Category</span></label>
                                 <select class="form-select" id="productCategory" required>
-                                    <option value="" selected disabled><span data-lang="select_category">Select Category</span></option>
+                                    <option value="" selected disabled><span data-lang="select_category">Select
+                                            Category</span></option>
                                     {{#each categories}}
                                     <option value="{{this._id}}">{{this.name}}</option>
                                     {{/each}}
@@ -74,9 +160,11 @@
 
                             <!-- Brand -->
                             <div class="mb-3">
-                                <label for="productBrand" class="form-label"><span data-lang="brand">Brand</span></label>
+                                <label for="productBrand" class="form-label"><span
+                                        data-lang="brand">Brand</span></label>
                                 <select class="form-select" id="productBrand" required>
-                                    <option value="" selected disabled><span data-lang="select_brand">Select Brand</span></option>
+                                    <option value="" selected disabled><span data-lang="select_brand">Select
+                                            Brand</span></option>
                                     {{#each brands}}
                                     <option value="{{this._id}}">{{this.name}}</option>
                                     {{/each}}
@@ -85,9 +173,11 @@
 
                             <!-- Product Type -->
                             <div class="mb-3">
-                                <label for="productType" class="form-label"><span data-lang="product type">Product Type</span></label>
+                                <label for="productType" class="form-label"><span data-lang="product type">Product
+                                        Type</span></label>
                                 <select class="form-select" id="productType" required>
-                                    <option value="" selected disabled><span data-lang="select_product_type">Select Product Type</span></option>
+                                    <option value="" selected disabled><span data-lang="select_product_type">Select
+                                            Product Type</span></option>
                                     {{#each productTypes}}
                                     <option value="{{this._id}}">{{this.name}}</option>
                                     {{/each}}
@@ -96,50 +186,61 @@
 
                             <!-- Price -->
                             <div class="mb-3">
-                                <label for="productPrice" class="form-label"><span data-lang="price">Price</span> (VND)</label>
+                                <label for="productPrice" class="form-label"><span data-lang="price">Price</span>
+                                    (VND)</label>
                                 <input type="number" class="form-control" id="productPrice" min="1" required>
                             </div>
 
                             <!-- Average Rating -->
                             <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
-                                <label for="averageRating" class="form-label"><span data-lang="average_rating">Average Rating</span></label>
+                                <label for="averageRating" class="form-label"><span data-lang="average_rating">Average
+                                        Rating</span></label>
                                 <input type="number" class="form-control bg-secondary text-white" id="averageRating"
                                     value="0" readonly>
                             </div>
 
                             <!-- Review Count -->
                             <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
-                                <label for="reviewCount" class="form-label"><span data-lang="review_count">Review Count</span></label>
+                                <label for="reviewCount" class="form-label"><span data-lang="review_count">Review
+                                        Count</span></label>
                                 <input type="number" class="form-control bg-secondary text-white" id="reviewCount"
                                     value="0" readonly>
                             </div>
 
                             <!-- Short Description -->
                             <div class="mb-3">
-                                <label for="shortDescription" class="form-label"><span data-lang="short_description">Short Description</span></label>
+                                <label for="shortDescription" class="form-label"><span
+                                        data-lang="short_description">Short Description</span></label>
                                 <textarea class="form-control" id="productShortDescription" rows="3"
-                                   data-lang-placeholder="enter_a_short_description" placeholder="Enter a short description"></textarea>
+                                    data-lang-placeholder="enter_a_short_description"
+                                    placeholder="Enter a short description"></textarea>
                             </div>
 
                             <!-- Specification -->
                             <div class="mb-3">
-                                <label for="specification" class="form-label"><span data-lang="specification">Specification</span></label>
+                                <label for="specification" class="form-label"><span
+                                        data-lang="specification">Specification</span></label>
                                 <input type="text" class="form-control" id="productSpecification"
-                                   data-lang-placeholder="enter_packaging_details" placeholder="Enter packaging details (e.g., Box of 10 blisters x 10 tablets)">
+                                    data-lang-placeholder="enter_packaging_details"
+                                    placeholder="Enter packaging details (e.g., Box of 10 blisters x 10 tablets)">
                             </div>
 
                             <!-- Manufacturer -->
                             <div class="mb-3">
-                                <label for="manufacturer" class="form-label"><span data-lang="manufacturer">Manufacturer</span></label>
+                                <label for="manufacturer" class="form-label"><span
+                                        data-lang="manufacturer">Manufacturer</span></label>
                                 <input type="text" class="form-control" id="productManufacturer"
-                                    data-lang-placeholder="enter_the_manufacturer's_name" placeholder="Enter the manufacturer's name">
+                                    data-lang-placeholder="enter_the_manufacturer's_name"
+                                    placeholder="Enter the manufacturer's name">
                             </div>
 
                             <!-- Country of Origin -->
                             <div class="mb-3">
-                                <label for="originCountry" class="form-label"><span data-lang="country_of_origin">Country of Origin</span></label>
+                                <label for="originCountry" class="form-label"><span
+                                        data-lang="country_of_origin">Country of Origin</span></label>
                                 <input type="text" class="form-control" id="productOriginCountry"
-                                    data-lang-placeholder="enter_the_country_of_origin" placeholder="Enter the country of origin">
+                                    data-lang-placeholder="enter_the_country_of_origin"
+                                    placeholder="Enter the country of origin">
                             </div>
                         </div>
 
@@ -180,7 +281,8 @@
                     </div>
 
                     <!-- Submit Button -->
-                    <button type="submit" class="btn btn-primary w-100 mt-4"><span data-lang="add_product">Add Product</span></button>
+                    <button type="submit" class="btn btn-primary w-100 mt-4"><span data-lang="add_product">Add
+                            Product</span></button>
                 </form>
             </div>
         </div>
@@ -192,7 +294,8 @@
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="editProductModalLabel"><span data-lang="edit_product">Edit Product</span></h5>
+                <h5 class="modal-title" id="editProductModalLabel"><span data-lang="edit_product">Edit Product</span>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -202,15 +305,19 @@
                         <div class="col-md-6">
                             <!-- Product Name -->
                             <div class="mb-3">
-                                <label for="editProductName" class="form-label"><span data-lang="product_name">Product Name</span></label>
+                                <label for="editProductName" class="form-label"><span data-lang="product_name">Product
+                                        Name</span></label>
                                 <input type="text" class="form-control" id="editProductName" required>
                             </div>
 
                             <!-- Category -->
                             <div class="mb-3">
-                                <label for="editProductCategory" class="form-label"><span data-lang="category">Category</span></label>
+                                <label for="editProductCategory" class="form-label"><span
+                                        data-lang="category">Category</span></label>
                                 <select class="form-select" id="editProductCategory" required>
-                                    <option value="" selected disabled><span data-lang="select_category">Select Category</span></option><span data-lang="select_category">Select Category</span>
+                                    <option value="" selected disabled><span data-lang="select_category">Select
+                                            Category</span></option><span data-lang="select_category">Select
+                                        Category</span>
                                     {{#each categories}}
                                     <option value="{{this._id}}">{{this.name}}</option>
                                     {{/each}}
@@ -219,9 +326,11 @@
 
                             <!-- Brand -->
                             <div class="mb-3">
-                                <label for="editProductBrand" class="form-label"><span data-lang="brand">Brand</span></label>
+                                <label for="editProductBrand" class="form-label"><span
+                                        data-lang="brand">Brand</span></label>
                                 <select class="form-select" id="editProductBrand" required>
-                                    <option value="" selected disabled><span data-lang="select_brand">Select Brand</span></option>
+                                    <option value="" selected disabled><span data-lang="select_brand">Select
+                                            Brand</span></option>
                                     {{#each brands}}
                                     <option value="{{this._id}}">{{this.name}}</option>
                                     {{/each}}
@@ -230,9 +339,11 @@
 
                             <!-- Product Type -->
                             <div class="mb-3">
-                                <label for="editProductType" class="form-label"><span data-lang="product type">Product Type</span></label>
+                                <label for="editProductType" class="form-label"><span data-lang="product type">Product
+                                        Type</span></label>
                                 <select class="form-select" id="editProductType" required>
-                                    <option value="" selected disabled><span data-lang="select_product_type">Select Product Type</span></option>
+                                    <option value="" selected disabled><span data-lang="select_product_type">Select
+                                            Product Type</span></option>
                                     {{#each productTypes}}
                                     <option value="{{this._id}}">{{this.name}}</option>
                                     {{/each}}
@@ -241,47 +352,54 @@
 
                             <!-- Price -->
                             <div class="mb-3">
-                                <label for="editProductPrice" class="form-label"><span data-lang="price">Price</span> (VND)</label><span data-lang="price">Price</span>
+                                <label for="editProductPrice" class="form-label"><span data-lang="price">Price</span>
+                                    (VND)</label><span data-lang="price">Price</span>
                                 <input type="number" class="form-control" id="editProductPrice" min="1" required>
                             </div>
 
                             <!-- Average Rating -->
                             <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
-                                <label for="editProductAverageRating" class="form-label"><span data-lang="average_rating">Average Rating</span></label>
+                                <label for="editProductAverageRating" class="form-label"><span
+                                        data-lang="average_rating">Average Rating</span></label>
                                 <input type="number" class="form-control bg-secondary text-white"
                                     id="editProductAverageRating" value="0" readonly>
                             </div>
 
                             <!-- Review Count -->
                             <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
-                                <label for="editProductReviewCount" class="form-label"><span data-lang="review_count">Review Count</span></label>
+                                <label for="editProductReviewCount" class="form-label"><span
+                                        data-lang="review_count">Review Count</span></label>
                                 <input type="number" class="form-control bg-secondary text-white"
                                     id="editProductReviewCount" value="0" readonly>
                             </div>
 
                             <!-- Short Description -->
                             <div class="mb-3">
-                                <label for="editProductShortDescription" class="form-label"><span data-lang="short_description">Short Description</span></label>
+                                <label for="editProductShortDescription" class="form-label"><span
+                                        data-lang="short_description">Short Description</span></label>
                                 <textarea class="form-control" id="editProductShortDescription" rows="3"></textarea>
                             </div>
 
                             <!-- Specification -->
                             <div class="mb-3">
-                                <label for="editProductSpecification" class="form-label"><span data-lang="specification">Specification</span></label>
+                                <label for="editProductSpecification" class="form-label"><span
+                                        data-lang="specification">Specification</span></label>
                                 <input type="text" class="form-control" id="editProductSpecification"
                                     placeholder="Enter packaging details (e.g., Box of 10 blisters x 10 tablets)">
                             </div>
 
                             <!-- Manufacturer -->
                             <div class="mb-3">
-                                <label for="editProductManufacturer" class="form-label"><span data-lang="manufacturer">Manufacturer</span></label>
+                                <label for="editProductManufacturer" class="form-label"><span
+                                        data-lang="manufacturer">Manufacturer</span></label>
                                 <input type="text" class="form-control" id="editProductManufacturer"
                                     placeholder="Enter the manufacturer's name">
                             </div>
 
                             <!-- Country of Origin -->
                             <div class="mb-3">
-                                <label for="editProductOriginCountry" class="form-label"><span data-lang="country_of_origin">Country of Origin</span></label>
+                                <label for="editProductOriginCountry" class="form-label"><span
+                                        data-lang="country_of_origin">Country of Origin</span></label>
                                 <input type="text" class="form-control" id="editProductOriginCountry"
                                     placeholder="Enter the country of origin">
                             </div>
@@ -323,7 +441,8 @@
                     </div>
 
                     <!-- Submit Button -->
-                    <button type="submit" class="btn btn-primary w-100 mt-4"><span data-lang="save_changes">Save Changes</span></button>
+                    <button type="submit" class="btn btn-primary w-100 mt-4"><span data-lang="save_changes">Save
+                            Changes</span></button>
                 </form>
             </div>
         </div>
@@ -335,15 +454,18 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="deleteConfirmationModalLabel"><span data-lang="confirm_deletion">Confirm Deletion</span></h5>
+                <h5 class="modal-title" id="deleteConfirmationModalLabel"><span data-lang="confirm_deletion">Confirm
+                        Deletion</span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <p><span data-lang="are_you_sure">Are you sure you want to delete this product?</span></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><span data-lang="cancel">Cancel</span></button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn"><span data-lang="delete">Delete</span></button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><span
+                        data-lang="cancel">Cancel</span></button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn"><span
+                        data-lang="delete">Delete</span></button>
             </div>
         </div>
     </div>
@@ -376,6 +498,14 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById("btnSearchProduct").addEventListener("click", function () {
+            const search = document.getElementById("searchProduct").value.trim();
+            const sort = document.getElementById("sortProducts").value;
+
+            window.location.href = `?page=1&limit=10&search=${search}&sort=${sort}`;
+        });
+
+
         let uploadedFiles = [];
         const addProductModal = document.getElementById('addProductModal');
         const editProductModal = document.getElementById('editProductModal');
@@ -918,7 +1048,6 @@
                     <div class="col-md-9 p-3">
                         <h6 class="mb-1"><strong>Name:</strong> ${product.name}</h6>
                         <p class="mb-1 small"><strong>Price:</strong> ${product.price} VND</p>
-                        <p class="mb-0 small"><strong>Rating:</strong> ${product.average_rating}/5 (${product.review_count} đánh giá)</p>
                     </div>
 
                     <div class="col-md-2 d-flex align-items-center justify-content-end">
