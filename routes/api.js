@@ -3616,25 +3616,27 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
             });
         }
 
+        if (order.user_id.toString() !== req.user_id) {
+            return res.status(403).json({
+                status: 403,
+                message: "You do not have permission to cancel this order!"
+            });
+        }
+
+        if (!statusGroups.processing.includes(order.status)) {
+            return res.status(400).json({
+                status: 400,
+                message: "This order cannot be canceled at its current stage!"
+            });
+        }
+
         if (order.status === "pending") {
             order.status = "canceled";
-            await order.save();
-            return res.status(200).json({
-                status: 200,
-                message: "Order canceled successfully!"
-            });
-        }
-
-        if (order.status === "confirmed" || order.status === "ready_to_pick") {
+        } else {
             order.cancel_request = true;
-            await order.save();
-            return res.status(200).json({
-                status: 200,
-                message: "Order cancellation request submitted, waiting for admin approval!"
-            });
         }
-
         await order.save();
+
         res.status(200).json({
             status: 200,
             message: "Order cancellation request submitted successfully!"
@@ -3649,202 +3651,6 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
     }
 });
 
-
-
-// router.post("/orders/create", authenticateToken, async (req, res) => {
-//     try {
-//         //const { to_name, to_phone, to_address, to_district_id, to_ward_code, payment_method, items } = req.body;
-//         const { payment_method, items } = req.body;
-//         //const user_id = "67b344c3744eaa2ff0f0ce7d";
-//         const user_id = req.user_id;
-
-//         if (!user_id) {
-//             return res.status(401).json({ status: 401, message: "Unauthorized" });
-//         }
-
-//         const user = await Users.findById(user_id);
-//         if (!user) {
-//             return res.status(404).json({ status: 404, message: "User not found" });
-//         }
-
-//         const userAddress = await UserAddress.findOne({ user_id });
-//         if (!userAddress) {
-//             return res.status(404).json({ status: 404, message: "User address not found" });
-//         }
-
-//         const to_name = user.full_name;
-//         const to_phone = user.shipping_phone_number;
-//         const to_address = userAddress.street_address;
-//         const to_district_id = userAddress.district_id;
-//         const to_ward_code = userAddress.ward_id;
-
-//         if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !items || items.length === 0) {
-//             return res.status(400).json({ status: 400, message: "Missing required fields" });
-//         }
-
-//         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
-
-//         const totalItemPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-//         const total_price = totalItemPrice + shipping_fee;
-
-//         const newOrder = new Orders({
-//             user_id,
-//             to_name,
-//             to_phone,
-//             to_address,
-//             to_district_id,
-//             to_ward_code,
-//             payment_method,
-//             shipping_fee,
-//             total_price,
-//         });
-
-//         await newOrder.save();
-
-//         const orderItems = items.map(item => ({
-//             order_id: newOrder._id,
-//             product_id: item.product_id,
-//             quantity: item.quantity,
-//             price: item.price
-//         }));
-
-
-//         await OrderItems.insertMany(orderItems);
-
-//         const productIds = items.map(item => item.product_id);
-
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         }).lean();
-
-//         const itemsWithImages = items.map(item => {
-//             const primaryImage = primaryImages.find(img => img.product_id.equals(item.product_id));
-//             return {
-//                 ...item,
-//                 image_url: primaryImage ? primaryImage.image_url : "",
-//             };
-//         });
-
-//         const shopInfo = await getShopInfo();
-
-//         const servicesResponse = await axios.get(`${GHN_API}/v2/shipping-order/available-services`, {
-//             params: { shop_id: SHOP_ID, from_district: shopInfo.from_district_id, to_district: to_district_id },
-//             headers: { "Token": TOKEN_GHN }
-//         });
-//         const services = servicesResponse.data.data;
-//         const service = services[0];
-
-//         const payment_type_id = payment_method === "COD" ? 2 : 1;        
-
-//         const ghnResponse = await axios.post(`${GHN_API}/v2/shipping-order/create`, {
-//             //payment_type_id: payment_method === "COD" ? 2 : 1,
-//             payment_type_id,
-//             note: "Giao hàng cẩn thận",
-//             required_note: "KHONGCHOXEMHANG",
-//             from_name: shopInfo.from_name,
-//             from_phone: shopInfo.from_phone,
-//             from_address: shopInfo.from_address,
-//             from_ward_name: shopInfo.from_ward_name,
-//             from_district_name: shopInfo.from_district_name,
-//             from_district_id: shopInfo.from_district_id,
-//             to_district_id,
-//             to_ward_code,
-//             to_name,
-//             to_phone,
-//             to_address,
-//             return_phone: shopInfo.from_phone,
-//             return_address: shopInfo.from_address,
-//             return_district_id: shopInfo.from_district_id,
-//             return_ward_code: shopInfo.from_ward_code,
-//             service_id: service.service_id,
-//             service_type_id: service.service_type_id,
-//             items: itemsWithImages.map(item => ({
-//                 name: item.name,
-//                 code: item.product_id,
-//                 quantity: item.quantity,
-//                 price: item.price,
-//                 weight: 1
-//                 //image_url: item.image_url
-//             })),
-//             weight: 1,
-//             cod_amount: payment_method === "COD" ? totalItemPrice : 0,
-//             insurance_value: 1000000,
-//         }, {
-//             headers: { "Content-Type": "application/json", "Token": TOKEN_GHN, "ShopId": SHOP_ID }
-//         });
-
-//         if (ghnResponse.data.code !== 200) {
-//             return res.status(500).json({ status: 500, message: "Failed to create GHN order", error: ghnResponse.data });
-//         }
-
-//         const order_code = ghnResponse.data.data.order_code;
-
-//         //const order_code = generateOrderCode();
-
-//         await Orders.findByIdAndUpdate(newOrder._id, { order_code });
-//         const updatedOrder = await Orders.findById(newOrder._id);
-//         await db.ref("new_orders").set({ timestamp: Date.now(), order_code });
-
-//         res.status(200).json({ status: 200, message: "Order created successfully", order: updatedOrder });
-
-//     } catch (error) {
-//         console.error("Error creating order:", error);
-//         return res.status(500).json({
-//             status: 500,
-//             message: "Internal Server Error",
-//             error: error.response?.data || error.message
-//         });
-//     }
-// });
-
-
-// router.patch("/orders/:order_id/confirm", async (req, res) => {
-//     try {
-//         const { order_id } = req.params;
-
-//         // Tìm đơn hàng trong MongoDB
-//         const order = await Orders.findById(order_id);
-//         if (!order) {
-//             return res.status(404).json({ success: false, message: "Đơn hàng không tồn tại" });
-//         }
-
-//         if (order.status !== "pending") {
-//             return res.status(400).json({ success: false, message: "Chỉ có thể xác nhận đơn hàng ở trạng thái pending" });
-//         }
-
-//         if (!order.order_code) {
-//             return res.status(400).json({ success: false, message: "Đơn hàng chưa có mã GHN" });
-//         }
-
-//         const ghnResponse = await axios.post(`${GHN_API}/v2/shipping-order/confirm`, {
-//             order_code: order.order_code
-//         }, {
-//             headers: { "Token": TOKEN_GHN }
-//         });
-
-//         if (ghnResponse.data.code !== 200) {
-//             return res.status(500).json({ success: false, message: "GHN không xác nhận được đơn hàng", error: ghnResponse.data });
-//         }
-
-//         // Cập nhật trạng thái đơn hàng trong MongoDB
-//         order.status = "confirmed";
-//         await order.save();
-
-//         return res.status(200).json({
-//             success: true,
-//             message: "Đã xác nhận đơn hàng thành công",
-//             data: order
-//         });
-
-//     } catch (error) {
-//         return res.status(500).json({
-//             success: false,
-//             message: "Lỗi server",
-//             error: error.response?.data || error.message
-//         });
-//     }
-// });
 
 const calculateShippingFee = async (to_district_id, to_ward_code) => {
     try {
