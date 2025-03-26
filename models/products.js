@@ -13,6 +13,8 @@ const Products = new Schema({
     manufacturer: {type: String, required: true},
     average_rating: {type: Number, required: true, default: 0},
     review_count: {type: Number, required: true, default: 0},
+    expiry_date: { type: Date, required: true },
+    stock_quantity: { type: Number, required: true, default: 0 },
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
