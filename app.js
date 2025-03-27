@@ -8,7 +8,7 @@ const axios = require("axios");
 require("dotenv").config();
 const crypto = require("crypto");
 
-const firebaseAdmin = require('./firebase/firebaseAdmin');
+const { firebaseAdmin, db } = require('./firebase/firebaseAdmin');
 
 const indexRouter = require('./routes/index');
 //const apiRouter = require('./routes/api')
@@ -130,7 +130,7 @@ app.post('/webhook/ghn', async (req, res) => {
       return res.status(404).send("Order not found");
     }
 
-    console.log(`Order ${updatedOrder.order_code} updated to status ${updatedOrder.status}`);
+    //console.log(`Order ${updatedOrder.order_code} updated to status ${updatedOrder.status}`);
     res.status(200).send("Webhook received and order updated");
   } catch (error) {
     console.error("Error processing webhook:", error);
@@ -138,74 +138,78 @@ app.post('/webhook/ghn', async (req, res) => {
   }
 });
 
-
 const verifyCassoSignature = (req, res, next) => {
   try {
-      const secretKey = process.env.CASSO_SECRET_KEY;
-      const cassoSignature = req.headers["x-casso-signature"];
-      const requestBody = JSON.stringify(req.body);
+    const secretKey = process.env.CASSO_SECRET_KEY;
+    const cassoSignature = req.headers["x-casso-signature"];
+    const requestBody = JSON.stringify(req.body);
 
-      const computedSignature = crypto
-          .createHmac("sha256", secretKey)
-          .update(requestBody)
-          .digest("hex");
+    const computedSignature = crypto
+      .createHmac("sha256", secretKey)
+      .update(requestBody)
+      .digest("hex");
 
-      if (computedSignature !== cassoSignature) {
-          return res.status(403).json({ status: 403, message: "Invalid signature" });
-      }
-      next();
+    if (computedSignature !== cassoSignature) {
+      return res.status(403).json({ status: 403, message: "Invalid signature" });
+    }
+    next();
   } catch (error) {
-      console.error("❌ Lỗi xác thực Webhook:", error);
-      res.status(500).json({ status: 500, message: "Internal Server Error" });
+    console.error("❌ Lỗi xác thực Webhook:", error);
+    res.status(500).json({ status: 500, message: "Internal Server Error" });
   }
 };
 
-
 app.post("/webhook/payment", async (req, res) => {
   try {
-      const { error, data } = req.body;
+    const { error, data } = req.body;
 
-      if (error !== 0 || !data) {
-          return res.status(400).json({ status: 400, message: "Invalid Casso data" });
-      }
+    if (error !== 0 || !data) {
+      return res.status(400).json({ status: 400, message: "Invalid Casso data" });
+    }
 
-      const { reference, description, amount } = data;
+    const { reference, description, amount } = data;
 
-      if (!reference || !description || !amount) {
-          return res.status(400).json({ status: 400, message: "Missing required fields" });
-      }
+    if (!reference || !description || !amount) {
+      return res.status(400).json({ status: 400, message: "Missing required fields" });
+    }
 
-      if (reference === "MA_GIAO_DICH_THU_NGHIEM") {
-          return res.json({ status: 200, message: "Test transaction received successfully" });
-      }
+    if (reference === "MA_GIAO_DICH_THU_NGHIEM" || description === "giao dich thu nghiem") {
+      return res.json({ status: 200, message: "Test transaction received successfully" });
+    }
 
-      if (description.length < 48) {
-        return res.status(400).json({ status: 400, message: "Invalid transaction description format" });
-      }
+    if (description.length < 48) {
+      return res.status(400).json({ status: 400, message: "Invalid transaction description format" });
+    }
 
-      const userId = description.substring(0, 24);
-      const orderId = description.substring(24, 48);
+    const userId = description.substring(0, 24);
+    const orderId = description.substring(24, 48);
 
-      const order = await Orders.findOne({ _id: orderId, user_id: userId });
+    const order = await Orders.findOne({ _id: orderId, user_id: userId });
 
-      if (!order) {
-          return res.status(404).json({ status: 404, message: "Order not found" });
-      }
-      if (order.total_price === amount) {
-          order.payment_status = "paid";
-          order.transaction_id = reference;
-          await order.save();
-      } else {
-          return res.status(400).json({ status: 400, message: "Incorrect payment amount" });
-      }
+    if (!order) {
+      return res.status(404).json({ status: 404, message: "Order not found" });
+    }
+    order.payment_status = "paid";
+    order.transaction_id = reference;
+    await order.save();
 
-      res.json({ status: 200, message: "Webhook received successfully" });
+    await db.ref(`payment_status/${userId}`).set("PAID");
+    // if (order.total_price === amount) {
+    //   order.payment_status = "paid";
+    //   order.transaction_id = reference;
+    //   await order.save();
+
+    //   await db.ref(`payment_status/${userId}`).set("PAID");
+    // } else {
+    //   return res.status(400).json({ status: 400, message: "Incorrect payment amount" });
+    // }
+
+    res.json({ status: 200, message: "Webhook received successfully" });
   } catch (error) {
-      console.error("Webhook Error:", error);
-      res.status(500).json({ status: 500, message: "Internal Server Error" });
+    console.error("Webhook Error:", error);
+    res.status(500).json({ status: 500, message: "Internal Server Error" });
   }
 });
-
 
 
 

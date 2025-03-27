@@ -3439,14 +3439,13 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         let qrCodeUrl = null;
         if (payment_method === "ONLINE") {
-            qrCodeUrl = generateVietQRQuickLink(total_price, newOrder._id.toString(), user_id);
+            qrCodeUrl = generateVietQRQuickLink(newOrder, user_id);
         }
 
         return res.status(200).json({
             status: 200,
             message: "Order created successfully",
-            data: newOrder,
-            qr_code_url: qrCodeUrl
+            data: qrCodeUrl,
         });
 
     } catch (error) {
@@ -3459,14 +3458,52 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
     }
 });
 
-function generateVietQRQuickLink(amount, orderId, userId) {
+function generateVietQRQuickLink(order, userId) {
     const bankId = process.env.BANK_ID;
     const accountNo = process.env.ACCOUNT_NO;
     const template = process.env.TEMPLATE || "compact";
-    const addInfo = encodeURIComponent(`${userId}${orderId}`);
+    const addInfo = encodeURIComponent(`${userId}${order._id}`);
 
-    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${amount}&addInfo=${addInfo}`;
+    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
 }
+
+router.get("/orders/get-payment-qrcode/:order_id", authenticateToken, async (req, res) => {
+    try {
+        const { order_id } = req.params;
+        const user_id = req.user_id;
+
+        if (!user_id) {
+            return res.status(401).json({ status: 401, message: "Unauthorized" });
+        }
+
+        const order = await Orders.findOne({ _id: order_id, user_id });
+
+        if (!order) {
+            return res.status(404).json({ status: 404, message: "Order not found" });
+        }
+
+        if (order.payment_status === "paid") {
+            return res.status(400).json({ status: 400, message: "Order already paid" });
+        }
+
+        const qrCodeUrl = generateVietQRQuickLink(order, user_id);
+
+        return res.status(200).json({
+            status: 200,
+            message: "QR code generated successfully",
+            data: qrCodeUrl,
+        });
+
+    } catch (error) {
+        console.error("Error generating QR code:", error);
+        return res.status(500).json({
+            status: 500,
+            message: "Internal Server Error",
+            error: error.message,
+        });
+    }
+});
+
 
 router.get("/test/qr", authenticateToken ,(req, res) => {
     const amount = req.query.amount; 
