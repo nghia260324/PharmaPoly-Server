@@ -3463,8 +3463,10 @@ function generateVietQRQuickLink(order, userId) {
     const accountNo = process.env.ACCOUNT_NO;
     const template = process.env.TEMPLATE || "compact";
     const addInfo = encodeURIComponent(`${userId}${order._id}`);
+    // return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
 
-    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
+    const testAmount = 2000;
+    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${testAmount}&addInfo=${addInfo}`;
 }
 
 router.get("/orders/get-payment-qrcode/:order_id", authenticateToken, async (req, res) => {
