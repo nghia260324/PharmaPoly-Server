@@ -3214,9 +3214,6 @@ const getDiscountedProductById = async (productId) => {
 };
 
 
-
-
-
 const getProvince = async (province_id) => {
     try {
         const response = await axios.get(`${GHN_API}/master-data/province`, {
@@ -3424,6 +3421,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             payment_method,
             shipping_fee,
             total_price,
+            payment_status: payment_method === "ONLINE" ? "pending" : null
         });
 
         await newOrder.save();
@@ -3439,7 +3437,17 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         await CartItems.deleteMany({ user_id, _id: { $in: items.map(item => item._id) } });
         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
 
-        res.status(200).json({ status: 200, message: "Order created successfully", data: newOrder });
+        let qrCodeUrl = null;
+        if (payment_method === "ONLINE") {
+            qrCodeUrl = generateVietQRQuickLink(total_price, newOrder._id.toString(), user_id);
+        }
+
+        return res.status(200).json({
+            status: 200,
+            message: "Order created successfully",
+            data: newOrder,
+            qr_code_url: qrCodeUrl
+        });
 
     } catch (error) {
         console.error("Error creating order:", error);
@@ -3460,10 +3468,10 @@ function generateVietQRQuickLink(amount, orderId, userId) {
     return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${amount}&addInfo=${addInfo}`;
 }
 
-router.get("/test/qr", (req, res) => {
-    const amount = req.query.amount || 2000;
-    const orderId = req.query.order_id || "TEST123";
-    const userId = req.query.user_id || "USER999";
+router.get("/test/qr", authenticateToken ,(req, res) => {
+    const amount = req.query.amount; 
+    const orderId = "67e3bc09f19d55474a9727b1";
+    const userId = req.user_id;
 
     const qrCodeUrl = generateVietQRQuickLink(amount, orderId, userId);
     res.json({ status: 200, qr_code: qrCodeUrl });

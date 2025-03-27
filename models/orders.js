@@ -33,6 +33,19 @@ const Orders = new Schema({
         default: "pending"
     },
     
+    payment_status: {
+        type: String,
+        enum: [
+            "pending",
+            "paid",
+            "failed",
+            "refunded"
+        ],
+        default: "pending"
+    },
+    transaction_id: { type: String, default: null },
+
+
     delivered_at: { type: Date, default: null },
     cancel_request: {
         type: Boolean,

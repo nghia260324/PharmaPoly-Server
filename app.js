@@ -165,8 +165,6 @@ app.post("/webhook/payment", async (req, res) => {
   try {
       const { error, data } = req.body;
 
-      console.log(data);
-
       if (error !== 0 || !data) {
           return res.status(400).json({ status: 400, message: "Invalid Casso data" });
       }
@@ -181,6 +179,10 @@ app.post("/webhook/payment", async (req, res) => {
           return res.json({ status: 200, message: "Test transaction received successfully" });
       }
 
+      if (description.length < 48) {
+        return res.status(400).json({ status: 400, message: "Invalid transaction description format" });
+      }
+
       const userId = description.substring(0, 24);
       const orderId = description.substring(24, 48);
 
@@ -190,7 +192,7 @@ app.post("/webhook/payment", async (req, res) => {
           return res.status(404).json({ status: 404, message: "Order not found" });
       }
       if (order.total_price === amount) {
-          order.payment_status = "PAID";
+          order.payment_status = "paid";
           order.transaction_id = reference;
           await order.save();
       } else {
