@@ -3196,6 +3196,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
 
 async function checkPaymentStatus(user_id, order_id, total_price) {
+    total_price = 2000;
     let attempts = 0;
     const maxAttempts = 20;
     const interval = setInterval(async () => {
