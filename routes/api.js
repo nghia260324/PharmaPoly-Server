@@ -608,112 +608,59 @@ router.post('/refresh-token', async (req, res) => {
 });
 
 
-
 // router.get('/user/cart', authenticateToken, async (req, res) => {
 //     try {
 //         const user_id = req.user_id;
-//         let cart = await Carts.findOne({ user_id });
-//         if (!cart) {
-//             return res.status(404).json({ status: 404, message: 'Cart not found' });
-//         }
-
-//         let cartItems = await CartItems.find({ cart_id: cart._id })
-//             .populate({
-//                 path: 'product_id',
-//                 select: '_id name category_id brand_id product_type_id',
-//                 populate: [
-//                     { path: 'category_id', select: '_id name' },
-//                     { path: 'brand_id', select: '_id name description' },
-//                     { path: 'product_type_id', select: '_id name' }
-//                 ]
-//             });
-
-//         const productIds = cartItems.map(item => item.product_id._id);
-
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         });
-
-//         const imageMap = primaryImages.reduce((acc, img) => {
-//             acc[img.product_id] = img;
-//             return acc;
-//         }, {});
-
-//         cartItems = cartItems.map(item => {
-//             let product = item.product_id.toObject();
-//             let productDetails = {
-//                 _id: product._id,
-//                 name: product.name,
-//                 category_id: product.category_id ? product.category_id._id : null,
-//                 brand_id: product.brand_id ? product.brand_id._id : null,
-//                 product_type_id: product.product_type_id ? product.product_type_id._id : null,
-//                 category: product.category_id ? {
-//                     _id: product.category_id._id,
-//                     name: product.category_id.name
-//                 } : null,
-//                 brand: product.brand_id ? {
-//                     _id: product.brand_id._id,
-//                     name: product.brand_id.name,
-//                     description: product.brand_id.description
-//                 } : null,
-//                 product_type: product.product_type_id ? {
-//                     _id: product.product_type_id._id,
-//                     name: product.product_type_id.name
-//                 } : null,
-//                 images: [imageMap[product._id]] || null
-//             };
-
-//             return {
-//                 ...item.toObject(),
-//                 product_id: product._id,
-//                 product: productDetails
-//             };
-//         });
-
-//         let cartData = cart.toObject();
-//         cartData.cartItems = cartItems;
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Cart items retrieved successfully!',
-//             data: cartData
-//         });
-
-//     } catch (error) {
-//         console.error("Error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
-
-
-// router.get('/user/cart', authenticateToken, async (req, res) => {
-//     try {
-//         const user_id = req.user_id;
-//         let cart = await Carts.findOne({ user_id });
+//         const cart = await Carts.findOne({ user_id }).lean();
 
 //         if (!cart) {
 //             return res.status(404).json({ status: 404, message: 'Cart not found' });
 //         }
 
-//         let cartItems = await CartItems.find({ cart_id: cart._id });
+//         let cartItems = await CartItems.find({ cart_id: cart._id }).lean();
 
-//         let updatedCartItems = await Promise.all(cartItems.map(async (item) => {
-//             let product = await getDiscountedProductById(item.product_id);
+//         const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
+//             //const product = await getDiscountedProductById(item.product_id);
+//             const product = await getProductDetails(item.product_id);
 
-//             return {
-//                 ...item.toObject(),
-//                 product
-//             };
+//             let shouldUpdate = false;
+
+//             if (item.original_price !== product.price) {
+//                 shouldUpdate = true;
+//             }
+
+//             if (!shouldUpdate && item.discounted_price !== product.discounted_price) {
+//                 shouldUpdate = true;
+//             }
+
+//             let product_discounted_price = item.original_price;
+
+//             if (product.discounted_price == null || product.discount == null) {
+//                 product_discounted_price = item.original_price;
+//             } else if (product.discount) {
+//                 if (product.discount.type === "percent") {
+//                     product_discounted_price = Math.round(item.original_price * (1 - product.discount.value / 100));
+//                 } else if (product.discount.type === "fixed") {
+//                     product_discounted_price = Math.max(0, item.original_price - product.discount.value);
+//                 }
+//             }
+
+//             if (shouldUpdate || item.discounted_price !== product_discounted_price) {
+//                 item.discounted_price = product_discounted_price;
+
+//                 await CartItems.updateOne(
+//                     { _id: item._id },
+//                     { $set: { discounted_price: product_discounted_price } }
+//                 );
+//             }
+
+//             return { ...item, product };
 //         }));
 
-//         let cartData = cart.toObject();
-//         cartData.cartItems = updatedCartItems;
-
 //         return res.status(200).json({
 //             status: 200,
 //             message: 'Cart items retrieved successfully!',
-//             data: cartData
+//             data: { ...cart, cartItems: updatedCartItems }
 //         });
 
 //     } catch (error) {
@@ -721,7 +668,6 @@ router.post('/refresh-token', async (req, res) => {
 //         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
 //     }
 // });
-
 
 router.get('/user/cart', authenticateToken, async (req, res) => {
     try {
@@ -735,39 +681,7 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
         let cartItems = await CartItems.find({ cart_id: cart._id }).lean();
 
         const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
-            const product = await getDiscountedProductById(item.product_id);
-
-            let shouldUpdate = false;
-
-            if (item.original_price !== product.price) {
-                shouldUpdate = true;
-            }
-
-            if (!shouldUpdate && item.discounted_price !== product.discounted_price) {
-                shouldUpdate = true;
-            }
-
-            let product_discounted_price = item.original_price;
-
-            if (product.discounted_price == null || product.discount == null) {
-                product_discounted_price = item.original_price;
-            } else if (product.discount) {
-                if (product.discount.type === "percent") {
-                    product_discounted_price = Math.round(item.original_price * (1 - product.discount.value / 100));
-                } else if (product.discount.type === "fixed") {
-                    product_discounted_price = Math.max(0, item.original_price - product.discount.value);
-                }
-            }
-
-            if (shouldUpdate || item.discounted_price !== product_discounted_price) {
-                item.discounted_price = product_discounted_price;
-
-                await CartItems.updateOne(
-                    { _id: item._id },
-                    { $set: { discounted_price: product_discounted_price } }
-                );
-            }
-
+            const product = await getProductDetails(item.product_id);
             return { ...item, product };
         }));
 
@@ -782,7 +696,6 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
-
 
 
 
@@ -2572,7 +2485,7 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
     try {
         const user_id = req.user_id;
         const product_id = req.body.product_id;
-        const quantity = parseInt(req.body.quantity, 10);
+        const quantity = parseInt(req.body.quantity, MAX_QUANTITY_PER_PRODUCT);
         if (!user_id || !product_id || !quantity || quantity < 1) {
             return res.status(400).json({
                 status: 400,
@@ -2594,7 +2507,6 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
             });
         }
         const original_price = product.price;
-        const discounted_price = product.discounted_price || original_price;
 
         let cart = await Carts.findOne({ user_id });
 
@@ -2616,7 +2528,6 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
                 product: getDiscountedProductById(product_id),
                 quantity: Math.min(quantity, MAX_QUANTITY_PER_PRODUCT),
                 original_price,
-                discounted_price
             });
         }
 
@@ -2692,81 +2603,6 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
-
-
-// router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
-//     try {
-//         const { cart_item_id } = req.query;
-//         const userId = req.user_id;
-
-//         if (!cart_item_id) {
-//             return res.status(400).json({ status: 400, message: 'Missing required field: cart_item_id' });
-//         }
-
-//         const cartItem = await CartItems.findById(cart_item_id);
-//         if (!cartItem) {
-//             return res.status(404).json({ status: 404, message: 'Cart item not found' });
-//         }
-//         await CartItems.findByIdAndDelete(cart_item_id);
-
-//         let cartItems = await CartItems.find({ cart_id: cartItem.cart_id })
-//             .populate({
-//                 path: 'product_id',
-//                 select: '_id name category_id brand_id product_type_id',
-//                 populate: [
-//                     { path: 'category_id', select: '_id name' },
-//                     { path: 'brand_id', select: '_id name description' },
-//                     { path: 'product_type_id', select: '_id name' }
-//                 ]
-//             });
-//         if (cartItems.length === 0) {
-//             await Carts.findByIdAndDelete(cartItem.cart_id);
-//             return res.status(200).json({
-//                 status: 200,
-//                 message: 'Cart item removed, cart deleted as it was empty',
-//                 data: null
-//             });
-//         }
-
-//         const cart = await Carts.findOneAndUpdate(
-//             { _id: cartItem.cart_id, user_id: userId },
-//             {
-//                 total_price: cartItems.reduce((sum, item) => sum + item.total_price, 0),
-//                 total_items: cartItems.length
-//             },
-//             { new: true }
-//         );
-
-//         if (!cart) {
-//             return res.status(404).json({ status: 404, message: 'Cart not found or access denied' });
-//         }
-
-
-//         cartItems = cartItems.map(item => {
-//             return {
-//                 ...item.toObject(),
-//                 product_id: item._id,
-//                 product: getDiscountedProductById(item._id)
-//             };
-//         });
-
-//         let cartData = cart.toObject();
-//         cartData.cartItems = cartItems;
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Cart item removed successfully!',
-//             data: cartData
-//         });
-
-//     } catch (error) {
-//         console.error("Error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
-
-
-
-
 
 
 router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
@@ -3101,11 +2937,10 @@ const getDiscountedProductById = async (productId) => {
 
         if (!product) return null;
 
-        // Lấy danh sách ảnh và ánh xạ ảnh chính của từng sản phẩm
         const productImages = await ProductImages.find({ product_id: product._id }).lean();
         const imageMap = productImages.reduce((acc, img) => {
             if (!acc[img.product_id]) {
-                acc[img.product_id] = img; // Chọn ảnh đầu tiên làm ảnh chính
+                acc[img.product_id] = img;
             }
             return acc;
         }, {});
@@ -3377,10 +3212,94 @@ router.post("/calculate-shipping-fee", async (req, res) => {
 });
 
 
+// router.post("/orders/create", authenticateToken, async (req, res) => {
+//     try {
+//         const { payment_method, items } = req.body;
+//         const user_id = req.user_id;
+
+//         if (!user_id) {
+//             return res.status(401).json({ status: 401, message: "Unauthorized" });
+//         }
+
+//         const user = await Users.findById(user_id);
+//         if (!user) {
+//             return res.status(404).json({ status: 404, message: "User not found" });
+//         }
+
+//         const userAddress = await UserAddress.findOne({ user_id });
+//         if (!userAddress) {
+//             return res.status(404).json({ status: 404, message: "User address not found" });
+//         }
+
+//         const to_name = user.full_name;
+//         const to_phone = user.shipping_phone_number;
+//         const to_address = userAddress.street_address;
+//         const to_district_id = userAddress.district_id;
+//         const to_ward_code = userAddress.ward_id;
+
+//         if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !items || items.length === 0) {
+//             return res.status(400).json({ status: 400, message: "Missing required fields" });
+//         }
+
+//         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
+
+//         const totalItemPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+//         const total_price = totalItemPrice + shipping_fee;
+
+//         const newOrder = new Orders({
+//             user_id,
+//             to_name,
+//             to_phone,
+//             to_address,
+//             to_district_id,
+//             to_ward_code,
+//             payment_method,
+//             shipping_fee,
+//             total_price,
+//             payment_status: payment_method === "ONLINE" ? "pending" : null
+//         });
+
+//         await newOrder.save();
+
+//         const orderItems = items.map(item => ({
+//             order_id: newOrder._id,
+//             product_id: item.product_id,
+//             quantity: item.quantity,
+//             price: item.price
+//         }));
+
+//         await OrderItems.insertMany(orderItems);
+//         await CartItems.deleteMany({ user_id, _id: { $in: items.map(item => item._id) } });
+//         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
+
+//         let qrCodeUrl = null;
+//         if (payment_method === "ONLINE") {
+//             qrCodeUrl = generateVietQRQuickLink(newOrder);
+//         }
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: "Order created successfully",
+//             data: qrCodeUrl,
+//         });
+
+//     } catch (error) {
+//         console.error("Error creating order:", error);
+//         return res.status(500).json({
+//             status: 500,
+//             message: "Internal Server Error",
+//             error: error.response?.data || error.message
+//         });
+//     }
+// });
+
+
+
 router.post("/orders/create", authenticateToken, async (req, res) => {
     try {
-        const { payment_method, items } = req.body;
+        const { payment_method, cart_item_ids } = req.body;
         const user_id = req.user_id;
+        console.log(cart_item_ids);
 
         if (!user_id) {
             return res.status(401).json({ status: 401, message: "Unauthorized" });
@@ -3402,9 +3321,14 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         const to_district_id = userAddress.district_id;
         const to_ward_code = userAddress.ward_id;
 
-        if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !items || items.length === 0) {
+
+        if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !items || cart_item_ids.length === 0) {
             return res.status(400).json({ status: 400, message: "Missing required fields" });
         }
+
+        return;
+        const cartItems = await CartItems.find({ _id: { $in: cart_item_ids }, user_id }).populate("product_id");
+
 
         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
 
@@ -3457,6 +3381,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         });
     }
 });
+
 
 function generateVietQRQuickLink(order) {
     const bankId = process.env.BANK_ID;
