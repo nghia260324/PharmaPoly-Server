@@ -3439,7 +3439,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         let qrCodeUrl = null;
         if (payment_method === "ONLINE") {
-            qrCodeUrl = generateVietQRQuickLink(newOrder, user_id);
+            qrCodeUrl = generateVietQRQuickLink(newOrder);
         }
 
         return res.status(200).json({
@@ -3458,11 +3458,11 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
     }
 });
 
-function generateVietQRQuickLink(order, userId) {
+function generateVietQRQuickLink(order) {
     const bankId = process.env.BANK_ID;
     const accountNo = process.env.ACCOUNT_NO;
     const template = process.env.TEMPLATE || "compact";
-    const addInfo = encodeURIComponent(`${userId}${order._id}`);
+    const addInfo = `OID-${order._id}-E`;
     // return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
 
     const testAmount = 2000;
@@ -3488,7 +3488,7 @@ router.get("/orders/get-payment-qrcode/:order_id", authenticateToken, async (req
             return res.status(400).json({ status: 400, message: "Order already paid" });
         }
 
-        const qrCodeUrl = generateVietQRQuickLink(order, user_id);
+        const qrCodeUrl = generateVietQRQuickLink(order);
 
         return res.status(200).json({
             status: 200,
@@ -3507,14 +3507,14 @@ router.get("/orders/get-payment-qrcode/:order_id", authenticateToken, async (req
 });
 
 
-router.get("/test/qr", authenticateToken ,(req, res) => {
-    const amount = req.query.amount; 
-    const orderId = "67e3bc09f19d55474a9727b1";
-    const userId = req.user_id;
+// router.get("/test/qr", authenticateToken ,(req, res) => {
+//     const amount = req.query.amount; 
+//     const orderId = "67e3bc09f19d55474a9727b1";
+//     const userId = req.user_id;
 
-    const qrCodeUrl = generateVietQRQuickLink(amount, orderId, userId);
-    res.json({ status: 200, qr_code: qrCodeUrl });
-});
+//     const qrCodeUrl = generateVietQRQuickLink(amount, orderId, userId);
+//     res.json({ status: 200, qr_code: qrCodeUrl });
+// });
 
 // router.post("/orders/payment", authenticateToken, async (req, res) => {
 //     try {

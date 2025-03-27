@@ -181,11 +181,14 @@ app.post("/webhook/payment", async (req, res) => {
       return res.status(400).json({ status: 400, message: "Invalid transaction description format" });
     }
 
-    const userId = description.substring(0, 24);
-    const orderId = description.substring(24, 48);
+    const match = description.match(/OID-([a-f0-9]{24})-E/);
+    if (!match) {
+        return res.status(400).json({ status: 400, message: "Invalid transaction format" });
+    }
+    const orderId = match[1];
 
-    const order = await Orders.findOne({ _id: orderId, user_id: userId });
-
+    const order = await Orders.findOne({ _id: orderId});
+    const userId = order.user_id;
     if (!order) {
       return res.status(404).json({ status: 404, message: "Order not found" });
     }
