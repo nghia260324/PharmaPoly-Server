@@ -5,6 +5,9 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const axios = require("axios");
+require("dotenv").config();
+const crypto = require("crypto");
+
 const firebaseAdmin = require('./firebase/firebaseAdmin');
 
 const indexRouter = require('./routes/index');
@@ -135,29 +138,58 @@ app.post('/webhook/ghn', async (req, res) => {
   }
 });
 
+
+const verifyCassoSignature = (req, res, next) => {
+  try {
+      const secretKey = process.env.CASSO_SECRET_KEY;
+      const cassoSignature = req.headers["x-casso-signature"];
+      const requestBody = JSON.stringify(req.body);
+
+      const computedSignature = crypto
+          .createHmac("sha256", secretKey)
+          .update(requestBody)
+          .digest("hex");
+
+      if (computedSignature !== cassoSignature) {
+          return res.status(403).json({ status: 403, message: "Invalid signature" });
+      }
+      next();
+  } catch (error) {
+      console.error("❌ Lỗi xác thực Webhook:", error);
+      res.status(500).json({ status: 500, message: "Internal Server Error" });
+  }
+};
+
 app.post("/webhook/payment", async (req, res) => {
   try {
-      const { transaction_id, amount, status, addInfo } = req.body;
+      const { error, data } = req.body;
 
-      if (!transaction_id || !amount || !status || !addInfo) {
+      console.log(data);
+
+      if (error !== 0 || !data) {
+          return res.status(400).json({ status: 400, message: "Invalid Casso data" });
+      }
+
+      const { reference, description, amount } = data;
+
+      if (!reference || !description || !amount) {
           return res.status(400).json({ status: 400, message: "Missing required fields" });
       }
 
-      // Tách `user_id` và `order_id` từ `addInfo`
-      const userId = addInfo.substring(0, 24);
-      const orderId = addInfo.substring(24, 48);
+      const userId = description.substring(0, 24);
+      const orderId = description.substring(24, 48);
 
-      // Kiểm tra đơn hàng có tồn tại không
-      const order = await Orders.findById(orderId);
+      const order = await Orders.findOne({ _id: orderId, user_id: userId });
+
       if (!order) {
           return res.status(404).json({ status: 404, message: "Order not found" });
       }
-
-      // Nếu thanh toán thành công, cập nhật trạng thái đơn hàng
-      if (status === "PAID") {
+      if (order.total_price === amount) {
           order.payment_status = "PAID";
-          order.transaction_id = transaction_id;
+          order.transaction_id = reference;
           await order.save();
+      } else {
+          return res.status(400).json({ status: 400, message: "Incorrect payment amount" });
       }
 
       res.json({ status: 200, message: "Webhook received successfully" });
@@ -166,6 +198,7 @@ app.post("/webhook/payment", async (req, res) => {
       res.status(500).json({ status: 500, message: "Internal Server Error" });
   }
 });
+
 
 
 
