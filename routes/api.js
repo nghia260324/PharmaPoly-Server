@@ -607,68 +607,6 @@ router.post('/refresh-token', async (req, res) => {
     }
 });
 
-
-// router.get('/user/cart', authenticateToken, async (req, res) => {
-//     try {
-//         const user_id = req.user_id;
-//         const cart = await Carts.findOne({ user_id }).lean();
-
-//         if (!cart) {
-//             return res.status(404).json({ status: 404, message: 'Cart not found' });
-//         }
-
-//         let cartItems = await CartItems.find({ cart_id: cart._id }).lean();
-
-//         const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
-//             //const product = await getDiscountedProductById(item.product_id);
-//             const product = await getProductDetails(item.product_id);
-
-//             let shouldUpdate = false;
-
-//             if (item.original_price !== product.price) {
-//                 shouldUpdate = true;
-//             }
-
-//             if (!shouldUpdate && item.discounted_price !== product.discounted_price) {
-//                 shouldUpdate = true;
-//             }
-
-//             let product_discounted_price = item.original_price;
-
-//             if (product.discounted_price == null || product.discount == null) {
-//                 product_discounted_price = item.original_price;
-//             } else if (product.discount) {
-//                 if (product.discount.type === "percent") {
-//                     product_discounted_price = Math.round(item.original_price * (1 - product.discount.value / 100));
-//                 } else if (product.discount.type === "fixed") {
-//                     product_discounted_price = Math.max(0, item.original_price - product.discount.value);
-//                 }
-//             }
-
-//             if (shouldUpdate || item.discounted_price !== product_discounted_price) {
-//                 item.discounted_price = product_discounted_price;
-
-//                 await CartItems.updateOne(
-//                     { _id: item._id },
-//                     { $set: { discounted_price: product_discounted_price } }
-//                 );
-//             }
-
-//             return { ...item, product };
-//         }));
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Cart items retrieved successfully!',
-//             data: { ...cart, cartItems: updatedCartItems }
-//         });
-
-//     } catch (error) {
-//         console.error("Error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
-
 router.get('/user/cart', authenticateToken, async (req, res) => {
     try {
         const user_id = req.user_id;
@@ -2499,7 +2437,7 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
             });
         }
 
-        const product = await getDiscountedProductById(product_id);
+        const product = await getProductDetails(product_id);
         if (!product) {
             return res.status(404).json({
                 status: 404,
@@ -2525,7 +2463,7 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
             cartItem = new CartItems({
                 cart_id: cart._id,
                 product_id: product_id,
-                product: getDiscountedProductById(product_id),
+                product: getProductDetails(product_id),
                 quantity: Math.min(quantity, MAX_QUANTITY_PER_PRODUCT),
                 original_price,
             });
@@ -2588,7 +2526,7 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
         cart.total_items = cartItems.length;
         await cart.save();
 
-        const product = await getDiscountedProductById(cartItem.product_id);
+        const product = await getProductDetails(cartItem.product_id);
         cartItem = cartItem.toObject();
         cartItem.product = product;
 
@@ -2926,129 +2864,6 @@ router.get("/products/discounted", async (req, res) => {
 });
 
 
-
-const getDiscountedProductById = async (productId) => {
-    try {
-        const product = await Products.findById(productId)
-            .populate("category_id", "_id name")
-            .populate("brand_id", "_id name description")
-            .populate("product_type_id", "_id name")
-            .lean();
-
-        if (!product) return null;
-
-        const productImages = await ProductImages.find({ product_id: product._id }).lean();
-        const imageMap = productImages.reduce((acc, img) => {
-            if (!acc[img.product_id]) {
-                acc[img.product_id] = img;
-            }
-            return acc;
-        }, {});
-
-        const activeDiscounts = await DiscountCodes.find({
-            start_date: { $lte: new Date() },
-            end_date: { $gte: new Date() },
-            type: { $ne: "free_shipping" }
-        }).lean();
-
-        let discount = activeDiscounts.find(d =>
-            d.applies_to === "all" ||
-            (d.applies_to === "product" && d.target_ids.includes(product._id.toString())) ||
-            (d.applies_to === "category" && d.target_ids.includes(product.category_id._id.toString())) ||
-            (d.applies_to === "brand" && d.target_ids.includes(product.brand_id._id.toString()))
-        );
-
-        let discountedPrice = null;
-        let finalDiscount = null;
-
-        if (discount) {
-            const conditions = await DiscountConditions.find({ discount_id: discount._id }).lean();
-            let isValid = true;
-
-            for (const condition of conditions) {
-
-
-                if (condition.condition_key === "excluded_products" && condition.value.includes(product._id.toString())) {
-                    isValid = false;
-                    break;
-                }
-                if (condition.condition_key === "excluded_categories" && condition.value.includes(product.category_id._id.toString())) {
-                    isValid = false;
-                    break;
-                }
-                if (condition.condition_key === "excluded_brands" && condition.value.includes(product.brand_id._id.toString())) {
-                    isValid = false;
-                    break;
-                }
-                if (condition.condition_key === "day_of_week") {
-                    const today = new Date().toLocaleString("en-US", { weekday: "long" }).toLowerCase();
-                    if (!condition.value.includes(today)) {
-                        isValid = false;
-                        break;
-                    }
-                }
-                if (condition.condition_key === "specific_hour_range") {
-                    const now = new Date();
-                    const currentHour = now.getHours();
-                    const fromHour = parseInt(condition.value.from.split(":")[0], 10);
-                    const toHour = parseInt(condition.value.to.split(":")[0], 10);
-                    if (currentHour < fromHour || currentHour >= toHour) {
-                        isValid = false;
-                        break;
-                    }
-                }
-            }
-
-            if (isValid) {
-                if (discount.type === "percent") {
-                    discountedPrice = Math.round(product.price * (1 - discount.value / 100));
-                } else if (discount.type === "fixed") {
-                    discountedPrice = Math.max(0, product.price - discount.value);
-                }
-
-                let usageLeft = null;
-                if (discount.max_usage) {
-                    const usageCount = await DiscountUsage.countDocuments({ discount_id: discount._id });
-                    usageLeft = Math.max(0, discount.max_usage - usageCount);
-                }
-
-                finalDiscount = {
-                    _id: discount._id,
-                    code: discount.code,
-                    type: discount.type,
-                    value: discount.value,
-                    applies_to: discount.applies_to,
-                    start_date: discount.start_date,
-                    end_date: discount.end_date,
-                    usage_limit: discount.usage_limit || null,
-                    usage_left: usageLeft,
-                };
-            }
-        }
-
-        return {
-            _id: product._id,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            discounted_price: discountedPrice,
-            discount: finalDiscount,
-            category_id: product.category_id._id,
-            brand_id: product.brand_id._id,
-            product_type_id: product.product_type_id._id,
-            category: product.category_id,
-            brand: product.brand_id,
-            product_type: product.product_type_id,
-            images: imageMap[product._id] ? [imageMap[product._id]] : []
-        };
-
-    } catch (error) {
-        console.error("Error fetching discounted product by ID:", error);
-        return null;
-    }
-};
-
-
 const getProvince = async (province_id) => {
     try {
         const response = await axios.get(`${GHN_API}/master-data/province`, {
@@ -3360,6 +3175,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         let qrCodeUrl = null;
         if (payment_method === "ONLINE") {
             qrCodeUrl = generateVietQRQuickLink(newOrder);
+            checkPaymentStatus(user_id, newOrder._id, total_price);
         }
 
         return res.status(200).json({
@@ -3379,11 +3195,83 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 });
 
 
+async function checkPaymentStatus(user_id, order_id, total_price) {
+    let attempts = 0;
+    const maxAttempts = 20;
+    const interval = setInterval(async () => {
+        try {
+            attempts++;
+   
+            const response = await fetch("https://script.google.com/macros/s/AKfycbzvTz-hwBcrfK6dpRKu3slToY2gLr2ftlnoB0KuR3xLWJvkeCz4_BcXzDfRy_Qo-ywk/exec");
+            const data = await response.json();
+
+            if (data.error || !data.data) {
+                clearInterval(interval);
+                return;
+            }
+
+            const transactions = data.data.filter(tx => tx["Mã GD"] && tx["Giá trị"] !== "");
+
+            const matchingTransaction = transactions.find(tx => 
+                tx["Mô tả"].includes(`OID${order_id}END`) && tx["Giá trị"] === total_price
+            );
+
+            if (matchingTransaction) {
+
+                await Orders.updateOne(
+                    { _id: order_id },
+                    { $set: { payment_status: "paid" } }
+                );
+
+                await db.ref(`payment_status/${user_id}`).set("PAID");
+                clearInterval(interval);
+            } else if (attempts >= maxAttempts) {
+                console.log(`⏳ Hết thời gian, huỷ đơn ${order_id}`);
+
+                await Orders.updateOne(
+                    { _id: order_id, payment_status: "pending" },
+                    { 
+                        $set: { 
+                            payment_status: "failed",
+                            status: "canceled"
+                        } 
+                    }
+                );
+
+                clearInterval(interval);
+            }
+        } catch (error) {
+            clearInterval(interval);
+        }
+    }, 20000);
+}
+
+router.get('/test-payment', async (req, res) => {
+    try {
+        const total_price = 2000;
+        const order_id = "67e55d5f061393fda5add1d5";
+        const user_id = "67b344c3744eaa2ff0f0ce7d";
+
+        if (!user_id || !order_id || !total_price) {
+            return res.status(400).json({ error: "Thiếu tham số user_id, order_id hoặc total_price" });
+        }
+
+        await checkPaymentStatus(user_id, order_id, parseInt(total_price));
+
+        res.json({ message: "Bắt đầu kiểm tra thanh toán..." });
+    } catch (error) {
+        console.error("❌ Lỗi:", error);
+        res.status(500).json({ error: "Lỗi server" });
+    }
+});
+
+
+
 function generateVietQRQuickLink(order) {
     const bankId = process.env.BANK_ID;
     const accountNo = process.env.ACCOUNT_NO;
     const template = process.env.TEMPLATE || "compact";
-    const addInfo = `OID-${order._id}-E`;
+    const addInfo = `OID${order._id}END`;
     // return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
 
     const testAmount = 2000;

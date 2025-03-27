@@ -181,7 +181,7 @@ app.post("/webhook/payment", async (req, res) => {
       return res.status(400).json({ status: 400, message: "Invalid transaction description format" });
     }
 
-    const match = description.match(/OID-([a-f0-9]{24})-E/);
+    const match = description.match(/OID([a-f0-9]{24})END/);
     if (!match) {
         return res.status(400).json({ status: 400, message: "Invalid transaction format" });
     }
