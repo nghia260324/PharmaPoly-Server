@@ -3294,12 +3294,10 @@ router.post("/calculate-shipping-fee", async (req, res) => {
 // });
 
 
-
 router.post("/orders/create", authenticateToken, async (req, res) => {
     try {
         const { payment_method, cart_item_ids } = req.body;
         const user_id = req.user_id;
-        console.log(cart_item_ids);
 
         if (!user_id) {
             return res.status(401).json({ status: 401, message: "Unauthorized" });
@@ -3322,17 +3320,15 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         const to_ward_code = userAddress.ward_id;
 
 
-        if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !items || cart_item_ids.length === 0) {
+        if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !cart_item_ids || cart_item_ids.length === 0) {
             return res.status(400).json({ status: 400, message: "Missing required fields" });
         }
 
-        return;
-        const cartItems = await CartItems.find({ _id: { $in: cart_item_ids }, user_id }).populate("product_id");
-
-
+        const cartItems = await CartItems.find({ _id: { $in: cart_item_ids } });
+ 
         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
 
-        const totalItemPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
         const total_price = totalItemPrice + shipping_fee;
 
         const newOrder = new Orders({
@@ -3350,15 +3346,15 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         await newOrder.save();
 
-        const orderItems = items.map(item => ({
+        const orderItems = cartItems.map(item => ({
             order_id: newOrder._id,
             product_id: item.product_id,
             quantity: item.quantity,
-            price: item.price
+            price: item.original_price
         }));
 
         await OrderItems.insertMany(orderItems);
-        await CartItems.deleteMany({ user_id, _id: { $in: items.map(item => item._id) } });
+        await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
 
         let qrCodeUrl = null;
@@ -3644,6 +3640,8 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
 const calculateShippingFee = async (to_district_id, to_ward_code) => {
     try {
         const from_district_id = await getShopDistrict();
+        console.log(from_district_id)
+
         if (!from_district_id) throw new Error("Cannot retrieve shop address");
 
         const servicesResponse = await axios.get(`${GHN_API}/v2/shipping-order/available-services`, {
@@ -3653,6 +3651,7 @@ const calculateShippingFee = async (to_district_id, to_ward_code) => {
 
         const services = servicesResponse.data.data;
         if (!services || services.length === 0) throw new Error("No available shipping services");
+        console.log(services)
 
         const service = services[0];
         const fixedWeight = 1;
