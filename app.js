@@ -160,6 +160,7 @@ const verifyCassoSignature = (req, res, next) => {
   }
 };
 
+
 app.post("/webhook/payment", async (req, res) => {
   try {
       const { error, data } = req.body;
@@ -174,6 +175,10 @@ app.post("/webhook/payment", async (req, res) => {
 
       if (!reference || !description || !amount) {
           return res.status(400).json({ status: 400, message: "Missing required fields" });
+      }
+
+      if (reference === "MA_GIAO_DICH_THU_NGHIEM") {
+          return res.json({ status: 200, message: "Test transaction received successfully" });
       }
 
       const userId = description.substring(0, 24);
@@ -198,6 +203,7 @@ app.post("/webhook/payment", async (req, res) => {
       res.status(500).json({ status: 500, message: "Internal Server Error" });
   }
 });
+
 
 
 
