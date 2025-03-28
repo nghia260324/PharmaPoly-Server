@@ -3026,89 +3026,6 @@ router.post("/calculate-shipping-fee", async (req, res) => {
     }
 });
 
-
-// router.post("/orders/create", authenticateToken, async (req, res) => {
-//     try {
-//         const { payment_method, items } = req.body;
-//         const user_id = req.user_id;
-
-//         if (!user_id) {
-//             return res.status(401).json({ status: 401, message: "Unauthorized" });
-//         }
-
-//         const user = await Users.findById(user_id);
-//         if (!user) {
-//             return res.status(404).json({ status: 404, message: "User not found" });
-//         }
-
-//         const userAddress = await UserAddress.findOne({ user_id });
-//         if (!userAddress) {
-//             return res.status(404).json({ status: 404, message: "User address not found" });
-//         }
-
-//         const to_name = user.full_name;
-//         const to_phone = user.shipping_phone_number;
-//         const to_address = userAddress.street_address;
-//         const to_district_id = userAddress.district_id;
-//         const to_ward_code = userAddress.ward_id;
-
-//         if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !items || items.length === 0) {
-//             return res.status(400).json({ status: 400, message: "Missing required fields" });
-//         }
-
-//         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
-
-//         const totalItemPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-//         const total_price = totalItemPrice + shipping_fee;
-
-//         const newOrder = new Orders({
-//             user_id,
-//             to_name,
-//             to_phone,
-//             to_address,
-//             to_district_id,
-//             to_ward_code,
-//             payment_method,
-//             shipping_fee,
-//             total_price,
-//             payment_status: payment_method === "ONLINE" ? "pending" : null
-//         });
-
-//         await newOrder.save();
-
-//         const orderItems = items.map(item => ({
-//             order_id: newOrder._id,
-//             product_id: item.product_id,
-//             quantity: item.quantity,
-//             price: item.price
-//         }));
-
-//         await OrderItems.insertMany(orderItems);
-//         await CartItems.deleteMany({ user_id, _id: { $in: items.map(item => item._id) } });
-//         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
-
-//         let qrCodeUrl = null;
-//         if (payment_method === "ONLINE") {
-//             qrCodeUrl = generateVietQRQuickLink(newOrder);
-//         }
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: "Order created successfully",
-//             data: qrCodeUrl,
-//         });
-
-//     } catch (error) {
-//         console.error("Error creating order:", error);
-//         return res.status(500).json({
-//             status: 500,
-//             message: "Internal Server Error",
-//             error: error.response?.data || error.message
-//         });
-//     }
-// });
-
-
 router.post("/orders/create", authenticateToken, async (req, res) => {
     try {
         const { payment_method, cart_item_ids } = req.body;
@@ -3156,7 +3073,8 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             payment_method,
             shipping_fee,
             total_price,
-            payment_status: payment_method === "ONLINE" ? "pending" : null
+            payment_status: payment_method === "ONLINE" ? "pending" : null,
+            status: payment_method === "ONLINE" ? "confirmed" : "pending"
         });
 
         await newOrder.save();
@@ -3227,7 +3145,6 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
                 await db.ref(`payment_status/${user_id}`).set("PAID");
                 clearInterval(interval);
             } else if (attempts >= maxAttempts) {
-                console.log(`⏳ Hết thời gian, huỷ đơn ${order_id}`);
 
                 await Orders.updateOne(
                     { _id: order_id, payment_status: "pending" },
@@ -3518,6 +3435,49 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
 
     } catch (error) {
         console.error("Error canceling order:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error!"
+        });
+    }
+});
+
+router.post("/orders/:id/return", authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const order = await Orders.findById(id);
+
+        if (!order) {
+            return res.status(404).json({
+                status: 404,
+                message: "Order not found!"
+            });
+        }
+
+        if (order.user_id.toString() !== req.user_id) {
+            return res.status(403).json({
+                status: 403,
+                message: "You do not have permission to request a return for this order!"
+            });
+        }
+
+        if (order.status !== "delivered") {
+            return res.status(400).json({
+                status: 400,
+                message: "This order cannot be returned at its current stage!"
+            });
+        }
+
+        order.return_request = true;
+        await order.save();
+
+        res.status(200).json({
+            status: 200,
+            message: "Return request submitted successfully!"
+        });
+
+    } catch (error) {
+        console.error("Error requesting return:", error);
         res.status(500).json({
             status: 500,
             message: "Internal server error!"

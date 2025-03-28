@@ -38,7 +38,6 @@ const Orders = new Schema({
         enum: [
             "pending",
             "paid",
-            "failed",
             "refunded"
         ],
         default: "pending"
@@ -58,6 +57,16 @@ const Orders = new Schema({
     created_at: { type: Date, default: Date.now }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
+
+Orders.pre(['updateOne', 'findOneAndUpdate'], function (next) {
+    const update = this.getUpdate();
+
+    if (update && update.status === "delivered") {
+        this.set({ delivered_at: new Date() });
+    }
+
+    next();
 });
 
 module.exports = mongoose.model('order', Orders, 'orders');

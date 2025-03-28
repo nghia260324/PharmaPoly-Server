@@ -121,7 +121,7 @@ app.post('/webhook/ghn', async (req, res) => {
 
     const updatedOrder = await Orders.findOneAndUpdate(
       { order_code: data.OrderCode },
-      { status: newStatus, updated_at: new Date() },
+      { status: newStatus},
       { new: true }
     );
 
