@@ -11,7 +11,6 @@ const GHN_API = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
 const TOKEN_GHN = process.env.GHN_TOKEN;
 const SHOP_ID = process.env.GHN_SHOP_ID;
 
-
 // router.get('/', async function (req, res, next) {
 //     try {
 //         const page = parseInt(req.query.page) || 1;
@@ -443,6 +442,7 @@ db.ref("cancel_requests").on("value", async (snapshot) => {
         const canceledOrder = await Orders.findById(cancelData._id);
 
         if (canceledOrder) {
+            const io = require('../app').get("io");
             io.emit("cancel_request", canceledOrder);
         }
 
@@ -456,6 +456,7 @@ db.ref("return_requests").on("value", async (snapshot) => {
         const returnOrder = await Orders.findById(returnData._id);
 
         if (returnOrder) {
+            const io = require('../app').get("io");
             io.emit("return_request", returnOrder);
         }
 
