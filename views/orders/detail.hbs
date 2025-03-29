@@ -220,9 +220,15 @@
 
         new bootstrap.Modal(document.getElementById("confirmModal")).show();
     }
+    function sendRequest(url, method = "POST", body = null) {
+        const options = {
+            method,
+            headers: { "Content-Type": "application/json" }
+        };
 
-    function sendRequest(url, method = "POST") {
-        fetch(url, { method })
+        if (body) options.body = JSON.stringify(body);
+
+        fetch(url, options)
             .then(response => response.json())
             .then(data => {
                 if (data.status == 200) {
@@ -238,28 +244,29 @@
             });
     }
 
+
     function confirmOrder(orderId) {
         openConfirmModal("Xác nhận đơn hàng", () => sendRequest(`/orders/${orderId}/confirm`, 'PUT'));
     }
 
     function readyToShip(orderId) {
-        openConfirmModal("Sẵn sàng giao hàng", () => sendRequest(`/orders/${orderId}/send-to-ghn`));
+        openConfirmModal("Sẵn sàng giao hàng", () => sendRequest(`/orders/${orderId}/send-to-ghn`, 'PUT'));
     }
 
     function approveCancel(orderId) {
-        openConfirmModal("Đồng ý hủy đơn", () => sendRequest(`/orders/${orderId}/cancel-approve`));
+        openConfirmModal("Đồng ý hủy đơn", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "accept" }));
     }
 
     function rejectCancel(orderId) {
-        openConfirmModal("Từ chối yêu cầu hủy", () => sendRequest(`/orders/${orderId}/cancel-reject`));
+        openConfirmModal("Từ chối yêu cầu hủy", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "reject" }));
     }
 
     function approveReturn(orderId) {
-        openConfirmModal("Xác nhận yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/return-approve`));
+        openConfirmModal("Xác nhận yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/confirm-return`, "POST", { action: "approve" }));
     }
 
     function rejectReturn(orderId) {
-        openConfirmModal("Từ chối yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/return-reject`));
+        openConfirmModal("Từ chối yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/confirm-return`, "POST", { action: "reject" }));
     }
 
 
@@ -286,7 +293,7 @@
         }
 
         updateCountdown();
-        setInterval(updateCountdown, 1000); // Cập nhật mỗi giây
+        setInterval(updateCountdown, 1000);
     }
     function formatDates() {
         document.querySelectorAll(".date-format").forEach(element => {

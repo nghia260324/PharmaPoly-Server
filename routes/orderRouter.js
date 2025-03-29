@@ -166,7 +166,7 @@ router.put("/:order_id/confirm", async (req, res) => {
             path: "product_id",
             select: "_id stock_quantity name"
         });
-        
+
         for (const item of orderItems) {
             if (item.product_id.stock_quantity < item.quantity) {
                 return res.status(400).json({
@@ -175,7 +175,7 @@ router.put("/:order_id/confirm", async (req, res) => {
                 });
             }
         }
-        
+
         for (const item of orderItems) {
             await Products.updateOne(
                 { _id: item.product_id._id },
@@ -210,9 +210,6 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
         if (order.status !== "confirmed") {
             return res.status(400).json({ status: 400, message: "Order must be in 'confirmed' status before sending to GHN" });
         }
-
-        // order.status = "ready_to_pick";
-        // await order.save();
 
         const orderItems = await OrderItems.find({ order_id })
             .populate({
@@ -303,31 +300,10 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
 });
 
 
-// router.post("/:orderId/cancel/approve", async (req, res) => {
-//     const order = await Orders.findById(req.params.orderId);
-//     if (!order || !order.cancel_request) return res.status(404).json({ message: "Không có yêu cầu hủy" });
-
-//     order.status = "canceled";
-//     order.cancel_request = false;
-//     await order.save();
-
-//     res.json({ message: "Đơn hàng đã được hủy" });
-// });
-
-// router.post("/:orderId/return", async (req, res) => {
-//     const order = await Orders.findById(req.params.orderId);
-//     if (!order || order.status !== "delivered") return res.status(400).json({ message: "Không thể đổi trả" });
-
-//     order.return_request = true;
-//     await order.save();
-
-//     res.json({ message: "Đã gửi yêu cầu đổi trả" });
-// });
-
-
 router.post("/:orderId/cancel", async (req, res) => {
     try {
         const { orderId } = req.params;
+        const { action } = req.body;
 
         const order = await Orders.findById(orderId);
         if (!order) {
@@ -336,6 +312,12 @@ router.post("/:orderId/cancel", async (req, res) => {
 
         if (!["pending", "confirmed", "ready_to_pick"].includes(order.status)) {
             return res.status(400).json({ status: 400, message: "Cannot cancel order in this status" });
+        }
+
+        if (action === "reject") {
+            order.cancel_request = false;
+            await order.save();
+            return res.status(200).json({ status: 200, message: "Cancel request rejected", data: order });
         }
 
         if (order.status === "ready_to_pick") {
@@ -362,9 +344,9 @@ router.post("/:orderId/cancel", async (req, res) => {
             path: "product_id",
             select: "_id stock_quantity"
         });
-        
+
         for (const item of orderItems) {
-            await Product.updateOne(
+            await Products.updateOne(
                 { _id: item.product_id._id },
                 { $inc: { stock_quantity: item.quantity } }
             );
@@ -384,6 +366,7 @@ router.post("/:orderId/cancel", async (req, res) => {
 router.post("/:orderId/confirm-return", async (req, res) => {
     try {
         const { orderId } = req.params;
+        const { action } = req.body;
 
         const order = await Orders.findById(orderId);
         if (!order) {
@@ -398,28 +381,38 @@ router.post("/:orderId/confirm-return", async (req, res) => {
             return res.status(400).json({ status: 400, message: "Cannot process return for this order status" });
         }
 
-        try {
-            const ghnResponse = await axios.post(`${GHN_API}/v2/switch-status/return`, {
-                order_code: order.order_code
-            }, {
-                headers: {
-                    "Content-Type": "application/json",
-                    "Token": TOKEN_GHN
-                }
-            });
-
-            if (ghnResponse.data.code !== 200) {
-                return res.status(400).json({ status: 400, message: "Failed to request return on GHN", error: ghnResponse.data });
-            }
-        } catch (ghnError) {
-            console.error("Error requesting return on GHN:", ghnError.response?.data || ghnError.message);
-            return res.status(500).json({ status: 500, message: "Failed to request return on GHN", error: ghnError.message });
+        if (action === "reject") {
+            order.return_request = false;
+            await order.save();
+            return res.status(200).json({ status: 200, message: "Return request rejected", data: order });
         }
 
-        order.status = "waiting_to_return";
-        await order.save();
+        if (action === "approve") {
+            try {
+                const ghnResponse = await axios.post(`${GHN_API}/v2/switch-status/return`, {
+                    order_code: order.order_code
+                }, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Token": TOKEN_GHN
+                    }
+                });
 
-        res.status(200).json({ status: 200, message: "Return request confirmed successfully", data: order });
+                if (ghnResponse.data.code !== 200) {
+                    return res.status(400).json({ status: 400, message: "Failed to request return on GHN", error: ghnResponse.data });
+                }
+            } catch (ghnError) {
+                console.error("Error requesting return on GHN:", ghnError.response?.data || ghnError.message);
+                return res.status(500).json({ status: 500, message: "Failed to request return on GHN", error: ghnError.message });
+            }
+
+            order.status = "waiting_to_return";
+            await order.save();
+
+            res.status(200).json({ status: 200, message: "Return request confirmed successfully", data: order });
+        }
+        res.status(400).json({ status: 400, message: "Invalid action" });
+
     } catch (error) {
         console.error("Error confirming return request:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });

@@ -3425,7 +3425,7 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
             order.status = "canceled";
         } else {
             order.cancel_request = true;
-            await db.ref("new_orders").set({ _id: order._id.toString(), timestamp: Date.now() });
+            await db.ref("cancel_requests").set({ _id: order._id.toString(), timestamp: Date.now() });
         }
         await order.save();
 
@@ -3471,6 +3471,7 @@ router.post("/orders/:id/return", authenticateToken, async (req, res) => {
         
         order.return_request = true;
         await order.save();
+        await db.ref("return_requests").set({ _id: order._id.toString(), timestamp: Date.now() });
 
         res.status(200).json({
             status: 200,

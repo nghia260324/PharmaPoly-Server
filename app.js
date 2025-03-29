@@ -7,6 +7,7 @@ var logger = require('morgan');
 const axios = require("axios");
 require("dotenv").config();
 const crypto = require("crypto");
+require("./utils/cronJobs");
 
 const { firebaseAdmin, db } = require('./firebase/firebaseAdmin');
 
@@ -24,9 +25,11 @@ const dashboardRouter = require("./routes/dashboardRouter");
 const discountRouter = require("./routes/discountRouter");
 const productImageRouter = require("./routes/productImageRouter");
 const orderRouter = require("./routes/orderRouter");
-
 const Orders = require('./models/orders');
+const chatRouter = require("./routes/chatRouter");
 
+const registerHelpers = require('./utils/hbsHelpers');
+registerHelpers();
 
 const authenticateToken = require("./middlewares/authenticateToken");
 
@@ -63,6 +66,8 @@ app.use("/dashboards", authenticateToken, dashboardRouter);
 app.use("/discounts", discountRouter);
 app.use("/users", authenticateToken, userRouter);
 app.use("/orders", authenticateToken, orderRouter);
+app.use("/chat", authenticateToken, chatRouter);
+
 
 // hbs.registerHelper('formatType', function(type) {
 //   const formattedTypes = {
@@ -126,26 +131,6 @@ app.post('/webhook/ghn', async (req, res) => {
   }
 });
 
-const verifyCassoSignature = (req, res, next) => {
-  try {
-    const secretKey = process.env.CASSO_SECRET_KEY;
-    const cassoSignature = req.headers["x-casso-signature"];
-    const requestBody = JSON.stringify(req.body);
-
-    const computedSignature = crypto
-      .createHmac("sha256", secretKey)
-      .update(requestBody)
-      .digest("hex");
-
-    if (computedSignature !== cassoSignature) {
-      return res.status(403).json({ status: 403, message: "Invalid signature" });
-    }
-    next();
-  } catch (error) {
-    console.error("❌ Lỗi xác thực Webhook:", error);
-    res.status(500).json({ status: 500, message: "Internal Server Error" });
-  }
-};
 
 app.post("/webhook/payment", async (req, res) => {
   try {
@@ -203,116 +188,29 @@ app.post("/webhook/payment", async (req, res) => {
 });
 
 
+const verifyCassoSignature = (req, res, next) => {
+  try {
+    const secretKey = process.env.CASSO_SECRET_KEY;
+    const cassoSignature = req.headers["x-casso-signature"];
+    const requestBody = JSON.stringify(req.body);
 
+    const computedSignature = crypto
+      .createHmac("sha256", secretKey)
+      .update(requestBody)
+      .digest("hex");
 
-
-hbs.registerHelper("ifCond", function (v1, v2, options) {
-  return v1 === v2 ? options.fn(this) : options.inverse(this);
-});
-hbs.registerHelper('formatDiscountField', function (value, fieldType) {
-  const typeMapping = {
-    "percent": "Percentage",
-    "fixed": "Fixed Amount",
-    "free_shipping": "Free Shipping"
-  };
-
-  const appliesToMapping = {
-    "all": "All Products",
-    "order": "Entire Order",
-    "product": "Specific Products",
-    "category": "Specific Categories",
-    "brand": "Specific Brands"
-  };
-
-  if (fieldType === "applies_to") {
-    return appliesToMapping[value] || value;
+    if (computedSignature !== cassoSignature) {
+      return res.status(403).json({ status: 403, message: "Invalid signature" });
+    }
+    next();
+  } catch (error) {
+    console.error("❌ Lỗi xác thực Webhook:", error);
+    res.status(500).json({ status: 500, message: "Internal Server Error" });
   }
-
-  if (fieldType === "type") {
-    return typeMapping[value] || value;
-  }
-
-  return value;
-});
-
-hbs.registerHelper("getStatusClass", function (status) {
-  switch (status) {
-    case "pending": return "bg-warning"; // Chờ xác nhận
-    case "confirmed": return "bg-primary"; // Đã xác nhận
-    case "ready_to_pick": return "bg-info"; // Chờ lấy hàng
-    case "picking": return "bg-info"; // Đang lấy hàng
-    case "picked": return "bg-secondary"; // Đã lấy hàng thành công
-    case "delivering": return "bg-primary"; // Đang giao hàng
-    case "money_collect_delivering": return "bg-success"; // Đang giao COD
-    case "delivered": return "bg-success"; // Giao hàng thành công
-    case "delivery_fail": return "bg-danger"; // Giao hàng thất bại
-    case "waiting_to_return": return "bg-warning"; // Chờ hoàn hàng
-    case "return": return "bg-info"; // Đang hoàn hàng
-    case "returned": return "bg-success"; // Đã hoàn hàng
-    case "return_fail": return "bg-danger"; // Hoàn hàng thất bại
-    case "canceled": return "bg-danger"; // Đơn hàng bị hủy
-    default: return "bg-secondary"; // Không xác định
-  }
-});
-hbs.registerHelper("getStatusText", function (status) {
-  switch (status) {
-    case "pending": return "Chờ xác nhận";
-    case "confirmed": return "Đã xác nhận";
-    case "ready_to_pick": return "Chờ lấy hàng";
-    case "picking": return "Đang lấy hàng";
-    case "picked": return "Đã lấy hàng thành công";
-    case "delivering": return "Đang giao hàng";
-    case "money_collect_delivering": return "Đang giao COD";
-    case "delivered": return "Giao hàng thành công";
-    case "delivery_fail": return "Giao hàng thất bại";
-    case "waiting_to_return": return "Chờ hoàn hàng";
-    case "return": return "Đang hoàn hàng";
-    case "returned": return "Đã hoàn hàng";
-    case "return_fail": return "Hoàn hàng thất bại";
-    case "canceled": return "Đơn hàng bị hủy";
-    default: return "Không xác định";
-  }
-});
+};
 
 
-hbs.registerHelper("getPaymentClass", function (method) {
-  switch (method) {
-    case "COD": return "bg-secondary";
-    case "MOMO": return "bg-pink";
-    case "VNPAY": return "bg-blue";
-    default: return "bg-dark";
-  }
-});
-hbs.registerHelper("gt", function (a, b) {
-  return a > b;
-});
-hbs.registerHelper("lt", function (a, b) {
-  return a < b;
-});
-hbs.registerHelper("eq", function (a, b) {
-  return a === b;
-});
-hbs.registerHelper('or', function(a, b) {
-  return a || b;
-});
-hbs.registerHelper("multiply", function (a, b) {
-  return a * b;
-});
-hbs.registerHelper("addOne", function (value) {
-  return value + 1;
-});
-hbs.registerHelper("json", function (context) {
-  return JSON.stringify(context);
-});
-hbs.registerHelper("add", function (a, b) {
-  return a + b;
-});
-hbs.registerHelper("sub", function (a, b) {
-  return a - b;
-});
-hbs.registerHelper('and', function(a, b) {
-  return a && b;
-});
+
 database.connect();
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
@@ -320,31 +218,7 @@ app.use(function (req, res, next) {
 });
 
 
-// setInterval(async () => {
-//   if (Date.now() - lastRequestTime >= PING_INTERVAL) {
-//     try {
-//       const now = new Date();
-//       const timestamp = now.toLocaleString('en-GB', {
-//         hour: '2-digit', minute: '2-digit', second: '2-digit',
-//         day: '2-digit', month: '2-digit', year: 'numeric'
-//       });
 
-//       console.log(`[${timestamp}] Pinging server to keep it awake...`);
-//       await axios.get("https://pharmapoly-server.onrender.com/keep-alive");
-//     } catch (error) {
-//       const now = new Date();
-//       const timestamp = now.toLocaleString('en-GB', {
-//         hour: '2-digit', minute: '2-digit', second: '2-digit',
-//         day: '2-digit', month: '2-digit', year: 'numeric'
-//       });
-
-//       console.error(`[${timestamp}] Ping failed:`, error.message);
-//     }
-//   }
-// }, PING_INTERVAL);
-
-
-// error handler
 app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
