@@ -242,6 +242,22 @@
                                     data-lang-placeholder="enter_the_country_of_origin"
                                     placeholder="Enter the country of origin">
                             </div>
+
+                            <!-- Stock Quantity -->
+                            <div class="mb-3">
+                                <label for="productStockQuantity" class="form-label">
+                                    <span data-lang="stock_quantity">Stock Quantity</span>
+                                </label>
+                                <input type="number" class="form-control" id="productStockQuantity" min="0" required>
+                            </div>
+
+                            <!-- Expiry Date -->
+                            <div class="mb-3">
+                                <label for="productExpiryDate" class="form-label">
+                                    <span data-lang="expiry_date">Expiry Date</span>
+                                </label>
+                                <input type="date" class="form-control" id="productExpiryDate" required>
+                            </div>
                         </div>
 
                         <!-- Column Left -->
@@ -403,6 +419,25 @@
                                 <input type="text" class="form-control" id="editProductOriginCountry"
                                     placeholder="Enter the country of origin">
                             </div>
+
+
+                            <!-- Stock Quantity -->
+                            <div class="mb-3">
+                                <label for="editProductStockQuantity" class="form-label">
+                                    <span data-lang="stock_quantity">Stock Quantity</span>
+                                </label>
+                                <input type="number" class="form-control" id="editProductStockQuantity" min="0"
+                                    required>
+                            </div>
+
+                            <!-- Expiry Date -->
+                            <div class="mb-3">
+                                <label for="editProductExpiryDate" class="form-label">
+                                    <span data-lang="expiry_date">Expiry Date</span>
+                                </label>
+                                <input type="date" class="form-control" id="editProductExpiryDate" required>
+                            </div>
+
                         </div>
 
                         <div class="col-md-6">
@@ -670,6 +705,9 @@
                     document.getElementById("editProductSpecification").value = product.specification;
                     document.getElementById("editProductOriginCountry").value = product.origin_country;
                     document.getElementById("editProductManufacturer").value = product.manufacturer;
+                    document.getElementById("editProductStockQuantity").value = product.stock_quantity;
+                    const formattedExpiryDate = product.expiry_date.split("T")[0];
+                    document.getElementById("editProductExpiryDate").value = formattedExpiryDate;
 
 
                     const sectionContainer = document.getElementById("editSectionContainer");
@@ -847,7 +885,6 @@
         {{/each}}
     `;
 
-            // Gọi updateSectionOptions khi thay đổi giá trị dropdown
             select.addEventListener("change", updateSectionOptions);
 
             const removeSectionBtn = document.createElement("button");
@@ -856,7 +893,7 @@
             removeSectionBtn.addEventListener("click", function (event) {
                 event.preventDefault();
                 sectionItem.remove();
-                updateSectionOptions(); // Gọi khi xóa section để cập nhật lại dropdown
+                updateSectionOptions();
             });
 
             const itemsContainer = document.createElement("div");
@@ -879,7 +916,7 @@
             sectionItem.appendChild(addItemBtn);
             sectionContainer.appendChild(sectionItem);
 
-            updateSectionOptions(); // Gọi ngay sau khi thêm section mới
+            updateSectionOptions();
         }
 
         function addItemSection(container, title = "", content = "") {
@@ -973,6 +1010,9 @@
             formData.append('specification', document.getElementById('productSpecification').value);
             formData.append('origin_country', document.getElementById('productOriginCountry').value);
             formData.append('manufacturer', document.getElementById('productManufacturer').value);
+            formData.append('expiry_date', document.getElementById('productExpiryDate').value);
+            formData.append('stock_quantity', document.getElementById('productStockQuantity').value);
+
 
             const sections = [];
 
@@ -1087,7 +1127,8 @@
             formData.append('specification', document.getElementById('editProductSpecification').value);
             formData.append('origin_country', document.getElementById('editProductOriginCountry').value);
             formData.append('manufacturer', document.getElementById('editProductManufacturer').value);
-
+            formData.append('expiry_date', document.getElementById('editProductExpiryDate').value); // ✅ Sửa lại đúng ID
+            formData.append('stock_quantity', document.getElementById('editProductStockQuantity').value); // ✅ Sửa lại đúng ID
 
             const imageContainers = editImagePreview.querySelectorAll('.image-container');
             const imageData = [];

@@ -19,33 +19,94 @@
             <p class="date-format" data-created-at="{{order.created_at}}"><strong>Ngày đặt:</strong>
                 {{order.created_at}}
             </p>
-            <p><strong>Phương thức thanh toán:</strong> <span class="badge bg-primary">{{order.payment_method}}</span>
+            {{!-- <p><strong>Phương thức thanh toán:</strong> <span
+                    class="badge bg-primary">{{order.payment_method}}</span>
+            </p> --}}
+            <p>
+                <strong>Phương thức thanh toán:</strong>
+                <span class="badge bg-primary">{{order.payment_method}}</span>
+
+                {{#if (eq order.payment_method "ONLINE")}}
+                {{#if (eq order.payment_status 'paid')}}
+                <span class="badge bg-success">Đã thanh toán</span>
+                {{else}}
+                <span class="badge bg-danger">
+                    Chưa thanh toán
+                    <span id="countdown" class="fw-bold"></span>
+                </span>
+                {{/if}}
+                {{/if}}
             </p>
+
+
             <p><strong>Tổng tiền:</strong> {{order.total_price}} VND</p>
             {{!-- <p><strong>Trạng thái:</strong> <span class="status-badge bg-warning">{{order.status}}</span></p> --}}
             <p><strong>Trạng thái:</strong>
                 <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
             </p>
 
+
+
+            {{!-- <div class="mt-3">
+                {{#if (eq order.status "pending")}}
+                <button class="btn btn-primary">Xác nhận đơn hàng</button>
+                {{/if}}
+
+                {{#if (eq order.status "confirmed")}}
+                {{#if (eq order.payment_method "cod")}}
+                <button class="btn btn-success">Sẵn sàng giao hàng</button>
+                {{else}}
+                {{#if (eq order.payment_status "paid")}}
+                <button class="btn btn-success">Sẵn sàng giao hàng</button>
+                {{else}}
+                <p class="text-danger">⚠ Không thể chuyển trạng thái vì đơn hàng chưa được thanh toán.</p>
+                {{/if}}
+                {{/if}}
+                {{/if}}
+
+
+                {{#if (and (or (eq order.status "confirmed") (eq order.status "ready_to_pick")) order.cancel_request)}}
+                <button class="btn btn-danger">Đồng ý hủy đơn</button>
+                <button class="btn btn-secondary">Từ chối yêu cầu hủy</button>
+                {{/if}}
+                {{#if (and (eq order.status "delivered") order.return_request)}}
+                <button class="btn btn-warning">Xác nhận yêu cầu trả hàng</button>
+                <button class="btn btn-secondary">Từ chối yêu cầu trả hàng</button>
+                {{/if}}
+            </div> --}}
+
             <div class="mt-3">
-                <label for="orderStatus" class="form-label">Cập nhật trạng thái:</label>
-                <select class="form-select w-50" id="orderStatus">
-                    {{#if (eq order.status "pending")}}
-                    <option value="confirmed">Đã xác nhận</option>
-                    <option value="canceled">Đã hủy</option>
-                    {{else if (eq order.status "confirmed")}}
-                    <option value="ready_to_pick">Chuẩn bị giao</option>
-                    <option value="canceled">Đã hủy</option>
-                    {{else if (eq order.status "ready_to_pick")}}
-                    <option value="delivering">Đang giao hàng</option>
-                    <option value="canceled">Đã hủy</option>
-                    {{/if}}
-                </select>
+                {{#if (eq order.status "pending")}}
+                <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
+                {{/if}}
 
+                {{#if (eq order.status "confirmed")}}
+                {{#if (eq order.payment_method "COD")}}
+                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
+                {{else}}
+                {{#if (eq order.payment_status "paid")}}
+                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
+                {{else}}
+                <p class="text-danger">⚠ Không thể chuyển trạng thái vì đơn hàng chưa được thanh toán.</p>
+                {{/if}}
+                {{/if}}
+                {{/if}}
 
+                {{#if (and (or (eq order.status "confirmed") (eq order.status "ready_to_pick")) order.cancel_request)}}
+                <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
+                <button class="btn btn-secondary" onclick="rejectCancel('{{order._id}}')">Từ chối yêu cầu hủy</button>
+                {{/if}}
 
-                <button id="btnUpdateStatus" class="btn btn-success mt-3">Lưu trạng thái</button>
+                {{#if (and (eq order.status "delivered") order.return_request)}}
+                <button class="btn btn-warning" onclick="approveReturn('{{order._id}}')">Xác nhận yêu cầu trả
+                    hàng</button>
+                <button class="btn btn-secondary" onclick="rejectReturn('{{order._id}}')">Từ chối yêu cầu trả
+                    hàng</button>
+                {{/if}}
             </div>
+
+
+
         </div>
     </div>
 
@@ -125,74 +186,108 @@
         </div>
     </div>
 </div>
+<script src="/socket.io/socket.io.js"></script>
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+
+
+        const socket = io();
+        socket.on("new_order", function (order) {
+            showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");
+        });
+        socket.on("cancel_request", function (order) {
+            showToast("⚠️ Có yêu cầu hủy đơn hàng!", "bg-warning");
+        });
+
+        socket.on("return_request", function (order) {
+            showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
+        });
+
         formatDates();
+        startCountdown();
+    });
+    function openConfirmModal(statusText, callback) {
+        document.getElementById("selectedStatusText").textContent = statusText;
+        const confirmButton = document.getElementById("confirmUpdateStatus");
 
-        const btnUpdateStatus = document.getElementById("btnUpdateStatus");
-        const selectStatus = document.getElementById("orderStatus");
-        const confirmUpdateStatus = document.getElementById("confirmUpdateStatus");
-        const selectedStatusText = document.getElementById("selectedStatusText");
-        const orderId = "{{order._id}}";
-        const orderStatus = "{{order.status}}";
+        confirmButton.replaceWith(confirmButton.cloneNode(true));
+        document.getElementById("confirmUpdateStatus").addEventListener("click", function () {
+            callback();
+            const modal = bootstrap.Modal.getInstance(document.getElementById("confirmModal"));
+            modal.hide();
+        });
 
-        const lockedStatuses = ["delivered", "canceled", "delivery_fail", "returned", "return_fail"];
+        new bootstrap.Modal(document.getElementById("confirmModal")).show();
+    }
 
-        if (lockedStatuses.includes(orderStatus)) {
-            btnUpdateStatus.disabled = true;
-            selectStatus.disabled = true;
+    function sendRequest(url, method = "POST") {
+        fetch(url, { method })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status == 200) {
+                    showToast("Thành công!", "bg-success");
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast("Lỗi: " + data.message, "bg-danger");
+                }
+            })
+            .catch(error => {
+                console.error("Lỗi:", error);
+                showToast("Đã xảy ra lỗi.", "bg-danger");
+            });
+    }
+
+    function confirmOrder(orderId) {
+        openConfirmModal("Xác nhận đơn hàng", () => sendRequest(`/orders/${orderId}/confirm`, 'PUT'));
+    }
+
+    function readyToShip(orderId) {
+        openConfirmModal("Sẵn sàng giao hàng", () => sendRequest(`/orders/${orderId}/send-to-ghn`));
+    }
+
+    function approveCancel(orderId) {
+        openConfirmModal("Đồng ý hủy đơn", () => sendRequest(`/orders/${orderId}/cancel-approve`));
+    }
+
+    function rejectCancel(orderId) {
+        openConfirmModal("Từ chối yêu cầu hủy", () => sendRequest(`/orders/${orderId}/cancel-reject`));
+    }
+
+    function approveReturn(orderId) {
+        openConfirmModal("Xác nhận yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/return-approve`));
+    }
+
+    function rejectReturn(orderId) {
+        openConfirmModal("Từ chối yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/return-reject`));
+    }
+
+
+    function startCountdown() {
+        const countdownElement = document.getElementById("countdown");
+        if (!countdownElement) return; // Nếu không có phần đếm ngược, thoát luôn
+
+        const createdAt = new Date("{{order.created_at}}"); // Lấy thời gian tạo đơn
+        const expireTime = new Date(createdAt.getTime() + 10 * 60000); // Hết hạn sau 10 phút
+
+        function updateCountdown() {
+            const now = new Date();
+            const diff = Math.max(0, Math.floor((expireTime - now) / 1000)); // Số giây còn lại
+            const minutes = Math.floor(diff / 60);
+            const seconds = diff % 60;
+
+            if (diff > 0) {
+                countdownElement.textContent = ` (Hủy sau: ${minutes} phút ${seconds} giây)`;
+            } else {
+                countdownElement.textContent = " (Đơn hàng đã hết hạn)";
+                countdownElement.classList.remove("text-danger");
+                countdownElement.classList.add("text-muted");
+            }
         }
 
-        let selectedStatus = "";
-
-        btnUpdateStatus.addEventListener("click", function () {
-            selectedStatus = selectStatus.value;
-            selectedStatusText.textContent = selectStatus.options[selectStatus.selectedIndex].text;
-            const modal = new bootstrap.Modal(document.getElementById("confirmModal"));
-            modal.show();
-        });
-
-        confirmUpdateStatus.addEventListener("click", async function () {
-            const apiConfig = {
-                confirmed: { url: `/orders/${orderId}/confirm`, method: "PUT", body: {} },
-                ready_to_pick: { url: `/orders/${orderId}/send-to-ghn`, method: "PUT", body: {} },
-                canceled: { url: `/orders/${orderId}/cancel`, method: "POST", body: {} },
-            };
-
-            if (!apiConfig[selectedStatus]) {
-                showToast("Trạng thái không hợp lệ!", "bg-danger");
-                return;
-            }
-
-            const { url, method, body } = apiConfig[selectedStatus];
-
-            const loadingModal = new bootstrap.Modal(document.getElementById("loadingModal"));
-            loadingModal.show();
-
-
-            try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(body),
-                });
-
-                if (!response.ok) {
-                    throw new Error("Cập nhật trạng thái thất bại");
-                }
-
-                const result = await response.json();
-                showToast(result.message || "Cập nhật trạng thái thành công", "bg-success");
-                setTimeout(() => location.reload(), 1000);
-            } catch (error) {
-                showToast(error.message, "bg-danger");
-            } finally {
-                loadingModal.hide();
-            }
-        });
-    });
-
+        updateCountdown();
+        setInterval(updateCountdown, 1000); // Cập nhật mỗi giây
+    }
     function formatDates() {
         document.querySelectorAll(".date-format").forEach(element => {
             const timestamp = element.dataset.createdAt;
@@ -221,5 +316,4 @@
         const toast = new bootstrap.Toast(toastElement);
         toast.show();
     }
-
 </script>

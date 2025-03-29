@@ -3425,6 +3425,7 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
             order.status = "canceled";
         } else {
             order.cancel_request = true;
+            await db.ref("new_orders").set({ _id: order._id.toString(), timestamp: Date.now() });
         }
         await order.save();
 
@@ -3467,7 +3468,7 @@ router.post("/orders/:id/return", authenticateToken, async (req, res) => {
                 message: "This order cannot be returned at its current stage!"
             });
         }
-
+        
         order.return_request = true;
         await order.save();
 

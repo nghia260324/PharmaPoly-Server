@@ -32,21 +32,9 @@ const authenticateToken = require("./middlewares/authenticateToken");
 
 var app = express();
 
-const PING_INTERVAL = 12 * 60 * 1000;
-
-let lastRequestTime = Date.now();
-
-app.use((req, res, next) => {
-  lastRequestTime = Date.now();
-  next();
-});
-
-
 
 
 const database = require('./config/db');
-// const productRoutes = require("./src/routes/productRoutes");
-// const userRoutes = require("./src/routes/userRoutes");
 
 // view engine setup
 hbs.registerPartials(path.join(__dirname, 'views/partials'));
@@ -304,6 +292,9 @@ hbs.registerHelper("lt", function (a, b) {
 hbs.registerHelper("eq", function (a, b) {
   return a === b;
 });
+hbs.registerHelper('or', function(a, b) {
+  return a || b;
+});
 hbs.registerHelper("multiply", function (a, b) {
   return a * b;
 });
@@ -319,44 +310,38 @@ hbs.registerHelper("add", function (a, b) {
 hbs.registerHelper("sub", function (a, b) {
   return a - b;
 });
+hbs.registerHelper('and', function(a, b) {
+  return a && b;
+});
 database.connect();
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
 });
 
+
 // setInterval(async () => {
 //   if (Date.now() - lastRequestTime >= PING_INTERVAL) {
 //     try {
-//       console.log("Pinging server to keep it awake...");
+//       const now = new Date();
+//       const timestamp = now.toLocaleString('en-GB', {
+//         hour: '2-digit', minute: '2-digit', second: '2-digit',
+//         day: '2-digit', month: '2-digit', year: 'numeric'
+//       });
+
+//       console.log(`[${timestamp}] Pinging server to keep it awake...`);
 //       await axios.get("https://pharmapoly-server.onrender.com/keep-alive");
 //     } catch (error) {
-//       console.error("Ping failed:", error.message);
+//       const now = new Date();
+//       const timestamp = now.toLocaleString('en-GB', {
+//         hour: '2-digit', minute: '2-digit', second: '2-digit',
+//         day: '2-digit', month: '2-digit', year: 'numeric'
+//       });
+
+//       console.error(`[${timestamp}] Ping failed:`, error.message);
 //     }
 //   }
 // }, PING_INTERVAL);
-setInterval(async () => {
-  if (Date.now() - lastRequestTime >= PING_INTERVAL) {
-    try {
-      const now = new Date();
-      const timestamp = now.toLocaleString('en-GB', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        day: '2-digit', month: '2-digit', year: 'numeric'
-      });
-
-      console.log(`[${timestamp}] Pinging server to keep it awake...`);
-      await axios.get("https://pharmapoly-server.onrender.com/keep-alive");
-    } catch (error) {
-      const now = new Date();
-      const timestamp = now.toLocaleString('en-GB', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        day: '2-digit', month: '2-digit', year: 'numeric'
-      });
-
-      console.error(`[${timestamp}] Ping failed:`, error.message);
-    }
-  }
-}, PING_INTERVAL);
 
 
 // error handler

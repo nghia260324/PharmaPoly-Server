@@ -3,6 +3,7 @@ const router = express.Router();
 const Orders = require('../models/orders');
 const OrderItems = require('../models/orderItems');
 const ProductImages = require('../models/productImages');
+const Products = require('../models/products');
 const { db } = require("../firebase/firebaseAdmin");
 const { getUserAddress, getShopInfo } = require("./api");
 const axios = require('axios');
@@ -161,6 +162,27 @@ router.put("/:order_id/confirm", async (req, res) => {
         if (order.status !== "pending") {
             return res.status(400).json({ status: 400, message: "Order can only be confirmed from 'pending' status" });
         }
+        const orderItems = await OrderItems.find({ order_id }).populate({
+            path: "product_id",
+            select: "_id stock_quantity name"
+        });
+        
+        for (const item of orderItems) {
+            if (item.product_id.stock_quantity < item.quantity) {
+                return res.status(400).json({
+                    status: 400,
+                    message: `Product ${item.product_id.name} is out of stock`
+                });
+            }
+        }
+        
+        for (const item of orderItems) {
+            await Products.updateOne(
+                { _id: item.product_id._id },
+                { $inc: { stock_quantity: -item.quantity } }
+            );
+        }
+
         order.status = "confirmed";
         await order.save();
 
@@ -281,26 +303,26 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
 });
 
 
-router.post("/:orderId/cancel/approve", async (req, res) => {
-    const order = await Orders.findById(req.params.orderId);
-    if (!order || !order.cancel_request) return res.status(404).json({ message: "Không có yêu cầu hủy" });
+// router.post("/:orderId/cancel/approve", async (req, res) => {
+//     const order = await Orders.findById(req.params.orderId);
+//     if (!order || !order.cancel_request) return res.status(404).json({ message: "Không có yêu cầu hủy" });
 
-    order.status = "canceled";
-    order.cancel_request = false;
-    await order.save();
+//     order.status = "canceled";
+//     order.cancel_request = false;
+//     await order.save();
 
-    res.json({ message: "Đơn hàng đã được hủy" });
-});
+//     res.json({ message: "Đơn hàng đã được hủy" });
+// });
 
-router.post("/:orderId/return", async (req, res) => {
-    const order = await Orders.findById(req.params.orderId);
-    if (!order || order.status !== "delivered") return res.status(400).json({ message: "Không thể đổi trả" });
+// router.post("/:orderId/return", async (req, res) => {
+//     const order = await Orders.findById(req.params.orderId);
+//     if (!order || order.status !== "delivered") return res.status(400).json({ message: "Không thể đổi trả" });
 
-    order.return_request = true;
-    await order.save();
+//     order.return_request = true;
+//     await order.save();
 
-    res.json({ message: "Đã gửi yêu cầu đổi trả" });
-});
+//     res.json({ message: "Đã gửi yêu cầu đổi trả" });
+// });
 
 
 router.post("/:orderId/cancel", async (req, res) => {
@@ -336,6 +358,18 @@ router.post("/:orderId/cancel", async (req, res) => {
             }
         }
 
+        const orderItems = await OrderItems.find({ order_id: orderId }).populate({
+            path: "product_id",
+            select: "_id stock_quantity"
+        });
+        
+        for (const item of orderItems) {
+            await Product.updateOne(
+                { _id: item.product_id._id },
+                { $inc: { stock_quantity: item.quantity } }
+            );
+        }
+
         order.status = "canceled";
         await order.save();
 
@@ -345,6 +379,53 @@ router.post("/:orderId/cancel", async (req, res) => {
         res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
     }
 });
+
+
+router.post("/:orderId/confirm-return", async (req, res) => {
+    try {
+        const { orderId } = req.params;
+
+        const order = await Orders.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ status: 404, message: "Order not found" });
+        }
+
+        if (!order.return_request) {
+            return res.status(400).json({ status: 400, message: "No return request for this order" });
+        }
+
+        if (order.status !== "delivered") {
+            return res.status(400).json({ status: 400, message: "Cannot process return for this order status" });
+        }
+
+        try {
+            const ghnResponse = await axios.post(`${GHN_API}/v2/switch-status/return`, {
+                order_code: order.order_code
+            }, {
+                headers: {
+                    "Content-Type": "application/json",
+                    "Token": TOKEN_GHN
+                }
+            });
+
+            if (ghnResponse.data.code !== 200) {
+                return res.status(400).json({ status: 400, message: "Failed to request return on GHN", error: ghnResponse.data });
+            }
+        } catch (ghnError) {
+            console.error("Error requesting return on GHN:", ghnError.response?.data || ghnError.message);
+            return res.status(500).json({ status: 500, message: "Failed to request return on GHN", error: ghnError.message });
+        }
+
+        order.status = "waiting_to_return";
+        await order.save();
+
+        res.status(200).json({ status: 200, message: "Return request confirmed successfully", data: order });
+    } catch (error) {
+        console.error("Error confirming return request:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
+    }
+});
+
 
 
 db.ref("new_orders").on("value", async (snapshot) => {
@@ -363,6 +444,31 @@ db.ref("new_orders").on("value", async (snapshot) => {
 });
 
 
+db.ref("cancel_requests").on("value", async (snapshot) => {
+    if (snapshot.exists()) {
+        const cancelData = snapshot.val();
+        const canceledOrder = await Orders.findById(cancelData._id);
+
+        if (canceledOrder) {
+            io.emit("cancel_request", canceledOrder);
+        }
+
+        db.ref("cancel_requests").remove();
+    }
+});
+
+db.ref("return_requests").on("value", async (snapshot) => {
+    if (snapshot.exists()) {
+        const returnData = snapshot.val();
+        const returnOrder = await Orders.findById(returnData._id);
+
+        if (returnOrder) {
+            io.emit("return_request", returnOrder);
+        }
+
+        db.ref("return_requests").remove();
+    }
+});
 
 
 

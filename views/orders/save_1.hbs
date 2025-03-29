@@ -1,0 +1,245 @@
+<div class="container mt-4">
+    <a href="/orders" class="btn btn-outline-secondary mb-3">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+
+
+    <h3 class="mb-4">Chi Tiết Đơn Hàng #{{order.order_code}}</h3>
+
+    <!-- Thông tin đơn hàng -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Thông Tin Đơn Hàng</h5>
+            <br>
+            <p><strong>Người nhận:</strong> {{order.to_name}}</p>
+            <p><strong>Số điện thoại:</strong> {{order.to_phone}}</p>
+            <p><strong>Địa chỉ:</strong> {{order.to_address}}, {{userAddress.ward.WardName}},
+                {{userAddress.district.DistrictName}}, {{userAddress.province.ProvinceName}}</p>
+
+            <p class="date-format" data-created-at="{{order.created_at}}"><strong>Ngày đặt:</strong>
+                {{order.created_at}}
+            </p>
+            <p><strong>Phương thức thanh toán:</strong> <span class="badge bg-primary">{{order.payment_method}}</span>
+            </p>
+            <p><strong>Tổng tiền:</strong> {{order.total_price}} VND</p>
+            {{!-- <p><strong>Trạng thái:</strong> <span class="status-badge bg-warning">{{order.status}}</span></p> --}}
+            <p><strong>Trạng thái:</strong>
+                <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
+            </p>
+
+            <div class="mt-3">
+                <label for="orderStatus" class="form-label">Cập nhật trạng thái:</label>
+                <select class="form-select w-50" id="orderStatus">
+                    {{#if (eq order.status "pending")}}
+                    <option value="confirmed">Đã xác nhận</option>
+                    <option value="canceled">Đã hủy</option>
+                    {{else if (eq order.status "confirmed")}}
+                    <option value="ready_to_pick">Chuẩn bị giao</option>
+                    <option value="canceled">Đã hủy</option>
+                    {{else if (eq order.status "ready_to_pick")}}
+                    <option value="delivering">Đang giao hàng</option>
+                    <option value="canceled">Đã hủy</option>
+                    {{/if}}
+                </select>
+
+
+
+                <button id="btnUpdateStatus" class="btn btn-success mt-3">Lưu trạng thái</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách sản phẩm -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Danh Sách Sản Phẩm</h5>
+            <table class="table table-bordered mt-3">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Hình ảnh</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Số lượng</th>
+                        <th>Giá</th>
+                        <th>Tổng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each orderItems}}
+                    <tr>
+                        <td>{{addOne @index}}</td>
+                        <td><img src="{{this.image_url}}" alt="Hình ảnh sản phẩm" width="50"></td>
+                        <td>{{this.product_id.name}}</td>
+                        <td>{{this.quantity}}</td>
+                        <td>{{this.price}} VND</td>
+                        <td>{{multiply this.quantity this.price}} VND</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody">
+                <!-- Message will be inserted here -->
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+<!-- Modal xác nhận cập nhật trạng thái -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalLabel">Xác nhận cập nhật trạng thái</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn cập nhật trạng thái đơn hàng thành <strong id="selectedStatusText"></strong>
+                không?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" id="confirmUpdateStatus">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Loading -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static"
+    data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Đang xử lý...</span>
+            </div>
+            <p class="mt-2">Đang cập nhật trạng thái, vui lòng chờ...</p>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        formatDates();
+
+        const btnUpdateStatus = document.getElementById("btnUpdateStatus");
+        const selectStatus = document.getElementById("orderStatus");
+        const confirmUpdateStatus = document.getElementById("confirmUpdateStatus");
+        const selectedStatusText = document.getElementById("selectedStatusText");
+        const orderId = "{{order._id}}";
+        const orderStatus = "{{order.status}}";
+
+        const lockedStatuses = ["delivered", "canceled", "delivery_fail", "returned", "return_fail"];
+
+        if (lockedStatuses.includes(orderStatus)) {
+            btnUpdateStatus.disabled = true;
+            selectStatus.disabled = true;
+        }
+
+        let selectedStatus = "";
+
+        btnUpdateStatus.addEventListener("click", function () {
+            selectedStatus = selectStatus.value;
+            selectedStatusText.textContent = selectStatus.options[selectStatus.selectedIndex].text;
+            const modal = new bootstrap.Modal(document.getElementById("confirmModal"));
+            modal.show();
+        });
+
+        confirmUpdateStatus.addEventListener("click", async function () {
+            const apiConfig = {
+                confirmed: { url: `/orders/${orderId}/confirm`, method: "PUT", body: {} },
+                ready_to_pick: { url: `/orders/${orderId}/send-to-ghn`, method: "PUT", body: {} },
+                canceled: { url: `/orders/${orderId}/cancel`, method: "POST", body: {} },
+            };
+
+            if (!apiConfig[selectedStatus]) {
+                showToast("Trạng thái không hợp lệ!", "bg-danger");
+                return;
+            }
+
+            const { url, method, body } = apiConfig[selectedStatus];
+
+            const loadingModal = new bootstrap.Modal(document.getElementById("loadingModal"));
+            loadingModal.show();
+
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
+
+                if (!response.ok) {
+                    throw new Error("Cập nhật trạng thái thất bại");
+                }
+
+                const result = await response.json();
+                showToast(result.message || "Cập nhật trạng thái thành công", "bg-success");
+                setTimeout(() => location.reload(), 1000);
+            } catch (error) {
+                showToast(error.message, "bg-danger");
+            } finally {
+                loadingModal.hide();
+            }
+        });
+
+
+
+        const socket = io();
+        socket.on("new_order", function (order) {
+            showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");
+        });
+
+
+
+
+
+
+
+
+
+
+
+    });
+
+    function formatDates() {
+        document.querySelectorAll(".date-format").forEach(element => {
+            const timestamp = element.dataset.createdAt;
+            if (timestamp) {
+                const date = new Date(timestamp);
+                const formattedDate = date.toLocaleString("vi-VN", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false
+                });
+                element.innerHTML = `<strong>Ngày đặt:</strong> ${formattedDate}`;
+            }
+        });
+    }
+    function showToast(message, bgClass = "bg-success") {
+        const toastElement = document.getElementById("toastMessage");
+        const toastBody = document.getElementById("toastBody");
+
+        toastBody.textContent = message;
+        toastElement.classList.remove("bg-success", "bg-danger");
+        toastElement.classList.add(bgClass);
+
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+    }
+
+</script>

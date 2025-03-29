@@ -8,8 +8,10 @@
                     <input type="text" class="form-control" id="productTypeName"data-lang-placeholder="product_type_name" placeholder="Product Type Name" required>
                 </div>
                 <div class="col-md-6">
-                    <button type="button" class="btn btn-primary"><span data-lang="save">Save</span>
-                        <i class="bi bi-save"></i> <span data-lang="save">Save</span>
+                    <button type="button" class="btn btn-primary">
+                        {{!-- <span data-lang="save">Save</span> --}}
+                        <i class="bi bi-save"></i> 
+                        <span data-lang="save">Save</span>
                     </button>
                 </div>
             </form>
@@ -21,7 +23,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted product-type-id">ID: {{this._id}}</small>
-                        <h5 class="product-type-name mb-0"><span data-lang="name">Name: </span> {{this.name}}</h5>
+                        <h5 class="product-type-name mb-0"><span data-lang="name">Name</span>: {{this.name}}</h5>
                     </div>
                     <div>
                         <button class="btn btn-sm btn-warning me-2" onclick="editProductType(this)">

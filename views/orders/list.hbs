@@ -4,29 +4,34 @@
             <span class="h5 mb-0"><span data-lang="orders">Orders</span></span>
         </div>
     </div>
-  <div class="row g-2 align-items-center">
+    <div class="row g-2 align-items-center">
         <div class="col-md-4">
-            <input type="text" id="searchOrder" class="form-control" 
-                placeholder="Tìm theo mã đơn hoặc tên khách hàng" value="{{search}}">
+            <input type="text" id="searchOrder" class="form-control" placeholder="Tìm theo mã đơn hoặc tên khách hàng"
+                value="{{search}}">
         </div>
         <div class="col-md-4">
             <select id="filterStatus" class="form-select">
                 <option value="">Tất cả trạng thái</option>
-                <option value="pending" {{#ifCond filterStatus "pending"}}selected{{/ifCond}}>Chờ xác nhận</option>
-                <option value="confirmed" {{#ifCond filterStatus "confirmed"}}selected{{/ifCond}}>Đã xác nhận</option>
-                <option value="delivering" {{#ifCond filterStatus "delivering"}}selected{{/ifCond}}>Đang giao</option>
-                <option value="delivered" {{#ifCond filterStatus "delivered"}}selected{{/ifCond}}>Giao thành công</option>
-                <option value="canceled" {{#ifCond filterStatus "canceled"}}selected{{/ifCond}}>Đã hủy</option>
-                <option value="cancel_request" {{#ifCond filterStatus "cancel_request"}}selected{{/ifCond}}>Yêu cầu hủy</option>
-                <option value="return_request" {{#ifCond filterStatus "return_request"}}selected{{/ifCond}}>Yêu cầu trả hàng</option>
+                <option value="pending" {{#ifCond filterStatus "pending" }}selected{{/ifCond}}>Chờ xác nhận</option>
+                <option value="confirmed" {{#ifCond filterStatus "confirmed" }}selected{{/ifCond}}>Đã xác nhận</option>
+                <option value="delivering" {{#ifCond filterStatus "delivering" }}selected{{/ifCond}}>Đang giao</option>
+                <option value="delivered" {{#ifCond filterStatus "delivered" }}selected{{/ifCond}}>Giao thành công
+                </option>
+                <option value="canceled" {{#ifCond filterStatus "canceled" }}selected{{/ifCond}}>Đã hủy</option>
+                <option value="cancel_request" {{#ifCond filterStatus "cancel_request" }}selected{{/ifCond}}>Yêu cầu hủy
+                </option>
+                <option value="return_request" {{#ifCond filterStatus "return_request" }}selected{{/ifCond}}>Yêu cầu trả
+                    hàng</option>
             </select>
         </div>
         <div class="col-md-2">
             <select id="sortOrders" class="form-select">
-                <option value="created_at_desc" {{#ifCond sort "created_at_desc"}}selected{{/ifCond}}>Mới nhất</option>
-                <option value="created_at_asc" {{#ifCond sort "created_at_asc"}}selected{{/ifCond}}>Cũ nhất</option>
-                <option value="total_price_desc" {{#ifCond sort "total_price_desc"}}selected{{/ifCond}}>Giá cao nhất</option>
-                <option value="total_price_asc" {{#ifCond sort "total_price_asc"}}selected{{/ifCond}}>Giá thấp nhất</option>
+                <option value="created_at_desc" {{#ifCond sort "created_at_desc" }}selected{{/ifCond}}>Mới nhất</option>
+                <option value="created_at_asc" {{#ifCond sort "created_at_asc" }}selected{{/ifCond}}>Cũ nhất</option>
+                <option value="total_price_desc" {{#ifCond sort "total_price_desc" }}selected{{/ifCond}}>Giá cao nhất
+                </option>
+                <option value="total_price_asc" {{#ifCond sort "total_price_asc" }}selected{{/ifCond}}>Giá thấp nhất
+                </option>
             </select>
         </div>
         <div class="col-md-2">
@@ -94,7 +99,18 @@
         </ul>
     </nav>
 </div>
-
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody">
+                <!-- Message will be inserted here -->
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
@@ -113,31 +129,16 @@
 
         const socket = io();
         socket.on("new_order", function (order) {
-            const tableBody = document.querySelector("table tbody");
-            const rows = tableBody.querySelectorAll("tr");
-
-            const newRow = document.createElement("tr");
-            newRow.innerHTML = `
-        <td>${order.order_code ? "#" + order.order_code : '<span class="text-muted">Chưa có mã</span>'}</td>
-        <td>${order.to_name}</td>
-        <td>${order.total_price} VND</td>
-        <td>
-            <span class="badge ${getStatusClass(order.status)}">${getStatusText(order.status)}</span>
-        </td>
-         <td class="date-format" data-created-at="${order.created_at}"></td>
-        <td>
-            <span class="badge ${getPaymentClass(order.payment_method)}">${order.payment_method}</span>
-        </td>
-        <td><a href="/orders/${order._id}/detail" class="btn btn-primary btn-sm">Chi tiết</a></td>
-    `;
-
-            if (rows.length >= Number("{{limit}}")) {
-                tableBody.removeChild(rows[rows.length - 1]);
-            }
-
-            tableBody.prepend(newRow);
-            formatDates();
+            showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");
         });
+        socket.on("cancel_request", function (order) {
+            showToast("⚠️ Có yêu cầu hủy đơn hàng!", "bg-warning");
+        });
+
+        socket.on("return_request", function (order) {
+            showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
+        });
+
         function formatDates() {
             document.querySelectorAll(".date-format").forEach(element => {
                 const timestamp = element.dataset.createdAt;
@@ -203,7 +204,21 @@
                 default: return "bg-dark";
             }
         }
+
+        function showToast(message, bgClass = "bg-success") {
+            const toastElement = document.getElementById("toastMessage");
+            const toastBody = document.getElementById("toastBody");
+
+            toastBody.textContent = message;
+            toastElement.classList.remove("bg-success", "bg-danger");
+            toastElement.classList.add(bgClass);
+
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+        }
+
     });
+
 </script>
 
 

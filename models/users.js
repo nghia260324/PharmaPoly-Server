@@ -6,7 +6,7 @@ const Users = new Scheme({
     date_of_birth: {type: Date},
     gender: {type: Number, default: 0},
     phone_number: {type: String, unique: true},
-    shipping_phone_number: { 
+    shipping_phone_number: {
         type: String, 
         required: true, 
         default: function() { return this.phone_number; }

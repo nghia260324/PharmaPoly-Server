@@ -16,6 +16,21 @@ const ProductSectionDetails = require('../models/productSectionDetails');
 const Uploads = require('../config/common/upload');
 
 
+// async function updateAllProducts() {
+//     try {
+//         const result = await Products.updateMany({}, { 
+//             stock_quantity: 1000, 
+//             expiry_date: new Date("2026-01-28") 
+//         });
+
+//         console.log(`Updated ${result.modifiedCount} products successfully!`);
+//     } catch (error) {
+//         console.error("Error updating products:", error);
+//     }
+// }
+
+// // Gọi hàm để chạy cập nhật
+// updateAllProducts();
 // router.get('/', async function (req, res, next) {
 //     try {
 //         const [products, categories, sections, brands, productTypes] = await Promise.all([
@@ -325,6 +340,7 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
         const productId = req.params.id;
         const data = req.body;
         const files = req.files;
+        console.log("Received Data:", data);
 
         if (!data.name ||
             !data.category_id ||
