@@ -16,4 +16,11 @@ function authenticateToken(req, res, next) {
     });
 }
 
-module.exports = authenticateToken;
+function authorizeAdmin(req, res, next) {
+    if (req.user?.role === 0) {
+        return next(); // Nếu là admin, tiếp tục
+    }
+    return res.status(403).json({ message: "Bạn không có quyền truy cập" }); // Không phải admin thì chặn
+}
+
+module.exports = { authenticateToken, authorizeAdmin };

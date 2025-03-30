@@ -53,18 +53,18 @@ router.post('/api/login', async (req, res) => {
                 message: "Invalid password!"
             });
         }
-
         const token = jwt.sign(
-            { _id: user._id, phone_number: user.phone_number },
+            { _id: user._id, phone_number: user.phone_number, role: user.role }, // Thêm role
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
         const refreshToken = jwt.sign(
-            { _id: user._id, phone_number: user.phone_number },
+            { _id: user._id, phone_number: user.phone_number, role: user.role }, // Thêm role
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: '7d' }
         );
+
 
         res.cookie("token", token, {
             httpOnly: true,

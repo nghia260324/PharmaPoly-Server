@@ -31,7 +31,7 @@ const chatRouter = require("./routes/chatRouter");
 const registerHelpers = require('./utils/hbsHelpers');
 registerHelpers();
 
-const authenticateToken = require("./middlewares/authenticateToken");
+const { authenticateToken, authorizeAdmin } = require("./middlewares/authenticateToken");
 
 var app = express();
 
@@ -56,17 +56,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/api', apiRouter);
 
-app.use("/categories", authenticateToken, categoryRouter);
-app.use("/sections", authenticateToken, sectionRouter);
-app.use("/product-types", authenticateToken, productTypeRouter);
-app.use("/brands", authenticateToken, brandRouter);
-app.use("/products", authenticateToken, productRouter);
-app.use("/dashboards", authenticateToken, dashboardRouter);
+app.use("/categories", authenticateToken, authorizeAdmin, categoryRouter);
+app.use("/sections", authenticateToken, authorizeAdmin, sectionRouter);
+app.use("/product-types", authenticateToken, authorizeAdmin, productTypeRouter);
+app.use("/brands", authenticateToken, authorizeAdmin, brandRouter);
+app.use("/products", authenticateToken, authorizeAdmin, productRouter);
+app.use("/dashboards", authenticateToken, authorizeAdmin, dashboardRouter);
 // app.use("/discounts", authenticateToken, discountRouter);
-app.use("/discounts", discountRouter);
-app.use("/users", authenticateToken, userRouter);
-app.use("/orders", authenticateToken, orderRouter);
-app.use("/chat", authenticateToken, chatRouter);
+app.use("/discounts",authenticateToken, authorizeAdmin, discountRouter);
+app.use("/users", authenticateToken, authorizeAdmin, userRouter);
+app.use("/orders", authenticateToken, authorizeAdmin, orderRouter);
+app.use("/chat", authenticateToken, authorizeAdmin, chatRouter);
 
 
 // hbs.registerHelper('formatType', function(type) {

@@ -3112,9 +3112,19 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
     }
 });
 
+router.delete('/delete-payment-status/:userId', authenticateToken, async (req, res) => {
+    try {
+        const { userId } = req.user_id;
+
+        await db.ref(`payment_status/${userId}`).remove();
+
+        res.json({ success: true, message: `Đã xóa payment_status của user ${userId}` });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Lỗi khi xóa payment_status", error: error.message });
+    }
+});
 
 async function checkPaymentStatus(user_id, order_id, total_price) {
-    total_price = 2000;
     let attempts = 0;
     const maxAttempts = 20;
     const interval = setInterval(async () => {
@@ -3190,10 +3200,10 @@ function generateVietQRQuickLink(order) {
     const accountNo = process.env.ACCOUNT_NO;
     const template = process.env.TEMPLATE || "compact";
     const addInfo = `OID${order._id}END`;
-    // return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
+    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
 
-    const testAmount = 2000;
-    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${testAmount}&addInfo=${addInfo}`;
+    //const testAmount = 2000;
+    //return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${testAmount}&addInfo=${addInfo}`;
 }
 
 router.get("/orders/get-payment-qrcode/:order_id", authenticateToken, async (req, res) => {
