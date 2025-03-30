@@ -10,7 +10,13 @@ const axios = require('axios');
 const GHN_API = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
 const TOKEN_GHN = process.env.GHN_TOKEN;
 const SHOP_ID = process.env.GHN_SHOP_ID;
-
+const statusGroups = {
+    processing: ["pending", "confirmed", "ready_to_pick"],
+    shipping: ["picking", "picked", "delivering", "money_collect_delivering"],
+    delivered: ["delivered"],
+    returning: ["waiting_to_return", "return", "returned", "return_fail"],
+    canceled: ["canceled", "delivery_fail"],
+};
 // router.get('/', async function (req, res, next) {
 //     try {
 //         const page = parseInt(req.query.page) || 1;
@@ -270,8 +276,9 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
                 weight: 1
             })),
             weight: 1,
-            cod_amount: order.payment_method === "COD" ? order.total_price - order.shipping_fee : 0,
-            insurance_value: 1000000,
+            //cod_amount: order.payment_method === "COD" ? order.total_price - order.shipping_fee : 0,
+            cod_amount: order.payment_method === "COD" ? order.total_price : 0,
+            insurance_value: order.total_price - order.shipping_fee,
         }, {
             headers: { "Content-Type": "application/json", "Token": TOKEN_GHN, "ShopId": SHOP_ID }
         });
@@ -376,7 +383,7 @@ router.post("/:orderId/confirm-return", async (req, res) => {
             return res.status(400).json({ status: 400, message: "No return request for this order" });
         }
 
-        if (order.status !== "delivered") {
+        if (!statusGroups.shipping.includes(order.status)) {
             return res.status(400).json({ status: 400, message: "Cannot process return for this order status" });
         }
 
@@ -389,7 +396,7 @@ router.post("/:orderId/confirm-return", async (req, res) => {
         if (action === "approve") {
             try {
                 const ghnResponse = await axios.post(`${GHN_API}/v2/switch-status/return`, {
-                    order_code: order.order_code
+                    order_codes: [order.order_code]
                 }, {
                     headers: {
                         "Content-Type": "application/json",
@@ -407,10 +414,9 @@ router.post("/:orderId/confirm-return", async (req, res) => {
 
             order.status = "waiting_to_return";
             await order.save();
-
-            res.status(200).json({ status: 200, message: "Return request confirmed successfully", data: order });
+            return res.status(200).json({ status: 200, message: "Return request confirmed successfully", data: order });
         }
-        res.status(400).json({ status: 400, message: "Invalid action" });
+        return res.status(400).json({ status: 400, message: "Invalid action" });
 
     } catch (error) {
         console.error("Error confirming return request:", error);

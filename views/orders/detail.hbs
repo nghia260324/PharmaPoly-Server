@@ -46,35 +46,6 @@
             </p>
 
 
-
-            {{!-- <div class="mt-3">
-                {{#if (eq order.status "pending")}}
-                <button class="btn btn-primary">Xác nhận đơn hàng</button>
-                {{/if}}
-
-                {{#if (eq order.status "confirmed")}}
-                {{#if (eq order.payment_method "cod")}}
-                <button class="btn btn-success">Sẵn sàng giao hàng</button>
-                {{else}}
-                {{#if (eq order.payment_status "paid")}}
-                <button class="btn btn-success">Sẵn sàng giao hàng</button>
-                {{else}}
-                <p class="text-danger">⚠ Không thể chuyển trạng thái vì đơn hàng chưa được thanh toán.</p>
-                {{/if}}
-                {{/if}}
-                {{/if}}
-
-
-                {{#if (and (or (eq order.status "confirmed") (eq order.status "ready_to_pick")) order.cancel_request)}}
-                <button class="btn btn-danger">Đồng ý hủy đơn</button>
-                <button class="btn btn-secondary">Từ chối yêu cầu hủy</button>
-                {{/if}}
-                {{#if (and (eq order.status "delivered") order.return_request)}}
-                <button class="btn btn-warning">Xác nhận yêu cầu trả hàng</button>
-                <button class="btn btn-secondary">Từ chối yêu cầu trả hàng</button>
-                {{/if}}
-            </div> --}}
-
             <div class="mt-3">
                 {{#if (eq order.status "pending")}}
                 <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>

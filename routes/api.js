@@ -3093,7 +3093,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         let qrCodeUrl = null;
         if (payment_method === "ONLINE") {
             qrCodeUrl = generateVietQRQuickLink(newOrder);
-            checkPaymentStatus(user_id, newOrder._id, total_price);
+            //checkPaymentStatus(user_id, newOrder._id, total_price);
         }
 
         return res.status(200).json({
@@ -3472,7 +3472,7 @@ router.post("/orders/:id/return", authenticateToken, async (req, res) => {
             });
         }
 
-        if (order.status !== "delivered") {
+        if (!statusGroups.shipping.includes(order.status)) {
             return res.status(400).json({
                 status: 400,
                 message: "This order cannot be returned at its current stage!"
@@ -3501,7 +3501,7 @@ router.post("/orders/:id/return", authenticateToken, async (req, res) => {
 const calculateShippingFee = async (to_district_id, to_ward_code) => {
     try {
         const from_district_id = await getShopDistrict();
-        console.log(from_district_id)
+        //console.log(from_district_id)
 
         if (!from_district_id) throw new Error("Cannot retrieve shop address");
 
@@ -3512,7 +3512,7 @@ const calculateShippingFee = async (to_district_id, to_ward_code) => {
 
         const services = servicesResponse.data.data;
         if (!services || services.length === 0) throw new Error("No available shipping services");
-        console.log(services)
+        //console.log(services)
 
         const service = services[0];
         const fixedWeight = 1;

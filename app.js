@@ -63,7 +63,7 @@ app.use("/brands", authenticateToken, authorizeAdmin, brandRouter);
 app.use("/products", authenticateToken, authorizeAdmin, productRouter);
 app.use("/dashboards", authenticateToken, authorizeAdmin, dashboardRouter);
 // app.use("/discounts", authenticateToken, discountRouter);
-app.use("/discounts",authenticateToken, authorizeAdmin, discountRouter);
+app.use("/discounts", authenticateToken, authorizeAdmin, discountRouter);
 app.use("/users", authenticateToken, authorizeAdmin, userRouter);
 app.use("/orders", authenticateToken, authorizeAdmin, orderRouter);
 app.use("/chat", authenticateToken, authorizeAdmin, chatRouter);
@@ -114,7 +114,7 @@ app.post('/webhook/ghn', async (req, res) => {
 
     const updatedOrder = await Orders.findOneAndUpdate(
       { order_code: data.OrderCode },
-      { status: newStatus},
+      { status: newStatus },
       { new: true }
     );
 
@@ -156,37 +156,42 @@ app.post("/webhook/payment", async (req, res) => {
 
     const match = description.match(/OID([a-f0-9]{24})END/);
     if (!match) {
-        return res.status(400).json({ status: 400, message: "Invalid transaction format" });
+      return res.status(400).json({ status: 400, message: "Invalid transaction format" });
     }
+    if (order.payment_status === "paid") {
+      return res.json({ status: 200, message: "Order already paid" });
+    }
+
     const orderId = match[1];
 
-    const order = await Orders.findOne({ _id: orderId});
-    const userId = order.user_id;
+    const order = await Orders.findOne({ _id: orderId });
     if (!order) {
       return res.status(404).json({ status: 404, message: "Order not found" });
     }
-    order.payment_status = "paid";
-    order.transaction_id = reference;
-    await order.save();
+    const userId = order.user_id;
 
-    await db.ref(`payment_status/${userId}`).set("PAID");
-    // if (order.total_price === amount) {
-    //   order.payment_status = "paid";
-    //   order.transaction_id = reference;
-    //   await order.save();
+    const paidAmount = Number(amount);
+    if (order.total_price === paidAmount) {
+      order.payment_status = "paid";
+      order.transaction_id = reference;
+      await order.save();
 
-    //   await db.ref(`payment_status/${userId}`).set("PAID");
-    // } else {
-    //   return res.status(400).json({ status: 400, message: "Incorrect payment amount" });
-    // }
+      await db.ref(`payment_status/${userId}`).set("PAID");
 
-    res.json({ status: 200, message: "Webhook received successfully" });
+      res.json({ status: 200, message: "Webhook received successfully" });
+    } else {
+      return res.status(400).json({ status: 400, message: "Incorrect payment amount" });
+    }
   } catch (error) {
     console.error("Webhook Error:", error);
     res.status(500).json({ status: 500, message: "Internal Server Error" });
   }
 });
+// order.payment_status = "paid";
+// order.transaction_id = reference;
+// await order.save();
 
+// await db.ref(`payment_status/${userId}`).set("PAID");
 
 const verifyCassoSignature = (req, res, next) => {
   try {
