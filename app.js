@@ -172,9 +172,7 @@ app.post("/webhook/payment", async (req, res) => {
     if (!match) {
       return res.status(400).json({ status: 400, message: "Invalid transaction format" });
     }
-    if (order.payment_status === "paid") {
-      return res.json({ status: 200, message: "Order already paid" });
-    }
+
 
     const orderId = match[1];
 
@@ -182,6 +180,11 @@ app.post("/webhook/payment", async (req, res) => {
     if (!order) {
       return res.status(404).json({ status: 404, message: "Order not found" });
     }
+
+    if (order.payment_status === "paid") {
+      return res.json({ status: 200, message: "Order already paid" });
+    }
+
     const userId = order.user_id;
 
     const paidAmount = Number(amount);
