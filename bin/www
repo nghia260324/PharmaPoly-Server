@@ -127,8 +127,11 @@ app.set('io', io);
 let users = {}
 
 io.on("connection", async (socket) => {
+  console.log("Socket query:", socket.handshake.query);
+
   // xử lý kết nối của người dùng
   const userId = socket.handshake.query.userId; 
+  console.log("🔍 userId nhận được:", userId);
   if (!userId) {
     console.log(" Kết nối thất bại: Không có userId");
     socket.disconnect();

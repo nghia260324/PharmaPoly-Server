@@ -394,7 +394,7 @@
 </div>
 
 <script>
-    const adminId = "W7LRUTJQUEVBBthDw80GYhPK07E2";
+    const adminId = "67b344c3744eaa2ff0f0ce7d";
     window.socket = io("http://localhost:3000", { query: { userId: adminId } });
 
     socket.on("receiveMessage", (data) => {
@@ -407,7 +407,7 @@
             if (document.querySelector(`li[data-user-id="${message.senderId}"]`)) {
                 document.querySelector(`li[data-user-id="${message.senderId}"] .status p`).innerHTML = document.querySelector(`li[data-user-id="${message.senderId}"]`).getAttribute('data-user-name') + ': ' + message.message;
 
-                if (message.senderId === 'W7LRUTJQUEVBBthDw80GYhPK07E2') {
+                if (message.senderId === adminId) {
                     // Nếu người gửi là admin
                     messageHTML = `
                             <li class="clearfix">
@@ -478,7 +478,7 @@
                     const messageTime = new Date(message.timestamp).toLocaleTimeString();
                     let messageHTML = '';
 
-                    if (message.senderId === 'W7LRUTJQUEVBBthDw80GYhPK07E2') {
+                    if (message.senderId === adminId) {
                         // Nếu người gửi là admin
                         messageHTML = `
                             <li class="clearfix">
@@ -520,7 +520,7 @@
         const chatHistory = document.querySelector('.chat-history ul');
         const userId = window.userId;
         const messageTime = new Date().toLocaleTimeString();
-        const adminId = "W7LRUTJQUEVBBthDw80GYhPK07E2";
+        const adminId = "67b344c3744eaa2ff0f0ce7d";
 
         if (message) {
             console.log({ senderId: adminId, receiverId: userId, message: message });

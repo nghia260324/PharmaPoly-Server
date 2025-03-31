@@ -20,7 +20,7 @@ router.get('/', async function (req, res, next) {
     users.forEach(user => {
         userNames[user._id.toString()] = user.full_name || user.phone_number;
     });
-    userNames["W7LRUTJQUEVBBthDw80GYhPK07E2"] = "You";
+    userNames["67b344c3744eaa2ff0f0ce7d"] = "You";
 
     res.render('chats/chat',{
         chats: chats,
