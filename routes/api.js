@@ -3152,10 +3152,10 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
             );
 
             if (matchingTransaction) {
-
+                const transactionId = matchingTransaction["Mã tham chiếu"];
                 await Orders.updateOne(
                     { _id: order_id },
-                    { $set: { payment_status: "paid" } }
+                    { $set: { payment_status: "paid", transaction_id: transactionId  } }
                 );
 
                 await db.ref(`payment_status/${user_id}`).set("PAID");

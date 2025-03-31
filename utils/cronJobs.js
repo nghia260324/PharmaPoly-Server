@@ -7,7 +7,6 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
-
 cron.schedule("*/2 * * * *", async () => {
     try {
         const orders = await Orders.find({
@@ -15,29 +14,44 @@ cron.schedule("*/2 * * * *", async () => {
             payment_status: "pending",
             status: "confirmed"
         });
+
         let canceledCount = 0;
+        let restockedProducts = {};
 
         for (const order of orders) {
             const orderItems = await OrderItems.find({ order_id: order._id }).populate("product_id");
 
             for (const item of orderItems) {
+                const productId = item.product_id._id.toString();
+
                 await Products.updateOne(
-                    { _id: item.product_id._id },
+                    { _id: productId },
                     { $inc: { stock_quantity: item.quantity } }
                 );
-                totalRestocked += item.quantity;
+
+                if (!restockedProducts[productId]) {
+                    restockedProducts[productId] = { 
+                        name: item.product_id.name, 
+                        quantity: 0 
+                    };
+                }
+                restockedProducts[productId].quantity += item.quantity;
             }
 
             order.status = "canceled";
             order.payment_status = "failed";
             await order.save();
-
-            console.log(`Order ${order._id} has been auto-canceled and stock updated.`);
+            canceledCount++;
         }
 
-        if (canceledCount > 0) {
-            console.log(`Total ${canceledCount} orders have been auto-canceled.`);
-        }
+        // if (canceledCount > 0) {
+        //     console.log(`Total ${canceledCount} orders have been auto-canceled.`);
+
+        //     console.log("Restocked items:");
+        //     for (const [productId, info] of Object.entries(restockedProducts)) {
+        //         console.log(`- ${info.name}: +${info.quantity} items`);
+        //     }
+        // }
     } catch (error) {
         console.error("Error auto-canceling orders:", error);
     }
