@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Chats = require('../models/chats');
 const Users = require('../models/users');
+
+
 router.get('/', async function (req, res, next) {
 
     const chats = await Chats.find(

@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+const mongoose = require("mongoose");
 
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
@@ -38,6 +39,9 @@ const OrderItems = require('../models/orderItems');
 
 const upload = require('../config/common/upload');
 const { removeDiacritics } = require('../utils/textUtils');
+const Chats = require('../models/chats');
+const { log } = require('console');
+const { stringify } = require('querystring');
 
 
 const MAX_QUANTITY_PER_PRODUCT = 20;

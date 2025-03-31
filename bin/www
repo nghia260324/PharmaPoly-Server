@@ -102,7 +102,7 @@ var app = require('../app');
 var debug = require('debug')('ung-dung-mua-thuoc-truc-tuyen-pharmapoly:server');
 var http = require('http');
 const socketIo = require('socket.io');
-
+const Chats = require('../models/chats');
 /**
  * Get port from environment and store in Express.
  */
@@ -113,9 +113,123 @@ app.set('port', port);
  * Create HTTP server (Render tự cấp SSL).
  */
 var server = http.createServer(app);
-const io = socketIo(server);
+//const io = socketIo(server);
+const io = socketIo(server, {
+  cors: {
+    origin: "*", // Cho phép truy cập từ mọi nơi (có thể thay bằng domain cụ thể)
+    methods: ["GET", "POST"]
+  }
+});
 app.set('io', io); 
 
+
+
+let users = {}
+
+io.on("connection", async (socket) => {
+  // xử lý kết nối của người dùng
+  const userId = socket.handshake.query.userId; 
+  if (!userId) {
+    console.log(" Kết nối thất bại: Không có userId");
+    socket.disconnect();
+    return;
+  }
+
+  users[userId] = socket.id;
+  console.log(`${userId} đã kết nối với socket ID: ${socket.id}`);
+
+  const chat = await Chats.findOne(
+    { user_id: userId },
+    { _id: 0, "fullChat._id": 0 }
+  );
+  socket.emit("oldMessages", chat ? chat.fullChat : []);
+
+  // xử lý user gửi tin nhắn
+  socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
+    console.log(`📩 Tin nhắn từ ${senderId} đến ${receiverId}: ${message}`);
+
+    if (!message.trim()) return;
+
+    const newMessage = {
+      message,
+      senderId: senderId,
+      timestamp: new Date(),
+    };
+
+    let chat = await Chats.findOne({ user_id: senderId });
+    if (!chat) {
+      chat = new Chats({
+        user_id: senderId,
+        lastMessage: message,
+        timeSentLastMessage: new Date(),
+        sentBy: senderId,
+        fullChat: [newMessage],
+      });
+    } else {
+      chat.fullChat.push(newMessage);
+      chat.lastMessage = message;
+      chat.timeSentLastMessage = new Date();
+      chat.sentBy = senderId;
+    }
+
+    await chat.save();
+
+    // Gửi phản hồi về user gửi tin nhắn
+    socket.emit("messageSentSuccess", { status: "success", message: "Tin nhắn gửi thành công!", data: newMessage });
+
+    // Gửi tin nhắn mới đến admin nếu đang online
+    if (users[receiverId]) {
+      io.to(users[receiverId]).emit("receiveMessage", { status: "success", message: "Tin nhắn gửi thành công!", data: newMessage });
+    }
+  });
+
+  // xử lý user gửi tin nhắn admin
+  socket.on("sendMessageByAdmin", async ({ adminId, userId, message }) => {
+    console.log(`📩 Tin nhắn từ ${adminId} đến ${userId}: ${message}`);
+
+    if (!message.trim()) return;
+
+    const newMessage = {
+      message,
+      senderId: adminId,
+      timestamp: new Date(),
+    };
+
+    let chat = await Chats.findOne({ user_id: userId });
+    if (!chat) {
+      chat = new Chats({
+        user_id: userId,
+        lastMessage: message,
+        timeSentLastMessage: new Date(),
+        sentBy: adminId,
+        fullChat: [newMessage],
+      });
+    } else {
+      chat.fullChat.push(newMessage);
+      chat.lastMessage = message;
+      chat.timeSentLastMessage = new Date();
+      chat.sentBy = adminId;
+    }
+
+    await chat.save();
+
+    socket.emit("messageSentSuccess", { status: "success", message: "Tin nhắn gửi thành công!", data: newMessage });
+
+    if (users[userId]) {
+      io.to(users[userId]).emit("receiveMessage", { status: "success", message: "Tin nhắn gửi thành công!", data: newMessage });
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+    for (let userId in users) {
+      if (users[userId] === socket.id) {
+        delete users[userId];
+        break;
+      }
+    }
+  });
+});
 
 /**
  * Listen on provided port, on all network interfaces.
