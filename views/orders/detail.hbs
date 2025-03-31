@@ -45,7 +45,7 @@
                 <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
             </p>
 
-
+            {{!--
             <div class="mt-3">
                 {{#if (eq order.status "pending")}}
                 <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
@@ -74,7 +74,31 @@
                 <button class="btn btn-secondary" onclick="rejectReturn('{{order._id}}')">Từ chối yêu cầu trả
                     hàng</button>
                 {{/if}}
+            </div> --}}
+
+            <div class="mt-3">
+                {{#if (eq order.status "pending")}}
+                <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
+                {{/if}}
+
+                {{#if (eq order.status "confirmed")}}
+                {{#if (eq order.payment_method "COD")}}
+                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
+                {{else}}
+                {{#if (eq order.payment_status "paid")}}
+                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
+                {{else}}
+                <p class="text-danger">⚠ Không thể chuyển trạng thái vì đơn hàng chưa được thanh toán.</p>
+                {{/if}}
+                {{/if}}
+                {{/if}}
+
+                {{#if (and (or (eq order.status "confirmed") (eq order.status "ready_to_pick")) order.cancel_request)}}
+                <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
+                <button class="btn btn-secondary" onclick="rejectCancel('{{order._id}}')">Từ chối yêu cầu hủy</button>
+                {{/if}}
             </div>
+
 
 
 
@@ -162,7 +186,6 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
 
-
         const socket = io();
         socket.on("new_order", function (order) {
             showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");
@@ -171,9 +194,9 @@
             showToast("⚠️ Có yêu cầu hủy đơn hàng!", "bg-warning");
         });
 
-        socket.on("return_request", function (order) {
-            showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
-        });
+        //socket.on("return_request", function (order) {
+            //showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
+        //});
 
         formatDates();
         startCountdown();
@@ -232,13 +255,13 @@
         openConfirmModal("Từ chối yêu cầu hủy", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "reject" }));
     }
 
-    function approveReturn(orderId) {
-        openConfirmModal("Xác nhận yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/confirm-return`, "POST", { action: "approve" }));
-    }
+    //function approveReturn(orderId) {
+        //openConfirmModal("Xác nhận yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/confirm-return`, "POST", { action: "approve" }));
+    //}
 
-    function rejectReturn(orderId) {
-        openConfirmModal("Từ chối yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/confirm-return`, "POST", { action: "reject" }));
-    }
+    //function rejectReturn(orderId) {
+        //openConfirmModal("Từ chối yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/confirm-return`, "POST", { action: "reject" }));
+    //}
 
 
     function startCountdown() {

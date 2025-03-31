@@ -10,7 +10,7 @@ router.get('/', async function (req, res, next) {
     ).exec();
 
     const userIds = chats.map(chat => chat.user_id);
-
+        console.log(userIds);
     const users = await Users.find({ _id: { $in: userIds } }).select("_id full_name phone_number").lean();
     console.log(users);
 
@@ -18,7 +18,6 @@ router.get('/', async function (req, res, next) {
     users.forEach(user => {
         userNames[user._id.toString()] = user.full_name || user.phone_number;
     });
-
     userNames["W7LRUTJQUEVBBthDw80GYhPK07E2"] = "You";
 
     res.render('chats/chat',{

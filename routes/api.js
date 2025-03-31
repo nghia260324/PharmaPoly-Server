@@ -43,9 +43,12 @@ const { removeDiacritics } = require('../utils/textUtils');
 const MAX_QUANTITY_PER_PRODUCT = 20;
 const statusGroups = {
     processing: ["pending", "confirmed", "ready_to_pick"],
-    shipping: ["picking", "picked", "delivering", "money_collect_delivering"],
+    shipping: [
+        "picking", "picked", "delivering", "money_collect_delivering",
+        "delivery_fail", "waiting_to_return", "return", "returned", "return_fail"
+    ],
     delivered: ["delivered"],
-    returning: ["waiting_to_return", "return", "returned", "return_fail"],
+    //returning: ["waiting_to_return", "return", "returned", "return_fail"],
     canceled: ["canceled", "delivery_fail"],
 };
 
@@ -2595,7 +2598,7 @@ router.get('/search', authenticateToken, async (req, res) => {
             });
         }
 
-        const normalizedKeyword = removeDiacritics(keyword);
+        const normalizedKeyword = removeDiacritics(keyword.toLocaleLowerCase());
         const words = normalizedKeyword.trim().split(/\s+/);
 
         let products = await Products.find()
@@ -2608,61 +2611,24 @@ router.get('/search', authenticateToken, async (req, res) => {
         let brands = await Brands.find().lean();
 
         let filteredProducts = products.filter(product => {
-            const normalizedName = removeDiacritics(product.name);
+            const normalizedName = removeDiacritics(product.name.toLowerCase());
             return words.every(word => normalizedName.includes(word));
         });
 
         let filteredCategories = categories.filter(category => {
-            const normalizedCategoryName = removeDiacritics(category.name);
+            const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
             return words.every(word => normalizedCategoryName.includes(word));
         });
 
         let filteredBrands = brands.filter(brand => {
-            const normalizedBrandName = removeDiacritics(brand.name);
+            const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
             return words.every(word => normalizedBrandName.includes(word));
         });
 
         const sortOrder = order === 'desc' ? -1 : 1;
         filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
 
-        const productIds = filteredProducts.map(product => product._id);
-
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        });
-
-        const imageMap = primaryImages.reduce((acc, img) => {
-            acc[img.product_id] = img;
-            return acc;
-        }, {});
-
-        const formattedProducts = filteredProducts.map(product => ({
-            _id: product._id,
-            name: product.name,
-            category_id: product.category_id ? product.category_id._id : null,
-            brand_id: product.brand_id ? product.brand_id._id : null,
-            product_type_id: product.product_type_id ? product.product_type_id._id : null,
-            category: product.category_id ? {
-                _id: product.category_id._id,
-                name: product.category_id.name
-            } : null,
-            brand: product.brand_id ? {
-                _id: product.brand_id._id,
-                name: product.brand_id.name,
-                description: product.brand_id.description
-            } : null,
-            product_type: product.product_type_id ? {
-                _id: product.product_type_id._id,
-                name: product.product_type_id.name
-            } : null,
-            price: product.price,
-            short_description: product.short_description,
-            average_rating: product.average_rating,
-            review_count: product.review_count,
-            images: imageMap[product._id] ? [imageMap[product._id]] : []
-        }));
-
+        const formattedProducts = await Promise.all(filteredProducts.map(p => getProductDetails(p._id)));
         return res.status(200).json({
             status: 200,
             message: 'Search completed successfully!',
@@ -2682,6 +2648,34 @@ router.get('/search', authenticateToken, async (req, res) => {
 
 
 
+
+
+
+// const formattedProducts = filteredProducts.map(product => ({
+//     _id: product._id,
+//     name: product.name,
+//     category_id: product.category_id ? product.category_id._id : null,
+//     brand_id: product.brand_id ? product.brand_id._id : null,
+//     product_type_id: product.product_type_id ? product.product_type_id._id : null,
+//     category: product.category_id ? {
+//         _id: product.category_id._id,
+//         name: product.category_id.name
+//     } : null,
+//     brand: product.brand_id ? {
+//         _id: product.brand_id._id,
+//         name: product.brand_id.name,
+//         description: product.brand_id.description
+//     } : null,
+//     product_type: product.product_type_id ? {
+//         _id: product.product_type_id._id,
+//         name: product.product_type_id.name
+//     } : null,
+//     price: product.price,
+//     short_description: product.short_description,
+//     average_rating: product.average_rating,
+//     review_count: product.review_count,
+//     images: imageMap[product._id] ? [imageMap[product._id]] : []
+// }));
 
 
 
@@ -3056,10 +3050,18 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             return res.status(400).json({ status: 400, message: "Missing required fields" });
         }
 
-        const cartItems = await CartItems.find({ _id: { $in: cart_item_ids } });
- 
-        const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
+        const validPaymentMethods = ["COD", "ONLINE"];
+        if (!validPaymentMethods.includes(payment_method)) {
+            return res.status(400).json({ status: 400, message: "Invalid payment method" });
+        }
 
+        const cartItems = await CartItems.find({ _id: { $in: cart_item_ids } });
+        if (cartItems.length !== cart_item_ids.length) {
+            return res.status(400).json({ status: 400, message: "Some cart items are invalid" });
+        }
+
+
+        const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
         const total_price = totalItemPrice + shipping_fee;
 
@@ -3130,7 +3132,7 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
     const interval = setInterval(async () => {
         try {
             attempts++;
-   
+
             const response = await fetch("https://script.google.com/macros/s/AKfycbzvTz-hwBcrfK6dpRKu3slToY2gLr2ftlnoB0KuR3xLWJvkeCz4_BcXzDfRy_Qo-ywk/exec");
             const data = await response.json();
 
@@ -3141,7 +3143,7 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
 
             const transactions = data.data.filter(tx => tx["Mã GD"] && tx["Giá trị"] !== "");
 
-            const matchingTransaction = transactions.find(tx => 
+            const matchingTransaction = transactions.find(tx =>
                 tx["Mô tả"].includes(`OID${order_id}END`) && tx["Giá trị"] === total_price
             );
 
@@ -3158,11 +3160,11 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
 
                 await Orders.updateOne(
                     { _id: order_id, payment_status: "pending" },
-                    { 
-                        $set: { 
+                    {
+                        $set: {
                             payment_status: "failed",
                             status: "canceled"
-                        } 
+                        }
                     }
                 );
 
@@ -3345,7 +3347,7 @@ router.get("/orders", authenticateToken, async (req, res) => {
             ...order,
             items: itemsWithProducts.filter(item => item.order_id.toString() === order._id.toString())
         }));
-        
+
         res.status(200).json({
             status: 200,
             message: "Success",
@@ -3478,7 +3480,7 @@ router.post("/orders/:id/return", authenticateToken, async (req, res) => {
                 message: "This order cannot be returned at its current stage!"
             });
         }
-        
+
         order.return_request = true;
         await order.save();
         await db.ref("return_requests").set({ _id: order._id.toString(), timestamp: Date.now() });
@@ -3544,5 +3546,31 @@ const calculateShippingFee = async (to_district_id, to_ward_code) => {
 };
 
 
+router.get("/chat/fullChat", async (req, res) => {
+    try {
+        const { user_id } = req.query;
+        if (!user_id) {
+            return res.status(400).json({ status: 400, message: "Thiếu user_id!" });
+        }
+        const chat = await Chats.findOne(
+            { user_id: user_id },
+            { _id: 0, "fullChat._id": 0 }
+        );
+
+        if (!chat) {
+            return res.status(404).json({ status: 404, message: "Không tìm thấy dữ liệu chat!" });
+        }
+
+        return res.status(200).json({
+            status: 200,
+            message: "Get all Chat Success!",
+            data: chat.fullChat
+        });
+
+    } catch (error) {
+        console.error("Error fetching chats:", error);
+        return res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+});
 
 module.exports = { router, getUserAddress, getShopInfo };
