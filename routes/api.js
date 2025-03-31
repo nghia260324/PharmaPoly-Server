@@ -3099,7 +3099,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         let qrCodeUrl = null;
         if (payment_method === "ONLINE") {
             qrCodeUrl = generateVietQRQuickLink(newOrder);
-            //checkPaymentStatus(user_id, newOrder._id, total_price);
+            checkPaymentStatus(user_id, newOrder._id, total_price);
         }
 
         return res.status(200).json({
@@ -3180,24 +3180,24 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
     }, 20000);
 }
 
-router.get('/test-payment', async (req, res) => {
-    try {
-        const total_price = 2000;
-        const order_id = "67e55d5f061393fda5add1d5";
-        const user_id = "67b344c3744eaa2ff0f0ce7d";
+// router.get('/test-payment', async (req, res) => {
+//     try {
+//         const total_price = 2000;
+//         const order_id = "67e55d5f061393fda5add1d5";
+//         const user_id = "67b344c3744eaa2ff0f0ce7d";
 
-        if (!user_id || !order_id || !total_price) {
-            return res.status(400).json({ error: "Thiếu tham số user_id, order_id hoặc total_price" });
-        }
+//         if (!user_id || !order_id || !total_price) {
+//             return res.status(400).json({ error: "Thiếu tham số user_id, order_id hoặc total_price" });
+//         }
 
-        await checkPaymentStatus(user_id, order_id, parseInt(total_price));
+//         await checkPaymentStatus(user_id, order_id, parseInt(total_price));
 
-        res.json({ message: "Bắt đầu kiểm tra thanh toán..." });
-    } catch (error) {
-        console.error("❌ Lỗi:", error);
-        res.status(500).json({ error: "Lỗi server" });
-    }
-});
+//         res.json({ message: "Bắt đầu kiểm tra thanh toán..." });
+//     } catch (error) {
+//         console.error("❌ Lỗi:", error);
+//         res.status(500).json({ error: "Lỗi server" });
+//     }
+// });
 
 
 
@@ -3207,9 +3207,6 @@ function generateVietQRQuickLink(order) {
     const template = process.env.TEMPLATE || "compact";
     const addInfo = `OID${order._id}END`;
     return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
-
-    //const testAmount = 2000;
-    //return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${testAmount}&addInfo=${addInfo}`;
 }
 
 router.get("/orders/get-payment-qrcode/:order_id", authenticateToken, async (req, res) => {

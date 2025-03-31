@@ -2,6 +2,7 @@ const cron = require("node-cron");
 const mongoose = require("mongoose");
 const Orders = require("../models/orders");
 const OrderItems = require("../models/orderItems");
+const Products = require("../models/products");
 const dotenv = require("dotenv");
 
 dotenv.config();
