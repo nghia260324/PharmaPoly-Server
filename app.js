@@ -10,7 +10,7 @@ const crypto = require("crypto");
 require("./utils/cronJobs");
 
 const { firebaseAdmin, db } = require('./firebase/firebaseAdmin');
-const SHOP_ID = process.env.GHN_SHOP_ID;
+const SHOP_ID = Number(process.env.GHN_SHOP_ID);
 
 const indexRouter = require('./routes/index');
 //const apiRouter = require('./routes/api')
@@ -117,7 +117,6 @@ app.post('/webhook/ghn', async (req, res) => {
     }
 
     if (order.status === "delivered") {
-      console.log(`Order ${order.order_code} is already delivered. Ignoring update.`);
       return res.status(200).send("Order already delivered");
     }
 
