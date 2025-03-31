@@ -10,6 +10,7 @@ const crypto = require("crypto");
 require("./utils/cronJobs");
 
 const { firebaseAdmin, db } = require('./firebase/firebaseAdmin');
+const SHOP_ID = process.env.GHN_SHOP_ID;
 
 const indexRouter = require('./routes/index');
 //const apiRouter = require('./routes/api')
@@ -69,25 +70,21 @@ app.use("/orders", authenticateToken, authorizeAdmin, orderRouter);
 app.use("/chat", authenticateToken, authorizeAdmin, chatRouter);
 
 
-// hbs.registerHelper('formatType', function(type) {
-//   const formattedTypes = {
-//       "percent": "Percentage",
-//       "fixed": "Fixed Amount",
-//       "free_shipping": "Free Shipping"
-//   };
-//   return formattedTypes[type] || type;
-// });
 
 
 app.post('/webhook/ghn', async (req, res) => {
   try {
+    if (req.method !== 'POST') {
+      return res.status(405).send("Method Not Allowed");
+    }
     const data = req.body;
-    console.log("GHN Webhook Received:", data);
 
     if (!data || !data.OrderCode || !data.Status) {
       return res.status(400).send("Invalid Webhook Data");
     }
-
+    if (data.ShopID !== SHOP_ID) {
+      return res.status(403).send("Forbidden");
+    }
     const ghnStatusMap = {
       "pending": "pending",
       "confirmed": "confirmed",
@@ -105,16 +102,34 @@ app.post('/webhook/ghn', async (req, res) => {
       "cancel": "canceled"
     };
 
-    const newStatus = ghnStatusMap[data.Status] || null;
+    const newStatus = ghnStatusMap[data.Status];
 
     if (!newStatus) {
       console.log(`GHN status ${data.Status} is not recognized.`);
       return res.status(400).send("Unknown GHN status");
     }
 
+    const order = await Orders.findOne({ order_code: data.OrderCode });
+
+    if (!order) {
+      console.log(`Order ${data.OrderCode} not found`);
+      return res.status(404).send("Order not found");
+    }
+
+    if (order.status === "delivered") {
+      console.log(`Order ${order.order_code} is already delivered. Ignoring update.`);
+      return res.status(200).send("Order already delivered");
+    }
+
+    const updateFields = { status: newStatus };
+
+    if (newStatus === "delivered") {
+      updateFields.delivered_at = new Date();
+    }
+
     const updatedOrder = await Orders.findOneAndUpdate(
       { order_code: data.OrderCode },
-      { status: newStatus },
+      updateFields,
       { new: true }
     );
 
@@ -123,7 +138,7 @@ app.post('/webhook/ghn', async (req, res) => {
       return res.status(404).send("Order not found");
     }
 
-    //console.log(`Order ${updatedOrder.order_code} updated to status ${updatedOrder.status}`);
+    console.log(`Order ${updatedOrder.order_code} updated to status ${updatedOrder.status}`);
     res.status(200).send("Webhook received and order updated");
   } catch (error) {
     console.error("Error processing webhook:", error);

@@ -395,6 +395,7 @@
 
 <script>
     const adminId = "67b344c3744eaa2ff0f0ce7d";
+    console.log("🟢 userId gửi lên socket:", adminId);
     window.socket = io("http://localhost:3000", { query: { userId: adminId } });
 
     socket.on("receiveMessage", (data) => {
