@@ -3132,7 +3132,7 @@ router.delete('/delete-payment-status/:userId', authenticateToken, async (req, r
 
 async function checkPaymentStatus(user_id, order_id, total_price) {
     let attempts = 0;
-    const maxAttempts = 20;
+    const maxAttempts = 10;
     const interval = setInterval(async () => {
         try {
             attempts++;
@@ -3153,25 +3153,23 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
 
             if (matchingTransaction) {
                 const transactionId = matchingTransaction["Mã tham chiếu"];
+
+                const order = await Orders.findOne({ _id: order_id });
+
+                if (order && order.payment_status === "paid") {
+                    console.log(`Order ${order_id} đã được thanh toán trước đó, dừng kiểm tra.`);
+                    clearInterval(interval);
+                    return;
+                }
+
                 await Orders.updateOne(
                     { _id: order_id },
-                    { $set: { payment_status: "paid", transaction_id: transactionId  } }
+                    { $set: { payment_status: "paid", transaction_id: transactionId } }
                 );
 
                 await db.ref(`payment_status/${user_id}`).set("PAID");
                 clearInterval(interval);
             } else if (attempts >= maxAttempts) {
-
-                await Orders.updateOne(
-                    { _id: order_id, payment_status: "pending" },
-                    {
-                        $set: {
-                            payment_status: "failed",
-                            status: "canceled"
-                        }
-                    }
-                );
-
                 clearInterval(interval);
             }
         } catch (error) {
