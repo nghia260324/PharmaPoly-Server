@@ -43,7 +43,6 @@ const Chats = require('../models/chats');
 const { log } = require('console');
 const { stringify } = require('querystring');
 
-
 const MAX_QUANTITY_PER_PRODUCT = 20;
 const statusGroups = {
     processing: ["pending", "confirmed", "ready_to_pick"],
@@ -648,70 +647,6 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
 
 // ----- Product ----- //
 
-// Lấy sản phẩm theo id
-
-
-// router.get('/product/top-rated/:limit?', authenticateToken, async (req, res) => {
-//     try {
-//         let limit = parseInt(req.params.limit) || 10;
-//         limit = limit > 20 ? 20 : limit;
-
-//         const products = await Products.find()
-//             .sort({ average_rating: -1 })
-//             .limit(limit)
-//             .populate('category_id')
-//             .populate('brand_id')
-//             .populate('product_type_id')
-//             .lean();
-
-//         const productIds = products.map(product => product._id);
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         }).lean();
-
-//         const productsWithDetails = products.map(product => {
-//             const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
-
-//             return {
-//                 ...product,
-//                 images: primaryImage ? [primaryImage] : [],
-//                 category_id: product.category_id._id,
-//                 brand_id: product.brand_id._id,
-//                 product_type_id: product.product_type_id._id,
-//                 category: {
-//                     _id: product.category_id._id,
-//                     name: product.category_id.name,
-//                 },
-//                 brand: {
-//                     _id: product.brand_id._id,
-//                     name: product.brand_id.name,
-//                     description: product.brand_id.description,
-//                 },
-//                 product_type: {
-//                     _id: product.product_type_id._id,
-//                     name: product.product_type_id.name,
-//                 }
-//             };
-//         });
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Get Top Rated Products Success!',
-//             data: productsWithDetails
-//         });
-//     } catch (error) {
-//         console.error("Error:", error);
-//         return res.status(500).json({
-//             status: 500,
-//             message: 'Internal Server Error'
-//         });
-//     }
-// });
-
-
-// Top sản phẩm được đánh giá cao nhất
-
 router.get('/product/top-rated', authenticateToken, async (req, res) => {
     try {
         let { page = 1, limit = 10 } = req.query;
@@ -757,6 +692,45 @@ router.get('/product/top-rated', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 });
+
+router.get('/product/random', authenticateToken, async (req, res) => {
+    try {
+        let { page = 1, limit = 10 } = req.query;
+
+        const pageNumber = parseInt(page);
+        let limitNumber = parseInt(limit);
+
+        if (limitNumber > 20) {
+            limitNumber = 20;
+        }
+
+        const products = await Products.aggregate([
+            { $sample: { size: limitNumber } }
+        ]);
+
+        const totalProducts = await Products.countDocuments();
+        const totalPages = Math.ceil(totalProducts / limitNumber);
+
+        const formattedProducts = await Promise.all(products.map(p => getProductDetails(p._id)));
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Get Random Products Success!',
+            data: {
+                currentPage: pageNumber,
+                totalPages,
+                totalProducts,
+                hasNextPage: pageNumber < totalPages,
+                hasPrevPage: pageNumber > 1,
+                data: formattedProducts
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching random products:", error);
+        return res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+});
+
 
 const getProductDetails = async (product_id) => {
     try {

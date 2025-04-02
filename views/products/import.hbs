@@ -1,0 +1,203 @@
+<style>
+    .product-name {
+        overflow: hidden;
+        text-wrap: wrap;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .align-items-center {
+        align-items: center !important;
+        padding: 12px;
+    }
+</style>
+<div class="container mt-5">
+    <!-- Button quay lại -->
+    <a href="/products" class="btn btn-secondary mb-4">
+        <i class="bi bi-arrow-left-circle"></i> Quay lại
+    </a>
+
+    <h3>Thêm Lô Hàng Mới</h3>
+
+    <div class="product-card p-2" data-id="{{this._id}}">
+        <div class="row align-items-center">
+            <div class="col-md-1">
+                <img src="{{product_image}}" class="img-fluid rounded"
+                    style="width: 100px; aspect-ratio: 1/1; object-fit: cover;" alt="{{product_name}}">
+            </div>
+
+            <div class="col-md-11">
+                <h6 class="product-name"><strong>Tên: </strong>{{product_name}}</h6>
+                <p><strong>Giá: </strong>{{product_price}} VND</p>
+            </div>
+        </div>
+    </div>
+
+
+
+
+    <!-- Form nhập hàng -->
+    <form id="importStockForm">
+        <input type="hidden" name="product_id" value="{{product_id}}">
+        <div class="mb-3">
+            <label for="batch_number" class="form-label">Mã Lô Hàng</label>
+            <input type="text" id="batch_number" name="batch_number" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="quantity" class="form-label">Số Lượng Nhập</label>
+            <input type="number" id="quantity" name="quantity" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="import_price" class="form-label">Giá Nhập</label>
+            <input type="number" id="import_price" name="import_price" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="expiry_date" class="form-label">Ngày Hết Hạn</label>
+            <input type="date" id="expiry_date" name="expiry_date" class="form-control" required>
+        </div>
+
+        <button type="submit" class="btn btn-success">Thêm Lô Hàng</button>
+    </form>
+
+    <!-- Hiển thị danh sách lô hàng của sản phẩm -->
+    <h4 class="mt-5">Danh Sách Lô Hàng Đã Nhập</h4>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th scope="col">Mã Lô Hàng</th>
+                <th scope="col">Số Lượng Nhập</th>
+                <th scope="col">Giá Nhập</th>
+                <th scope="col">Ngày Hết Hạn</th>
+                <th scope="col">Ngày Nhập</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each stockEntries}}
+            <tr>
+                <td>{{this.batch_number}}</td>
+                <td>{{this.quantity}}</td>
+                <td>{{this.import_price}} VND</td>
+                <td>{{this.expiry_date}}</td>
+                <td>{{this.import_date}}</td>
+            </tr>
+            {{/each}}
+
+        </tbody>
+    </table>
+    {{#if stockEntries.length}}
+    {{else}}
+    <p>Chưa có lô hàng nào.</p>
+    {{/if}}
+</div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <span id="toastText"></span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static"
+    data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content p-4 d-flex align-items-center justify-content-center">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p id="loadingMessage" class="mt-3"><span data-lang="Loading...">Đang xử lý...</span></p>
+        </div>
+    </div>
+</div>
+
+
+<script>
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const toast = new bootstrap.Toast(document.getElementById('toastMessage'));
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        const batchNumberInput = document.getElementById('batch_number');
+        batchNumberInput.value = generateBatchNumber();
+        document.getElementById("importStockForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+            loadingModal.show();
+            document.getElementById('loadingMessage').textContent = 'Đang thêm lô hàng...';
+
+
+            try {
+
+                const formData = new FormData(this);
+                const data = Object.fromEntries(formData.entries());
+                if (data.expiry_date) {
+                    data.expiry_date = new Date(data.expiry_date).toISOString();
+                }
+
+                const response = await fetch(`/products/${data.product_id}/import-stock/add`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Request failed');
+                }
+                const result = await response.json();
+
+                showToast('Thêm lô hàng thành công!', true);
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+
+            } catch (error) {
+                console.error("Lỗi:", error);
+                showToast('Có lỗi xảy ra, vui lòng thử lại!', false);
+            } finally {
+                loadingModal.hide();
+            }
+        });
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('vi-VN');
+        }
+
+        function showToast(message, isSuccess = true) {
+            const toastElement = document.getElementById('toastMessage');
+            const toastText = document.getElementById('toastText');
+
+            toastText.textContent = message;
+            toastElement.classList.remove('bg-success', 'bg-danger');
+            toastElement.classList.add(isSuccess ? 'bg-success' : 'bg-danger');
+            toast.show();
+        }
+        function generateBatchNumber() {
+            const prefix = 'LOT';
+            const randomNum = Math.floor(1000 + Math.random() * 9000);
+            const currentDate = new Date();
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+
+            return `${prefix}-${year}${month}${day}-${randomNum}`;
+        }
+        document.querySelectorAll('td:nth-child(4), td:nth-child(5)').forEach(td => {
+            if (td.textContent) {
+                td.textContent = formatDate(td.textContent);
+            }
+        });
+    });
+
+</script>

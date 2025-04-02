@@ -91,7 +91,35 @@ const registerHelpers = () => {
   hbs.registerHelper("add", (a, b) => a + b);
   hbs.registerHelper("sub", (a, b) => a - b);
   hbs.registerHelper("and", (a, b) => a && b);
+  hbs.registerHelper('formatProductStatus', function (status) {
+    switch (status) {
+      case 'not_started':
+        return 'Chưa bắt đầu bán';
+      case 'active':
+        return 'Đang bán';
+      case 'paused':
+        return 'Tạm ngừng bán';
+      case 'out_of_stock':
+        return 'Hết hàng';
+      default:
+        return 'Trạng thái không xác định';
+    }
+  });
+  hbs.registerHelper("getProductStatusClass", function (status) {
+    const statusClasses = {
+      "not_started": "bg-secondary",
+      "active": "bg-success",
+      "paused": "bg-warning",
+      "out_of_stock": "bg-danger"
+    };
+    return statusClasses[status] || "bg-secondary";
+  });
+  hbs.registerHelper("formatPrice", function (price) {
+    if (typeof price !== "number") {
+      return "N/A";
+    }
+    return price.toLocaleString("vi-VN");
+  });
 };
 
-// Xuất hàm để sử dụng ở nơi khác
 module.exports = registerHelpers;

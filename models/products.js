@@ -13,8 +13,16 @@ const Products = new Schema({
     manufacturer: {type: String, required: true},
     average_rating: {type: Number, required: true, default: 0},
     review_count: {type: Number, required: true, default: 0},
-    expiry_date: { type: Date, required: true },
-    stock_quantity: { type: Number, required: true, default: 0 },
+    status: {
+        type: String,
+        enum: [
+            'not_started', // Sản phẩm chưa bắt đầu bán
+            'active', // Sản phẩm đang được bán
+            'paused', // Sản phẩm tạm ngừng bán
+            'out_of_stock', // Sản phẩm hết hàng
+        ],
+        default: 'not_started' // Mặc định là chưa bắt đầu bán
+    },
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });

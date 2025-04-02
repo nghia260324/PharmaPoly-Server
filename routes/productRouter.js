@@ -14,56 +14,8 @@ const ProductImages = require('../models/productImages');
 const ProductSections = require('../models/productSections');
 const ProductSectionDetails = require('../models/productSectionDetails');
 const Uploads = require('../config/common/upload');
+const StockEntries = require('../models/stockEntries');
 
-
-// async function updateAllProducts() {
-//     try {
-//         const result = await Products.updateMany({}, { 
-//             stock_quantity: 1000, 
-//             expiry_date: new Date("2026-01-28") 
-//         });
-
-//         console.log(`Updated ${result.modifiedCount} products successfully!`);
-//     } catch (error) {
-//         console.error("Error updating products:", error);
-//     }
-// }
-
-// // Gọi hàm để chạy cập nhật
-// updateAllProducts();
-// router.get('/', async function (req, res, next) {
-//     try {
-//         const [products, categories, sections, brands, productTypes] = await Promise.all([
-//             Products.find(),
-//             Categories.find(),
-//             Sections.find(),
-//             Brands.find(),
-//             ProductTypes.find()
-//         ]);
-
-//         const productIds = products.map(p => p._id);
-//         const images = await ProductImages.find({ product_id: { $in: productIds }, is_primary: true }).lean();
-
-//         const productMap = images.reduce((acc, img) => {
-//             acc[img.product_id] = img.image_url;
-//             return acc;
-//         }, {});
-
-//         products.forEach(p => {
-//             p.image = productMap[p._id];
-//         });
-
-//         res.render('products/list', {
-//             products,
-//             categories,
-//             sections,
-//             brands,
-//             productTypes
-//         });
-//     } catch (error) {
-//         next(error);
-//     }
-// });
 
 router.get("/", async (req, res) => {
     const { page = 1, limit = 10, search, sort } = req.query;
@@ -92,19 +44,21 @@ router.get("/", async (req, res) => {
         .limit(parseInt(limit))
         .lean();
 
-    // Lấy danh sách ảnh chính của các sản phẩm
     const productIds = products.map(p => p._id);
-    const images = await ProductImages.find({ product_id: { $in: productIds }, is_primary: true }).lean();
+    //const images = await ProductImages.find({ product_id: { $in: productIds }, is_primary: true }).lean();
+    const [images, stockQuantities] = await Promise.all([
+        ProductImages.find({ product_id: { $in: productIds }, is_primary: true }).lean(),
+        Promise.all(productIds.map(id => getProductStockQuantity(id)))
+    ]);
 
-    // Tạo mapping giữa product_id và image_url
     const productMap = images.reduce((acc, img) => {
         acc[img.product_id] = img.image_url;
         return acc;
     }, {});
 
-    // Gán ảnh cho từng sản phẩm
-    products.forEach(p => {
-        p.image = productMap[p._id] || "/default-image.jpg"; // Ảnh mặc định nếu không có ảnh chính
+    products.forEach((p, index) => {
+        p.image = productMap[p._id] || "/default-image.jpg";
+        p.stock_quantity = stockQuantities[index];
     });
 
     const totalProducts = await Products.countDocuments(query);
@@ -124,7 +78,136 @@ router.get("/", async (req, res) => {
     });
 });
 
+async function getProductStockQuantity(product_id) {
+    try {
+        const stockEntries = await StockEntries.find({
+            product_id: product_id,
+            remaining_quantity: { $gt: 0 }
+        }).lean();
 
+        const totalStock = stockEntries.reduce((sum, entry) => {
+            return sum + entry.remaining_quantity;
+        }, 0);
+
+        return totalStock;
+    } catch (error) {
+        console.error('Error getting product stock quantity:', error);
+        throw error;
+    }
+}
+
+router.get('/:id/edit', async (req, res) => {
+    try {
+        const productId = req.params.id;
+        const [categories, sections, brands, productTypes] = await Promise.all([
+            Categories.find(),
+            Sections.find(),
+            Brands.find(),
+            ProductTypes.find()
+        ]);
+
+        res.render('products/edit', {
+            product_id: productId,
+            categories,
+            sections,
+            brands,
+            productTypes,
+        });
+    } catch (error) {
+        console.error("Error updating product:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+    }
+});
+
+router.get('/:product_id/import-stock', async (req, res) => {
+    const { product_id } = req.params;
+
+    try {
+        const product = await Products.findById(product_id);
+
+        if (!product) {
+            return res.status(404).send('Sản phẩm không tìm thấy');
+        }
+
+        const productImage = await ProductImages.findOne({ product_id, is_primary: true });
+
+        const stockEntries = await StockEntries.find({ product_id }).sort({ import_date: -1 });
+
+        res.render('products/import', {
+            product_id: product._id,
+            product_name: product.name,
+            product_image: productImage.image_url,
+            product_price: product.price,
+            stockEntries: stockEntries
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Có lỗi xảy ra khi tải trang nhập hàng');
+    }
+});
+
+router.post('/:product_id/import-stock/add', async (req, res) => {
+    try {
+        const { product_id, batch_number, quantity, import_price, expiry_date } = req.body;
+
+        const product = await Products.findById(product_id);
+        if (!product) {
+            return res.status(404).json({ 
+                status: 404, 
+                message: "Product not found!" 
+            });
+        }
+
+        if (!batch_number || !quantity || !import_price || !expiry_date) {
+            return res.status(400).json({ 
+                status: 400, 
+                message: "Missing required fields!" 
+            });
+        }
+
+        const expiryDateObj = new Date(expiry_date);
+        if (isNaN(expiryDateObj.getTime())) {
+            return res.status(400).json({
+                status: 400,
+                message: "Invalid expiry date format! Please use YYYY-MM-DD"
+            });
+        }
+
+        const newStockEntry = new StockEntries({
+            batch_number,
+            product_id,
+            import_price: Number(import_price),
+            quantity: Number(quantity),
+            remaining_quantity: Number(quantity),
+            expiry_date: expiryDateObj
+        });
+
+        const savedEntry = await newStockEntry.save();
+
+        res.status(200).json({
+            status: 200,
+            message: `Stock entry ${savedEntry.batch_number} added successfully!`,
+            data: savedEntry
+        });
+
+    } catch (error) {
+        console.error("❌ Error adding stock entry:", error);
+        
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ 
+                status: 400, 
+                message: "Validation Error",
+                error: error.message 
+            });
+        }
+
+        res.status(500).json({ 
+            status: 500, 
+            message: "Internal Server Error!", 
+            error: error.message 
+        });
+    }
+});
 
 router.post('/add', Uploads.array('images', 10), async (req, res) => {
     try {
@@ -139,9 +222,7 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
             !data.short_description ||
             !data.specification ||
             !data.origin_country ||
-            !data.manufacturer ||
-            !data.stock_quantity ||
-            !data.expiry_date) {
+            !data.manufacturer) {
             return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
         }
 
@@ -155,8 +236,6 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
             specification: data.specification,
             origin_country: data.origin_country,
             manufacturer: data.manufacturer,
-            stock_quantity: data.stock_quantity,
-            expiry_date: new Date(data.expiry_date),
         });
         const savedProduct = await newProduct.save();
 
@@ -350,9 +429,7 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
             !data.short_description ||
             !data.specification ||
             !data.origin_country ||
-            !data.manufacturer ||
-            !data.stock_quantity ||
-            !data.expiry_date) {
+            !data.manufacturer) {
             return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
         }
 
@@ -366,8 +443,6 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
             specification: data.specification,
             origin_country: data.origin_country,
             manufacturer: data.manufacturer,
-            stock_quantity: data.stock_quantity,
-            expiry_date: new Date(data.expiry_date),
         }, { new: true });
 
         if (!updatedProduct) {
