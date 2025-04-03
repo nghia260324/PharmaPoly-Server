@@ -152,16 +152,16 @@ router.post('/:product_id/import-stock/add', async (req, res) => {
 
         const product = await Products.findById(product_id);
         if (!product) {
-            return res.status(404).json({ 
-                status: 404, 
-                message: "Product not found!" 
+            return res.status(404).json({
+                status: 404,
+                message: "Product not found!"
             });
         }
 
         if (!batch_number || !quantity || !import_price || !expiry_date) {
-            return res.status(400).json({ 
-                status: 400, 
-                message: "Missing required fields!" 
+            return res.status(400).json({
+                status: 400,
+                message: "Missing required fields!"
             });
         }
 
@@ -192,22 +192,213 @@ router.post('/:product_id/import-stock/add', async (req, res) => {
 
     } catch (error) {
         console.error("❌ Error adding stock entry:", error);
-        
+
         if (error.name === 'ValidationError') {
-            return res.status(400).json({ 
-                status: 400, 
+            return res.status(400).json({
+                status: 400,
                 message: "Validation Error",
-                error: error.message 
+                error: error.message
             });
         }
 
-        res.status(500).json({ 
-            status: 500, 
-            message: "Internal Server Error!", 
-            error: error.message 
+        res.status(500).json({
+            status: 500,
+            message: "Internal Server Error!",
+            error: error.message
         });
     }
 });
+
+router.post('/:product_id/import-stock/:id/update-info', async (req, res) => {
+    const { product_id, id } = req.params;
+    const { batch_number, quantity, import_price, expiry_date } = req.body;
+
+    if (!batch_number || !quantity || !import_price || !expiry_date) {
+        return res.status(400).json({
+            status: 400,
+            message: "Missing required fields!"
+        });
+    }
+
+    const expiryDateObj = new Date(expiry_date);
+    if (isNaN(expiryDateObj.getTime())) {
+        return res.status(400).json({
+            status: 400,
+            message: "Invalid expiry date format! Please use YYYY-MM-DD"
+        });
+    }
+
+    try {
+        const product = await Products.findById(product_id);
+        if (!product) {
+            return res.status(404).json({
+                status: 404,
+                message: "Product not found!"
+            });
+        }
+
+        const stockEntry = await StockEntries.findById(id);
+        if (!stockEntry) {
+            return res.status(404).json({
+                status: 404,
+                message: "Stock entry not found!"
+            });
+        }
+
+        if (stockEntry.status !== 'not_started') {
+            return res.status(400).json({
+                status: 400,
+                message: "You can only update stock information when the status is 'not_started'."
+            });
+        }
+
+        stockEntry.batch_number = batch_number;
+        stockEntry.quantity = quantity;
+        stockEntry.import_price = import_price;
+        stockEntry.expiry_date = expiryDateObj;
+        stockEntry.remaining_quantity = quantity;
+
+        const updatedStockEntry = await stockEntry.save();
+
+        res.status(200).json({
+            status: 200,
+            message: `Stock entry ${id} updated successfully!`,
+            data: updatedStockEntry
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating stock entry information:", error);
+
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({
+                status: 400,
+                message: "Validation Error",
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            status: 500,
+            message: "Internal Server Error!",
+            error: error.message
+        });
+    }
+});
+
+
+router.put('/:product_id/import-stock/:id/update-status', async (req, res) => {
+    const { product_id, id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['not_started', 'active', 'paused', 'sold_out', 'expired', 'discontinued'];
+
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+            status: 400,
+            message: "Invalid status! Please use one of the following: not_started, active, paused, sold_out, expired, discontinued."
+        });
+    }
+
+    try {
+        const product = await Products.findById(product_id);
+        if (!product) {
+            return res.status(404).json({
+                status: 404,
+                message: "Product not found!"
+            });
+        }
+
+        const stockEntry = await StockEntries.findById(id); // Sử dụng id để tìm stockEntry
+        if (!stockEntry) {
+            return res.status(404).json({
+                status: 404,
+                message: "Stock entry not found!"
+            });
+        }
+
+        const currentStatus = stockEntry.status;
+
+        // Không thể chuyển sang 'sold_out' hoặc 'expired' từ bất kỳ trạng thái nào
+        if (status === 'sold_out' || status === 'expired') {
+
+            return res.status(400).json({
+                status: 400,
+                message: `Cannot change status to ${status}. It is a final state.`
+            });
+        }
+
+        // Kiểm tra trạng thái 'sold_out' hoặc 'expired' không thể chuyển từ trạng thái khác
+        if (currentStatus === 'sold_out' || currentStatus === 'expired' || currentStatus === 'discontinued') {
+            return res.status(400).json({
+                status: 400,
+                message: `Cannot change status from ${currentStatus}. It is a final state.`
+            });
+        }
+
+        // Kiểm tra các chuyển trạng thái hợp lệ
+        if (currentStatus === 'active' || currentStatus === 'paused') {
+            if (status === 'discontinued') {
+                // Từ "active" hoặc "paused" có thể chuyển sang "discontinued"
+                stockEntry.status = status;
+            } else if (status !== 'active' && status !== 'paused') {
+                return res.status(400).json({
+                    status: 400,
+                    message: `Cannot change from ${currentStatus} to ${status}. You can only toggle between 'active', 'paused', and 'discontinued'.`
+                });
+            } else {
+                // Chỉ có thể chuyển qua lại giữa "active" và "paused"
+                stockEntry.status = status;
+            }
+        } else if (currentStatus === 'not_started') {
+            // Từ 'not_started' có thể chuyển sang 'active', 'paused', hoặc 'discontinued'
+            if (status !== 'active' && status !== 'paused' && status !== 'discontinued') {
+                return res.status(400).json({
+                    status: 400,
+                    message: `Cannot change from 'not_started' to ${status}. You can only transition to 'active', 'paused', or 'discontinued'.`
+                });
+            }
+            stockEntry.status = status;
+        } else if (currentStatus === 'discontinued') {
+            return res.status(400).json({
+                status: 400,
+                message: "Cannot change status from 'discontinued'. It is a final state."
+            });
+        }
+
+        const updatedStockEntry = await stockEntry.save();
+
+        res.status(200).json({
+            status: 200,
+            message: `Stock entry ${id} status updated to ${status}!`,
+            data: updatedStockEntry
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating stock entry status:", error);
+
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({
+                status: 400,
+                message: "Validation Error",
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            status: 500,
+            message: "Internal Server Error!",
+            error: error.message
+        });
+    }
+});
+
+
+
+
+
+
+
+
 
 router.post('/add', Uploads.array('images', 10), async (req, res) => {
     try {

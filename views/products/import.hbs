@@ -40,7 +40,9 @@
 
     <!-- Form nhập hàng -->
     <form id="importStockForm">
-        <input type="hidden" name="product_id" value="{{product_id}}">
+        <input type="hidden" id="produc_id" name="product_id" value="{{product_id}}">
+        <input type="hidden" id="stock_entry_id" name="stock_entry_id">
+
         <div class="mb-3">
             <label for="batch_number" class="form-label">Mã Lô Hàng</label>
             <input type="text" id="batch_number" name="batch_number" class="form-control" required>
@@ -60,7 +62,7 @@
             <input type="date" id="expiry_date" name="expiry_date" class="form-control" required>
         </div>
 
-        <button type="submit" class="btn btn-success">Thêm Lô Hàng</button>
+        <button type="submit" class="btn btn-success">Lưu</button>
     </form>
 
     <!-- Hiển thị danh sách lô hàng của sản phẩm -->
@@ -74,6 +76,8 @@
                 <th scope="col">Giá Nhập</th>
                 <th scope="col">Ngày Hết Hạn</th>
                 <th scope="col">Ngày Nhập</th>
+                <th scope="col">Trạng Thái</th>
+                <th scope="col">Hành Động</th>
             </tr>
         </thead>
         <tbody>
@@ -84,6 +88,51 @@
                 <td>{{this.import_price}} VND</td>
                 <td>{{this.expiry_date}}</td>
                 <td>{{this.import_date}}</td>
+                <td>
+                    <select class="form-select status-select" data-id="{{this._id}}" {{#if (or (eq
+                        this.status "sold_out" ) (eq this.status "expired" ))}}disabled{{/if}}>
+                        {{#if (eq this.status "not_started")}}
+                        <option value="not_started" selected>Chưa Sẵn Sàng Bán</option>
+                        <option value="active">Sẵn Sàng Bán</option>
+                        <option value="paused">Tạm Ngừng Bán</option>
+                        <option value="discontinued">Ngừng Bán</option>
+                        {{/if}}
+
+                        {{#if (eq this.status "active")}}
+                        <option value="active" selected>Sẵn Sàng Bán</option>
+                        <option value="paused">Tạm Ngừng Bán</option>
+                        <option value="discontinued">Ngừng Bán</option>
+                        {{/if}}
+
+                        {{#if (eq this.status "paused")}}
+                        <option value="paused" selected>Tạm Ngừng Bán</option>
+                        <option value="active">Sẵn Sàng Bán</option>
+                        <option value="discontinued">Ngừng Bán</option>
+                        {{/if}}
+
+                        {{#if (eq this.status "sold_out")}}
+                        <option value="sold_out" selected>Đã Bán Hết</option>
+                        {{/if}}
+
+                        {{#if (eq this.status "expired")}}
+                        <option value="expired" selected>Hết Hạn</option>
+                        {{/if}}
+
+                        {{#if (eq this.status "discontinued")}}
+                        <option value="discontinued" selected>Ngừng Bán</option>
+                        {{/if}}
+                    </select>
+                </td>
+
+
+                <td>
+                    {{#if (eq this.status "not_started")}}
+                    <button class="btn btn-primary btn-sm edit-btn" data-batch-number="{{this.batch_number}}"
+                        data-quantity="{{this.quantity}}" data-import-price="{{this.import_price}}"
+                        data-expiry-date="{{this.expiry_date}}" data-id="{{this._id}}">Sửa</button>
+                    <button class="btn btn-danger btn-sm delete-btn" data-id="{{this._id}}">Xóa</button>
+                    {{/if}}
+                </td>
             </tr>
             {{/each}}
 
@@ -94,6 +143,25 @@
     <p>Chưa có lô hàng nào.</p>
     {{/if}}
 </div>
+
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Xác Nhận Xóa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc chắn muốn xóa lô hàng này không?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" id="confirmDeleteButton" class="btn btn-danger">Xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <div class="toast-container position-fixed top-0 end-0 p-3">
     <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
@@ -118,6 +186,26 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="confirmStatusChangeModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static"
+    data-bs-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Xác Nhận Thay Đổi Trạng Thái</h5>
+                <button type="button" id="closeStatusChangeButton" class="btn-close" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc chắn muốn thay đổi trạng thái của lô hàng này?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancelStatusChangeButton" class="btn btn-secondary"
+                    data-bs-dismiss="modal">Hủy</button>
+                <button type="button" id="confirmStatusChangeButton" class="btn btn-success">Xác Nhận</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 <script>
@@ -126,13 +214,68 @@
     document.addEventListener('DOMContentLoaded', function () {
         const toast = new bootstrap.Toast(document.getElementById('toastMessage'));
         const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        const productId = document.getElementById('produc_id').value;
+
+        const confirmStatusChangeModal = new bootstrap.Modal(document.getElementById('confirmStatusChangeModal'));
+        let selectedStatusElement = null;
+        let selectedStatusValue = null;
+        let selectedStockEntryId = null;
+
+        document.querySelectorAll('.status-select').forEach(select => {
+            select.addEventListener('change', function () {
+                selectedStatusElement = this;
+                selectedStatusValue = this.value;
+                selectedStockEntryId = this.getAttribute('data-id');
+
+                confirmStatusChangeModal.show();
+            });
+
+        });
+        document.getElementById('cancelStatusChangeButton').addEventListener('click', function () {
+            location.reload();
+        });
+        document.getElementById('closeStatusChangeButton').addEventListener('click', function () {
+            location.reload();
+        });
+        document.getElementById('confirmStatusChangeButton').addEventListener('click', async function () {
+            confirmStatusChangeModal.hide();
+
+            try {
+                const response = await fetch(`/products/${productId}/import-stock/${selectedStockEntryId}/update-status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        status: selectedStatusValue
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Request failed');
+                }
+
+                showToast('Trạng thái lô hàng đã được thay đổi thành công!', true);
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } catch (error) {
+                console.error('Lỗi:', error);
+                showToast('Có lỗi xảy ra, vui lòng thử lại!', false);
+            }
+        });
+
+
+
+
+
         const batchNumberInput = document.getElementById('batch_number');
         batchNumberInput.value = generateBatchNumber();
         document.getElementById("importStockForm").addEventListener("submit", async function (event) {
             event.preventDefault();
             loadingModal.show();
-            document.getElementById('loadingMessage').textContent = 'Đang thêm lô hàng...';
-
+            document.getElementById('loadingMessage').textContent = 'Đang xử lý...';
 
             try {
 
@@ -142,20 +285,23 @@
                     data.expiry_date = new Date(data.expiry_date).toISOString();
                 }
 
-                const response = await fetch(`/products/${data.product_id}/import-stock/add`, {
+                const url = data.stock_entry_id
+                    ? `/products/${data.product_id}/import-stock/${data.stock_entry_id}/update-info`  // Update request
+                    : `/products/${data.product_id}/import-stock/add`;
+
+                const response = await fetch(url, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(data)
                 });
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(errorText || 'Request failed');
                 }
                 const result = await response.json();
 
-                showToast('Thêm lô hàng thành công!', true);
+                showToast(data.stock_entry_id ? 'Cập nhật lô hàng thành công!' : 'Thêm lô hàng thành công!', true);
                 setTimeout(() => {
                     location.reload();
                 }, 1500);
@@ -167,6 +313,30 @@
                 loadingModal.hide();
             }
         });
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const batchNumber = this.getAttribute('data-batch-number');
+                const quantity = this.getAttribute('data-quantity');
+                const importPrice = this.getAttribute('data-import-price');
+                const expiryDate = this.getAttribute('data-expiry-date');
+                const stockEntryId = this.getAttribute('data-id');
+                const stockStatus = this.getAttribute('data-status');
+
+                document.getElementById('batch_number').value = batchNumber;
+                document.getElementById('quantity').value = quantity;
+                document.getElementById('import_price').value = importPrice;
+                document.getElementById('expiry_date').value = formatToDateInput(expiryDate);
+                document.getElementById('stock_entry_id').value = stockEntryId;
+                document.getElementById('stock_status').value = stockStatus;
+            });
+        });
+        function formatToDateInput(dateString) {
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
         function formatDate(dateString) {
             if (!dateString) return '';
