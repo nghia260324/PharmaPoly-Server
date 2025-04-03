@@ -2872,6 +2872,7 @@ router.post("/calculate-shipping-fee", async (req, res) => {
     }
 });
 
+
 router.post("/orders/create", authenticateToken, async (req, res) => {
     try {
         const { payment_method, cart_item_ids } = req.body;
@@ -2912,6 +2913,12 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             return res.status(400).json({ status: 400, message: "Some cart items are invalid" });
         }
 
+        for (const item of cartItems) {
+            const stockEntry = await StockEntries.findOne({ product_id: item.product_id, status: "active" });
+            if (!stockEntry || stockEntry.remaining_quantity < item.quantity) {
+                return res.status(400).json({ status: 400, message: `Not enough stock for product: ${item.product_id}` });
+            }
+        }
 
         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
@@ -2936,11 +2943,20 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         const orderItems = cartItems.map(item => ({
             order_id: newOrder._id,
             product_id: item.product_id,
+            batch_number: item.batch_number,
             quantity: item.quantity,
             price: item.original_price
         }));
 
         await OrderItems.insertMany(orderItems);
+
+        for (const item of cartItems) {
+            await StockEntries.updateOne(
+                { product_id: item.product_id, status: "active", batch_number: item.batch_number },
+                { $inc: { remaining_quantity: -item.quantity } }
+            );
+        }
+
         await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
 
