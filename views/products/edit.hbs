@@ -59,27 +59,11 @@
 
                         <!-- Price -->
                         <div class="mb-3">
-                            <label for="editProductPrice" class="form-label"><span data-lang="selling_price">Price</span>
+                            <label for="editProductPrice" class="form-label"><span
+                                    data-lang="selling_price">Price</span>
                                 (VND)</label>
                             <input type="number" class="form-control" id="editProductPrice" min="1" required>
                         </div>
-
-                        {{!-- <!-- Average Rating -->
-                        <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
-                            <label for="editProductAverageRating" class="form-label"><span
-                                    data-lang="average_rating">Average
-                                    Rating</span></label>
-                            <input type="number" class="form-control bg-secondary text-white"
-                                id="editProductAverageRating" value="0" readonly>
-                        </div>
-
-                        <!-- Review Count -->
-                        <div class="mb-3" style="pointer-events: none; cursor: default; user-select: none;">
-                            <label for="editProductReviewCount" class="form-label"><span data-lang="review_count">Review
-                                    Count</span></label>
-                            <input type="number" class="form-control bg-secondary text-white"
-                                id="editProductReviewCount" value="0" readonly>
-                        </div> --}}
 
                         <!-- Short Description -->
                         <div class="mb-3">
@@ -112,6 +96,18 @@
                             <input type="text" class="form-control" id="editProductOriginCountry"
                                 placeholder="Enter the country of origin">
                         </div>
+                        <!-- Status -->
+                        <div class="mb-3">
+                            <label for="editProductStatus" class="form-label"><span data-lang="product_status">Product
+                                    Status</span></label>
+                            <select class="form-select" id="editProductStatus" required>
+                                <option value="not_started" data-lang="not_started">Chưa bắt đầu bán</option>
+                                <option value="active" data-lang="active">Đang bán</option>
+                                <option value="paused" data-lang="paused">Tạm ngừng bán</option>
+                                <option value="out_of_stock" data-lang="out_of_stock">Hết hàng</option>
+                            </select>
+                        </div>
+
 
                     </div>
 
@@ -384,6 +380,16 @@
                     document.getElementById("editProductOriginCountry").value = product.origin_country;
                     document.getElementById("editProductManufacturer").value = product.manufacturer;
 
+                    const statusSelect = document.getElementById("editProductStatus");
+                    statusSelect.value = product.status; // Đặt trạng thái hiện tại
+
+                    if (product.status !== "not_started") {
+                        // Nếu sản phẩm đã được bán, ẩn tùy chọn "not_started"
+                        const notStartedOption = statusSelect.querySelector('option[value="not_started"]');
+                        if (notStartedOption) {
+                            notStartedOption.style.display = "none";
+                        }
+                    }
 
                     const sectionContainer = document.getElementById("editSectionContainer");
                     sectionContainer.innerHTML = "";
@@ -683,6 +689,8 @@
             formData.append('specification', document.getElementById('editProductSpecification').value);
             formData.append('origin_country', document.getElementById('editProductOriginCountry').value);
             formData.append('manufacturer', document.getElementById('editProductManufacturer').value);
+            formData.append('status', document.getElementById('editProductStatus').value);
+
 
             const imageContainers = editImagePreview.querySelectorAll('.image-container');
             const imageData = [];

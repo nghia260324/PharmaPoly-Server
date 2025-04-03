@@ -84,9 +84,7 @@ const registerHelpers = () => {
   hbs.registerHelper("gt", (a, b) => a > b);
   hbs.registerHelper("lt", (a, b) => a < b);
   hbs.registerHelper("eq", (a, b) => a === b);
-  hbs.registerHelper('neq', function (a, b) {
-    return a !== b;
-  });
+  hbs.registerHelper('neq', (a, b) => a !== b);
   hbs.registerHelper("or", (a, b) => a || b);
   hbs.registerHelper("multiply", (a, b) => a * b);
   hbs.registerHelper("addOne", (value) => value + 1);

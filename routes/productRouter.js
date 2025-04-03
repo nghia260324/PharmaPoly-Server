@@ -610,7 +610,6 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
         const productId = req.params.id;
         const data = req.body;
         const files = req.files;
-        console.log("Received Data:", data);
 
         if (!data.name ||
             !data.category_id ||
@@ -620,9 +619,24 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
             !data.short_description ||
             !data.specification ||
             !data.origin_country ||
-            !data.manufacturer) {
+            !data.manufacturer ||
+            !data.status) {
             return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
         }
+
+        const existingProduct = await Products.findById(productId);
+        if (!existingProduct) {
+            return res.status(404).json({ status: 404, message: "Product not found!" });
+        }
+
+        if (['active', 'paused', 'out_of_stock'].includes(existingProduct.status) && data.status === 'not_started') {
+            return res.status(400).json({
+                status: 400,
+                message: "Cannot change status back to 'not_started' from 'active', 'paused', or 'out_of_stock'."
+            });
+        }
+
+
 
         const updatedProduct = await Products.findByIdAndUpdate(productId, {
             name: data.name,
@@ -634,6 +648,7 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
             specification: data.specification,
             origin_country: data.origin_country,
             manufacturer: data.manufacturer,
+            status: data.status,
         }, { new: true });
 
         if (!updatedProduct) {

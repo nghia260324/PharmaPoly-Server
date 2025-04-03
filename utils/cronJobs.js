@@ -6,55 +6,30 @@ const Products = require("../models/products");
 const dotenv = require("dotenv");
 
 dotenv.config();
-
 cron.schedule("*/2 * * * *", async () => {
     try {
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
         const orders = await Orders.find({
             payment_method: "ONLINE",
             payment_status: "pending",
-            status: "confirmed"
+            status: "confirmed",
+            created_at: { $lte: tenMinutesAgo }
         });
 
-        let canceledCount = 0;
-        let restockedProducts = {};
+        if (orders.length === 0) return;
 
-        for (const order of orders) {
-            const orderItems = await OrderItems.find({ order_id: order._id }).populate("product_id");
+        const orderIds = orders.map(order => order._id);
 
-            for (const item of orderItems) {
-                const productId = item.product_id._id.toString();
+        await Orders.updateMany(
+            { _id: { $in: orderIds } },
+            { status: "canceled", payment_status: "failed" }
+        );
 
-                await Products.updateOne(
-                    { _id: productId },
-                    { $inc: { stock_quantity: item.quantity } }
-                );
-
-                if (!restockedProducts[productId]) {
-                    restockedProducts[productId] = { 
-                        name: item.product_id.name, 
-                        quantity: 0 
-                    };
-                }
-                restockedProducts[productId].quantity += item.quantity;
-            }
-
-            order.status = "canceled";
-            order.payment_status = "failed";
-            await order.save();
-            canceledCount++;
-        }
-
-        // if (canceledCount > 0) {
-        //     console.log(`Total ${canceledCount} orders have been auto-canceled.`);
-
-        //     console.log("Restocked items:");
-        //     for (const [productId, info] of Object.entries(restockedProducts)) {
-        //         console.log(`- ${info.name}: +${info.quantity} items`);
-        //     }
-        // }
+        console.log(`✅ Canceled ${orders.length} unpaid online orders.`);
     } catch (error) {
-        console.error("Error auto-canceling orders:", error);
+        console.error("❌ Error auto-canceling orders:", error);
     }
 });
 
-console.log("Cron job for auto-canceling unpaid orders is running...");
+console.log("🚀 Cron job for auto-canceling unpaid orders is running...");

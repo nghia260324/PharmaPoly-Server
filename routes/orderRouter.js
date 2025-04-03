@@ -22,7 +22,6 @@ router.get("/", async (req, res) => {
         ];
     }
 
-    //if (status) query.status = status;
     if (status) {
         if (status === "cancel_request") {
             query.cancel_request = true;

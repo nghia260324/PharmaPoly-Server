@@ -761,6 +761,7 @@ const getProductDetails = async (product_id) => {
             category: product.category_id,
             brand: product.brand_id,
             product_type: product.product_type_id,
+            status: product.status,
             images: primaryImage ? [primaryImage] : [],
             created_at: product.createdAt,
             updated_at: product.updatedAt
@@ -773,80 +774,18 @@ const getProductDetails = async (product_id) => {
 };
 
 
-// Lấy sản phẩm theo id
-
-
-// router.get('/product/most-reviewed/:limit?', authenticateToken, async (req, res) => {
-//     try {
-//         let limit = parseInt(req.params.limit) || 10;
-//         limit = limit > 20 ? 20 : limit;
-
-//         const products = await Products.find()
-//             .sort({ review_count: -1 })
-//             .limit(limit)
-//             .populate('category_id')
-//             .populate('brand_id')
-//             .populate('product_type_id')
-//             .lean();
-
-//         const productIds = products.map(product => product._id);
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         }).lean();
-
-//         const productsWithDetails = products.map(product => {
-//             const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
-
-//             return {
-//                 ...product,
-//                 images: primaryImage ? [primaryImage] : [],
-//                 category_id: product.category_id._id,
-//                 brand_id: product.brand_id._id,
-//                 product_type_id: product.product_type_id._id,
-//                 category: {
-//                     _id: product.category_id._id,
-//                     name: product.category_id.name,
-//                 },
-//                 brand: {
-//                     _id: product.brand_id._id,
-//                     name: product.brand_id.name,
-//                     description: product.brand_id.description,
-//                 },
-//                 product_type: {
-//                     _id: product.product_type_id._id,
-//                     name: product.product_type_id.name,
-//                 }
-//             };
-//         });
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Get Most Reviewed Products Success!',
-//             data: productsWithDetails
-//         });
-//     } catch (error) {
-//         console.error("Error:", error);
-//         return res.status(500).json({
-//             status: 500,
-//             message: 'Internal Server Error'
-//         });
-//     }
-// });
-
-// Các sản phẩm có nhiều đánh giá nhất
-router.get('/product/most-reviewed', authenticateToken, async (req, res) => {
+router.get('/product/most-reviewed', async (req, res) => {
     try {
         let { page = 1, limit = 10 } = req.query;
         page = parseInt(page);
-        limit = Math.min(parseInt(limit), 20); // Giới hạn tối đa 20 sản phẩm
+        limit = Math.min(parseInt(limit), 20);
         const skip = (page - 1) * limit;
 
         const totalProducts = await Products.countDocuments();
         const totalPages = Math.ceil(totalProducts / limit);
 
         const products = await Products.find()
-            .sort({ review_count: -1 }) // Sắp xếp theo số lượng đánh giá giảm dần
+            .sort({ review_count: -1 })
             .skip(skip)
             .limit(limit)
             .populate('category_id')
@@ -854,32 +793,7 @@ router.get('/product/most-reviewed', authenticateToken, async (req, res) => {
             .populate('product_type_id')
             .lean();
 
-        const productIds = products.map(product => product._id);
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        }).lean();
-
-        const productsWithDetails = products.map(product => {
-            const primaryImage = primaryImages.find(img => img.product_id.equals(product._id));
-
-            return {
-                ...product,
-                images: primaryImage ? [primaryImage] : [],
-                category_id: product.category_id?._id,
-                brand_id: product.brand_id?._id,
-                product_type_id: product.product_type_id?._id,
-                category: product.category_id
-                    ? { _id: product.category_id._id, name: product.category_id.name }
-                    : null,
-                brand: product.brand_id
-                    ? { _id: product.brand_id._id, name: product.brand_id.name, description: product.brand_id.description }
-                    : null,
-                product_type: product.product_type_id
-                    ? { _id: product.product_type_id._id, name: product.product_type_id.name }
-                    : null
-            };
-        });
+        const formattedProducts = await Promise.all(products.map(p => getProductDetails(p._id)));
 
         return res.status(200).json({
             status: 200,
@@ -890,7 +804,7 @@ router.get('/product/most-reviewed', authenticateToken, async (req, res) => {
                 totalProducts,
                 hasNextPage: page < totalPages,
                 hasPrevPage: page > 1,
-                products: productsWithDetails,
+                products: formattedProducts,
             }
         });
     } catch (error) {
@@ -902,46 +816,6 @@ router.get('/product/most-reviewed', authenticateToken, async (req, res) => {
     }
 });
 
-// Lấy sản phẩm theo id
-// router.get('/product/:id', authenticateToken, async function (req, res, next) {
-//     try {
-//         const { id } = req.params;
-//         const product = await Products.findById(id);
-//         if (!product) {
-//             return res.status(404).json({
-//                 status: 404,
-//                 message: 'Product not found!'
-//             });
-//         }
-
-//         const primaryImage = await ProductImages.findOne({ product_id: id, is_primary: true })
-//             .lean();
-
-//         delete primaryImage.__v;
-
-//         const formattedProduct = {
-//             ...product.toObject(),
-//             create_at: product.createdAt,
-//             update_at: product.updatedAt,
-//             images: primaryImage ? [primaryImage] : []
-//         };
-//         delete formattedProduct.__v;
-//         delete formattedProduct.createdAt;
-//         delete formattedProduct.updatedAt;
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Get Product Success!',
-//             data: formattedProduct
-//         });
-//     } catch (error) {
-//         console.error("Error:", error);
-//         return res.status(500).json({
-//             status: 500,
-//             message: 'Internal Server Error'
-//         });
-//     }
-// });
 router.get('/product/:id', authenticateToken, async function (req, res, next) {
     try {
         const { id } = req.params;
