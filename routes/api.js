@@ -2916,10 +2916,12 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         for (const item of cartItems) {
             const stockEntry = await StockEntries.findOne({ product_id: item.product_id, status: "active" });
+            console.log(stockEntry);
             if (!stockEntry || stockEntry.remaining_quantity < item.quantity) {
                 return res.status(400).json({ status: 400, message: `Not enough stock for product: ${item.product_id}` });
             }
         }
+
 
         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
@@ -2941,22 +2943,40 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         await newOrder.save();
 
-        const orderItems = cartItems.map(item => ({
-            order_id: newOrder._id,
-            product_id: item.product_id,
-            batch_number: item.batch_number,
-            quantity: item.quantity,
-            price: item.original_price
-        }));
+        const orderItems = [];
+        for (const item of cartItems) {
+            const stockEntry = await StockEntries.findOne({
+                product_id: item.product_id,
+                status: 'active',
+                expiry_date: { $gte: new Date() }
+            }).sort({ import_date: 1 });
+
+
+            if (!stockEntry) {
+                return res.status(400).json({
+                    status: 400,
+                    message: `No active stock available for product ${item.product_id}`
+                });
+            }
+
+            orderItems.push({
+                order_id: newOrder._id,
+                product_id: item.product_id,
+                batch_number: stockEntry.batch_number,
+                quantity: item.quantity,
+                price: item.original_price
+            });
+        }
 
         await OrderItems.insertMany(orderItems);
 
-        for (const item of cartItems) {
-            await StockEntries.updateOne(
-                { product_id: item.product_id, status: "active", batch_number: item.batch_number },
-                { $inc: { remaining_quantity: -item.quantity } }
-            );
-        }
+
+        // for (const item of cartItems) {
+        //     await StockEntries.updateOne(
+        //         { product_id: item.product_id, status: "active", batch_number: item.batch_number },
+        //         { $inc: { remaining_quantity: -item.quantity } }
+        //     );
+        // }
 
         await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
