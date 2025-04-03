@@ -36,6 +36,7 @@ const DiscountConditions = require('../models/discountConditions');
 const UserAddress = require('../models/userAddress');
 const Orders = require('../models/orders');
 const OrderItems = require('../models/orderItems');
+const StockEntries = require('../models/stockEntries');
 
 const upload = require('../config/common/upload');
 const { removeDiacritics } = require('../utils/textUtils');
