@@ -143,7 +143,7 @@ app.use("/chat", authenticateToken, authorizeAdmin, chatRouter);
 // });
 
 
-app.post("/webhook/payment", async (req, res) => {
+app.post("/webhook/ghn", async (req, res) => {
   try {
     const { error, data } = req.body;
 
