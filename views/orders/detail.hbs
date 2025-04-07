@@ -39,46 +39,15 @@
             </p>
 
 
-            <p><strong>Tổng tiền:</strong> {{order.total_price}} VND</p>
-            {{!-- <p><strong>Trạng thái:</strong> <span class="status-badge bg-warning">{{order.status}}</span></p> --}}
+            <p><strong>Tổng tiền:</strong> {{formatPrice order.total_price}} VND</p>
             <p><strong>Trạng thái:</strong>
                 <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
             </p>
 
-            {{!--
             <div class="mt-3">
                 {{#if (eq order.status "pending")}}
                 <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
-                {{/if}}
-
-                {{#if (eq order.status "confirmed")}}
-                {{#if (eq order.payment_method "COD")}}
-                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
-                {{else}}
-                {{#if (eq order.payment_status "paid")}}
-                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
-                {{else}}
-                <p class="text-danger">⚠ Không thể chuyển trạng thái vì đơn hàng chưa được thanh toán.</p>
-                {{/if}}
-                {{/if}}
-                {{/if}}
-
-                {{#if (and (or (eq order.status "confirmed") (eq order.status "ready_to_pick")) order.cancel_request)}}
-                <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
-                <button class="btn btn-secondary" onclick="rejectCancel('{{order._id}}')">Từ chối yêu cầu hủy</button>
-                {{/if}}
-
-                {{#if (and (eq order.status "delivered") order.return_request)}}
-                <button class="btn btn-warning" onclick="approveReturn('{{order._id}}')">Xác nhận yêu cầu trả
-                    hàng</button>
-                <button class="btn btn-secondary" onclick="rejectReturn('{{order._id}}')">Từ chối yêu cầu trả
-                    hàng</button>
-                {{/if}}
-            </div> --}}
-
-            <div class="mt-3">
-                {{#if (eq order.status "pending")}}
-                <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
+                <button class="btn btn-danger" onclick="rejectOrder('{{order._id}}')">Từ chối đơn hàng</button>
                 {{/if}}
 
                 {{#if (eq order.status "confirmed")}}
@@ -112,12 +81,12 @@
             <table class="table table-bordered mt-3">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
-                        <th>Hình ảnh</th>
-                        <th>Tên sản phẩm</th>
-                        <th>Số lượng</th>
-                        <th>Giá</th>
-                        <th>Tổng</th>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 10%;">Hình ảnh</th>
+                        <th style="width: 45%;">Tên sản phẩm</th>
+                        <th style="width: 10%;">Số lượng</th>
+                        <th style="width: 15%;">Giá</th>
+                        <th style="width: 15%;">Tổng</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -125,12 +94,22 @@
                     <tr>
                         <td>{{addOne @index}}</td>
                         <td><img src="{{this.image_url}}" alt="Hình ảnh sản phẩm" width="50"></td>
-                        <td>{{this.product_id.name}}</td>
+                        <td>{{this.product_product_type_id.product_id.name}}</td>
                         <td>{{this.quantity}}</td>
-                        <td>{{this.price}} VND</td>
-                        <td>{{multiply this.quantity this.price}} VND</td>
+                        <td>{{formatPrice this.price}} VND</td>
+                        <td>{{multiplyAndFormat this.quantity this.price}} VND</td>
                     </tr>
                     {{/each}}
+
+                    <tr>
+                        <td colspan="5" class="text-end"><strong>Phí vận chuyển</strong></td>
+                        <td>{{formatPrice order.shipping_fee}} VND</td>
+                    </tr>
+
+                    <tr>
+                        <td colspan="5" class="text-end"><strong>Tổng thanh toán</strong></td>
+                        <td><strong>{{formatPrice order.total_price}} VND</strong></td>
+                    </tr>
                 </tbody>
             </table>
 
@@ -195,7 +174,7 @@
         });
 
         //socket.on("return_request", function (order) {
-            //showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
+        //showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
         //});
 
         formatDates();
@@ -237,6 +216,9 @@
                 showToast("Đã xảy ra lỗi.", "bg-danger");
             });
     }
+    function rejectOrder(orderId) {
+        openConfirmModal("Từ chối đơn hàng", () => sendRequest(`/orders/${orderId}/reject`, 'PUT'));
+    }
 
 
     function confirmOrder(orderId) {
@@ -255,18 +237,9 @@
         openConfirmModal("Từ chối yêu cầu hủy", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "reject" }));
     }
 
-    //function approveReturn(orderId) {
-        //openConfirmModal("Xác nhận yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/confirm-return`, "POST", { action: "approve" }));
-    //}
-
-    //function rejectReturn(orderId) {
-        //openConfirmModal("Từ chối yêu cầu trả hàng", () => sendRequest(`/orders/${orderId}/confirm-return`, "POST", { action: "reject" }));
-    //}
-
-
     function startCountdown() {
         const countdownElement = document.getElementById("countdown");
-        if (!countdownElement) return; // Nếu không có phần đếm ngược, thoát luôn
+        if (!countdownElement) return;
 
         const createdAt = new Date("{{order.created_at}}"); // Lấy thời gian tạo đơn
         const expireTime = new Date(createdAt.getTime() + 10 * 60000); // Hết hạn sau 10 phút

@@ -6,16 +6,38 @@
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
+        font-weight: bold;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .align-items-center {
         align-items: center !important;
         padding: 12px;
     }
+
+    .product-name-container {
+        max-width: 180px;
+        /* Giới hạn chiều rộng */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+
+    .product-type {
+        display: block;
+        font-size: 0.9em;
+        color: gray;
+    }
 </style>
+
+
 <div class="container mt-5">
     <!-- Button quay lại -->
-    <a href="/products" class="btn btn-secondary mb-4">
+    <a href="" class="btn btn-secondary mb-4" id="backBtn">
         <i class="bi bi-arrow-left-circle"></i> Quay lại
     </a>
 
@@ -30,14 +52,18 @@
 
             <div class="col-md-11">
                 <h6 class="product-name"><strong>Tên: </strong>{{product_name}}</h6>
-                <p><strong>Giá: </strong>{{product_price}} VND</p>
+                {{!-- <p><strong>Giá: </strong>{{formatPrice product_price}} VND</p> --}}
+                <p class="mb-1 small">
+                    <strong><span data-lang="status">Status</span>:</strong>
+                    <span class="badge {{getProductStatusClass product_status}}">{{formatProductStatus
+                        product_status}}</span>
+                </p>
             </div>
         </div>
     </div>
 
 
-
-
+    {{#if (neq product_status "discontinued")}}
     <!-- Form nhập hàng -->
     <form id="importStockForm">
         <input type="hidden" id="produc_id" name="product_id" value="{{product_id}}">
@@ -47,6 +73,17 @@
             <label for="batch_number" class="form-label">Mã Lô Hàng</label>
             <input type="text" id="batch_number" name="batch_number" class="form-control" required>
         </div>
+
+        <div class="mb-3">
+            <label for="product_product_type_id" class="form-label">Loại Sản Phẩm</label>
+            <select id="product_product_type_id" name="product_product_type_id" class="form-select" required>
+                <option value="" disabled selected>Chọn loại sản phẩm</option>
+                {{#each product_product_types}}
+                <option value="{{this._id}}">{{this.product_type_id.name}}</option>
+                {{/each}}
+            </select>
+        </div>
+
         <div class="mb-3">
             <label for="quantity" class="form-label">Số Lượng Nhập</label>
             <input type="number" id="quantity" name="quantity" class="form-control" required>
@@ -65,14 +102,24 @@
         <button type="submit" class="btn btn-success">Lưu</button>
     </form>
 
+    {{else}}
+    <div class="alert alert-warning">
+        Sản phẩm này đã ngừng bán vĩnh viễn.
+    </div>
+    {{/if}}
+
+
+
     <!-- Hiển thị danh sách lô hàng của sản phẩm -->
     <h4 class="mt-5">Danh Sách Lô Hàng Đã Nhập</h4>
 
     <table class="table table-bordered">
         <thead>
             <tr>
+                <th scope="col">Sản Phẩm</th>
                 <th scope="col">Mã Lô Hàng</th>
                 <th scope="col">Số Lượng Nhập</th>
+                <th scope="col">Số Lượng Còn Lại</th>
                 <th scope="col">Giá Nhập</th>
                 <th scope="col">Ngày Hết Hạn</th>
                 <th scope="col">Ngày Nhập</th>
@@ -83,43 +130,53 @@
         <tbody>
             {{#each stockEntries}}
             <tr>
+                <td>
+                    <div class="product-name-container">
+                        <span class="product-name" title="{{this.product_product_type_id.product_id.name}}">
+                            {{this.product_product_type_id.product_id.name}}
+                        </span>
+                        <small class="product-type">({{this.product_product_type_id.product_type_id.name}})</small>
+                    </div>
+                </td>
+
                 <td>{{this.batch_number}}</td>
                 <td>{{this.quantity}}</td>
-                <td>{{this.import_price}} VND</td>
+                <td>{{this.remaining_quantity}}</td>
+                <td>{{formatPrice this.import_price}} VND</td>
                 <td>{{this.expiry_date}}</td>
                 <td>{{this.import_date}}</td>
                 <td>
                     <select class="form-select status-select" data-id="{{this._id}}" {{#if (or (eq
                         this.status "sold_out" ) (eq this.status "expired" ))}}disabled{{/if}}>
                         {{#if (eq this.status "not_started")}}
-                        <option value="not_started" selected>Chưa Sẵn Sàng Bán</option>
-                        <option value="active">Sẵn Sàng Bán</option>
-                        <option value="paused">Tạm Ngừng Bán</option>
-                        <option value="discontinued">Ngừng Bán</option>
+                        <option value="not_started" selected>🔵 Chưa Bán</option>
+                        <option value="active">🟢 Sẵn Sàng</option>
+                        <option value="paused">🟡 Tạm Ngừng</option>
+                        <option value="discontinued">🔴 Ngừng Bán</option>
                         {{/if}}
 
                         {{#if (eq this.status "active")}}
-                        <option value="active" selected>Sẵn Sàng Bán</option>
-                        <option value="paused">Tạm Ngừng Bán</option>
-                        <option value="discontinued">Ngừng Bán</option>
+                        <option value="active" selected>🟢 Sẵn Sàng</option>
+                        <option value="paused">🟡 Tạm Ngừng</option>
+                        <option value="discontinued">🔴 Ngừng Bán</option>
                         {{/if}}
 
                         {{#if (eq this.status "paused")}}
-                        <option value="paused" selected>Tạm Ngừng Bán</option>
-                        <option value="active">Sẵn Sàng Bán</option>
-                        <option value="discontinued">Ngừng Bán</option>
+                        <option value="paused" selected>🟡 Tạm Ngừng</option>
+                        <option value="active">🟢 Sẵn Sàng</option>
+                        <option value="discontinued">🔴 Ngừng Bán</option>
                         {{/if}}
 
                         {{#if (eq this.status "sold_out")}}
-                        <option value="sold_out" selected>Đã Bán Hết</option>
+                        <option value="sold_out" selected>⚫ Đã Bán Hết</option>
                         {{/if}}
 
                         {{#if (eq this.status "expired")}}
-                        <option value="expired" selected>Hết Hạn</option>
+                        <option value="expired" selected>⚠️ Hết Hạn</option>
                         {{/if}}
 
                         {{#if (eq this.status "discontinued")}}
-                        <option value="discontinued" selected>Ngừng Bán</option>
+                        <option value="discontinued" selected>🔴 Ngừng Bán</option>
                         {{/if}}
                     </select>
                 </td>
@@ -128,9 +185,11 @@
                 <td>
                     {{#if (eq this.status "not_started")}}
                     <button class="btn btn-primary btn-sm edit-btn" data-batch-number="{{this.batch_number}}"
+                        data-product-product-type-id="{{this.product_product_type_id._id}}"
                         data-quantity="{{this.quantity}}" data-import-price="{{this.import_price}}"
                         data-expiry-date="{{this.expiry_date}}" data-id="{{this._id}}">Sửa</button>
-                    <button class="btn btn-danger btn-sm delete-btn" data-id="{{this._id}}">Xóa</button>
+                    <button class="btn btn-danger btn-sm delete-btn" data-produc-id="{{../product_id}}"
+                        data-id="{{this._id}}">Xóa</button>
                     {{/if}}
                 </td>
             </tr>
@@ -212,9 +271,16 @@
 
 
     document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('backBtn').addEventListener('click', function (e) {
+            e.preventDefault();
+
+          window.history.go(-1);
+          console.log("Check");
+        });
+
         const toast = new bootstrap.Toast(document.getElementById('toastMessage'));
-        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
-        const productId = document.getElementById('produc_id').value;
+        window.loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        const productId = document.getElementById('produc_id')?.value;
 
         const confirmStatusChangeModal = new bootstrap.Modal(document.getElementById('confirmStatusChangeModal'));
         let selectedStatusElement = null;
@@ -271,22 +337,26 @@
 
 
         const batchNumberInput = document.getElementById('batch_number');
-        batchNumberInput.value = generateBatchNumber();
-        document.getElementById("importStockForm").addEventListener("submit", async function (event) {
+        //batchNumberInput.value = generateBatchNumber();
+        document.getElementById("importStockForm")?.addEventListener("submit", async function (event) {
             event.preventDefault();
             loadingModal.show();
             document.getElementById('loadingMessage').textContent = 'Đang xử lý...';
 
             try {
-
                 const formData = new FormData(this);
                 const data = Object.fromEntries(formData.entries());
-                if (data.expiry_date) {
-                    data.expiry_date = new Date(data.expiry_date).toISOString();
+
+                if (data.quantity) {
+                    data.quantity = parseInt(data.quantity);
+                }
+
+                if (data.import_price) {
+                    data.import_price = parseFloat(data.import_price);
                 }
 
                 const url = data.stock_entry_id
-                    ? `/products/${data.product_id}/import-stock/${data.stock_entry_id}/update-info`  // Update request
+                    ? `/products/${data.product_id}/import-stock/${data.stock_entry_id}/update-info`
                     : `/products/${data.product_id}/import-stock/add`;
 
                 const response = await fetch(url, {
@@ -310,7 +380,8 @@
                 console.error("Lỗi:", error);
                 showToast('Có lỗi xảy ra, vui lòng thử lại!', false);
             } finally {
-                loadingModal.hide();
+                window.loadingModal.hide();
+
             }
         });
         document.querySelectorAll('.edit-btn').forEach(button => {
@@ -320,15 +391,56 @@
                 const importPrice = this.getAttribute('data-import-price');
                 const expiryDate = this.getAttribute('data-expiry-date');
                 const stockEntryId = this.getAttribute('data-id');
-                const stockStatus = this.getAttribute('data-status');
+                //const stockStatus = this.getAttribute('data-status');
+                const productProductTypeId = this.getAttribute('data-product-product-type-id');
 
                 document.getElementById('batch_number').value = batchNumber;
                 document.getElementById('quantity').value = quantity;
                 document.getElementById('import_price').value = importPrice;
                 document.getElementById('expiry_date').value = formatToDateInput(expiryDate);
                 document.getElementById('stock_entry_id').value = stockEntryId;
-                document.getElementById('stock_status').value = stockStatus;
+                //document.getElementById('stock_status').value = stockStatus;
+                const productTypeSelect = document.getElementById('product_product_type_id');
+                productTypeSelect.value = productProductTypeId;
             });
+        });
+
+
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', async function () {
+                const stockEntryId = this.getAttribute('data-id');
+                const productId = this.getAttribute('data-product-id');
+
+                try {
+                    const response = await fetch(`/products/${productId}/import-stock/${stockEntryId}/delete`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        showToast(result.message, true);
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showToast(`Lỗi: ${result.message}`, false);
+                    }
+                } catch (error) {
+                    console.error("Lỗi khi xóa lô hàng:", error);
+                    showToast("Đã xảy ra lỗi khi xóa lô hàng.", false);
+                }
+            });
+        });
+
+
+        loadingModal._element.addEventListener('shown.bs.modal', () => {
+            console.log('Modal đã hiển thị');
+        });
+
+        loadingModal._element.addEventListener('hidden.bs.modal', () => {
+            console.log('Modal đã ẩn');
         });
         function formatToDateInput(dateString) {
             const date = new Date(dateString);
@@ -363,7 +475,7 @@
 
             return `${prefix}-${year}${month}${day}-${randomNum}`;
         }
-        document.querySelectorAll('td:nth-child(4), td:nth-child(5)').forEach(td => {
+        document.querySelectorAll('td:nth-child(6), td:nth-child(7)').forEach(td => {
             if (td.textContent) {
                 td.textContent = formatDate(td.textContent);
             }

@@ -28,7 +28,8 @@ const Orders = new Schema({
             "return", // Đang hoàn hàng
             "returned", // Đã hoàn hàng về người gửi
             "return_fail", // Hoàn hàng không thành công
-            "canceled" // Đơn hàng bị hủy
+            "canceled", // Đơn hàng bị hủy
+            "rejected" // Đơn hàng bị admin từ chối xác nhận
         ],
         default: "pending"
     },

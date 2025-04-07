@@ -56,7 +56,6 @@ router.get("/", async (req, res) => {
     });
 });
 
-
 router.get("/:id/detail", async function (req, res, next) {
     try {
         const orderId = req.params.id;
@@ -65,9 +64,16 @@ router.get("/:id/detail", async function (req, res, next) {
         const userAddress = await getUserAddress(order.user_id);
 
         const orderItems = await OrderItems.find({ order_id: orderId })
-            .populate("product_id");
+            .populate({
+                path: "product_product_type_id",
+                populate: {
+                    path: "product_id",
+                    select: "name"
+                }
+            });
 
-        const productIds = orderItems.map(item => item.product_id._id);
+
+        const productIds = orderItems.map(item => item.product_product_type_id.product_id);
 
         const primaryImages = await ProductImages.find({
             product_id: { $in: productIds },
@@ -81,8 +87,10 @@ router.get("/:id/detail", async function (req, res, next) {
 
         const orderItemsWithImages = orderItems.map(item => ({
             ...item.toObject(),
-            image_url: imageMap[item.product_id._id.toString()] || null
+            image_url: imageMap[item.product_product_type_id.product_id._id.toString()] || null
         }));
+
+        console.log(orderItemsWithImages);
 
         res.render("orders/detail", {
             order,
@@ -109,26 +117,34 @@ router.put("/:order_id/confirm", async (req, res) => {
         if (order.status !== "pending") {
             return res.status(400).json({ status: 400, message: "Order can only be confirmed from 'pending' status" });
         }
-        const orderItems = await OrderItems.find({ order_id }).populate({
-            path: "product_id",
-            select: "_id stock_quantity name"
-        });
+        // const orderItems = await OrderItems.find({ order_id }).populate({
+        //     path: "product_id",
+        //     select: "_id stock_quantity name"
+        // });
 
-        for (const item of orderItems) {
-            if (item.product_id.stock_quantity < item.quantity) {
-                return res.status(400).json({
-                    status: 400,
-                    message: `Product ${item.product_id.name} is out of stock`
-                });
-            }
-        }
+        // const orderItems = await OrderItems.find({ order_id }).populate({
+        //     path: "product_product_type_id",
+        //     populate: {
+        //         path: "product_id",
+        //         select: "_id name"
+        //     }
+        // });
 
-        for (const item of orderItems) {
-            await Products.updateOne(
-                { _id: item.product_id._id },
-                { $inc: { stock_quantity: -item.quantity } }
-            );
-        }
+        // for (const item of orderItems) {
+        //     if (item.product_id.stock_quantity < item.quantity) {
+        //         return res.status(400).json({
+        //             status: 400,
+        //             message: `Product ${item.product_id.name} is out of stock`
+        //         });
+        //     }
+        // }
+
+        // for (const item of orderItems) {
+        //     await Products.updateOne(
+        //         { _id: item.product_id._id },
+        //         { $inc: { stock_quantity: -item.quantity } }
+        //     );
+        // }
 
         order.status = "confirmed";
         await order.save();
@@ -139,6 +155,40 @@ router.put("/:order_id/confirm", async (req, res) => {
         return res.status(500).json({
             status: 500,
             message: "Internal Server Error",
+            error: error.response?.data || error.message
+        });
+    }
+});
+
+router.put("/:order_id/reject", async (req, res) => {
+    try {
+        const { order_id } = req.params;
+
+        const order = await Orders.findById(order_id);
+        if (!order) {
+            return res.status(404).json({ status: 404, message: "Không tìm thấy đơn hàng" });
+        }
+
+        if (order.status !== "pending") {
+            return res.status(400).json({
+                status: 400,
+                message: "Chỉ có thể từ chối đơn hàng ở trạng thái 'pending'"
+            });
+        }
+
+        order.status = "canceled";
+        await order.save();
+
+        return res.status(200).json({
+            status: 200,
+            message: "Đã từ chối đơn hàng",
+            data: order
+        });
+    } catch (error) {
+        console.error("Lỗi khi từ chối đơn hàng:", error);
+        return res.status(500).json({
+            status: 500,
+            message: "Lỗi máy chủ",
             error: error.response?.data || error.message
         });
     }
