@@ -110,7 +110,7 @@ app.post('/webhook/ghn', async (req, res) => {
 
     if (!order) {
       console.log(`Order ${data.OrderCode} not found`);
-      return res.status(404).send("Order not found");
+      return res.status(200).send("Order not found");
     }
 
     if (order.status === "delivered") {
@@ -201,29 +201,6 @@ app.post("/webhook/ghn", async (req, res) => {
     res.status(500).json({ status: 500, message: "Internal Server Error" });
   }
 });
-
-
-const verifyCassoSignature = (req, res, next) => {
-  try {
-    const secretKey = process.env.CASSO_SECRET_KEY;
-    const cassoSignature = req.headers["x-casso-signature"];
-    const requestBody = JSON.stringify(req.body);
-
-    const computedSignature = crypto
-      .createHmac("sha256", secretKey)
-      .update(requestBody)
-      .digest("hex");
-
-    if (computedSignature !== cassoSignature) {
-      return res.status(403).json({ status: 403, message: "Invalid signature" });
-    }
-    next();
-  } catch (error) {
-    console.error("❌ Lỗi xác thực Webhook:", error);
-    res.status(500).json({ status: 500, message: "Internal Server Error" });
-  }
-};
-
 
 database.connect();
 app.use(function (req, res, next) {
