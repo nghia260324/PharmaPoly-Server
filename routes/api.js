@@ -15,13 +15,14 @@ const TOKEN_GHN = process.env.GHN_TOKEN;
 const SHOP_ID = process.env.GHN_SHOP_ID;
 
 const { checkPhoneVerification, checkUidAndPhoneNumber } = require('../utils/checkPhoneVerification');
-const { db, bucket } = require("../firebase/firebaseAdmin");
+const { db, bucket, auth } = require("../firebase/firebaseAdmin");
 
 const Users = require('../models/users');
 const Products = require('../models/products');
 const ProductImages = require('../models/productImages');
 const ProductSections = require('../models/productSections');
 const ProductSectionDetails = require('../models/productSectionDetails');
+const ProductProductTypes = require('../models/productProductTypes');
 const Categories = require('../models/categories');
 const Brands = require('../models/brands');
 const ProductTypes = require('../models/productTypes');
@@ -53,14 +54,10 @@ const statusGroups = {
     ],
     delivered: ["delivered"],
     //returning: ["waiting_to_return", "return", "returned", "return_fail"],
-    canceled: ["canceled", "delivery_fail"],
+    canceled: ["canceled", "delivery_fail", "rejected"],
 };
 
 function authenticateToken(req, res, next) {
-    // if (process.env.NODE_ENV === 'development') {
-    //     return next();
-    // }
-    // return next();
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) {
         return res.status(401).json({
@@ -467,10 +464,6 @@ router.put('/user/update-profile', authenticateToken, upload.single('avatar'), a
 });
 
 
-
-
-
-
 // Đổi mật khẩu
 router.put('/user/change-password', authenticateToken, async (req, res) => {
     try {
@@ -623,11 +616,18 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
             return res.status(404).json({ status: 404, message: 'Cart not found' });
         }
 
-        let cartItems = await CartItems.find({ cart_id: cart._id }).lean();
+        // let cartItems = await CartItems.find({ cart_id: cart._id }).lean();
+        let cartItems = await CartItems.find({ cart_id: cart._id })
+            .populate('product_product_type_id')
+            .lean();
 
         const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
-            const product = await getProductDetails(item.product_id);
-            return { ...item, product };
+            const product = await getProductDetails(item.product_product_type_id.product_id);
+            item.productType = item.product_product_type_id;
+            item.product_product_type_id = item.product_product_type_id._id;
+            item.productType.product = product;
+            item.productType.productType = await ProductTypes.findById(item.productType.product_type_id);
+            return { ...item };
         }));
 
         return res.status(200).json({
@@ -641,7 +641,6 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
-
 
 
 
@@ -661,13 +660,12 @@ router.get('/product/top-rated', authenticateToken, async (req, res) => {
 
         const skip = (pageNumber - 1) * limitNumber;
 
-        const products = await Products.find()
+        const products = await Products.find({ status: 'active' })
             .sort({ average_rating: -1 })
             .skip(skip)
             .limit(limitNumber)
             .populate('category_id', '_id name')
             .populate('brand_id', '_id name description')
-            .populate('product_type_id', '_id name')
             .lean();
 
         const totalProducts = await Products.countDocuments();
@@ -706,6 +704,7 @@ router.get('/product/random', authenticateToken, async (req, res) => {
         }
 
         const products = await Products.aggregate([
+            { $match: { status: 'active' } },
             { $sample: { size: limitNumber } }
         ]);
 
@@ -738,10 +737,14 @@ const getProductDetails = async (product_id) => {
         const product = await Products.findById(product_id)
             .populate('category_id', '_id name')
             .populate('brand_id', '_id name description')
-            .populate('product_type_id', '_id name')
             .lean();
 
         if (!product) {
+            return null;
+        }
+
+        const availableProductTypes = await getAvailableProductTypes(product_id);
+        if (availableProductTypes.length === 0) {
             return null;
         }
 
@@ -753,19 +756,22 @@ const getProductDetails = async (product_id) => {
         return {
             _id: product._id,
             name: product.name,
-            description: product.description,
-            price: product.price,
+            description: product.short_description,
+            specification: product.specification,
+            origin_country: product.origin_country,
+            manufacturer: product.manufacturer,
             average_rating: product.average_rating,
+            review_count: product.review_count ?? 0,
             category_id: product.category_id?._id,
             brand_id: product.brand_id?._id,
-            product_type_id: product.product_type_id?._id,
             category: product.category_id,
             brand: product.brand_id,
-            product_type: product.product_type_id,
+            // product_type: product.product_type_id,
             status: product.status,
             images: primaryImage ? [primaryImage] : [],
-            created_at: product.createdAt,
-            updated_at: product.updatedAt
+            product_types: availableProductTypes,
+            created_at: product.created_at,
+            updated_at: product.updated_at
         };
 
     } catch (error) {
@@ -773,7 +779,30 @@ const getProductDetails = async (product_id) => {
         return null;
     }
 };
+const getAvailableProductTypes = async (product_id) => {
+    const productTypes = await ProductProductTypes.find({ product_id })
+        .populate('product_type_id', '_id name')
+        .lean();
 
+    const availableProductTypes = [];
+    for (const type of productTypes) {
+        const stock = await StockEntries.findOne({
+            product_product_type_id: type._id,
+            remaining_quantity: { $gt: 0 },
+            status: 'active'
+        }).lean();
+
+        if (stock) {
+            availableProductTypes.push({
+                _id: type._id,
+                name: type.product_type_id.name,
+                price: type.price,
+            });
+        }
+    }
+
+    return availableProductTypes;
+};
 
 router.get('/product/most-reviewed', async (req, res) => {
     try {
@@ -782,16 +811,14 @@ router.get('/product/most-reviewed', async (req, res) => {
         limit = Math.min(parseInt(limit), 20);
         const skip = (page - 1) * limit;
 
-        const totalProducts = await Products.countDocuments();
+        const totalProducts = await Products.countDocuments({ status: 'active' });
         const totalPages = Math.ceil(totalProducts / limit);
 
-        const products = await Products.find()
+        const products = await Products.find({ status: 'active' })
             .sort({ review_count: -1 })
             .skip(skip)
             .limit(limit)
-            .populate('category_id')
-            .populate('brand_id')
-            .populate('product_type_id')
+            .select('_id')
             .lean();
 
         const formattedProducts = await Promise.all(products.map(p => getProductDetails(p._id)));
@@ -823,7 +850,6 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
         const product = await Products.findById(id)
             .populate('category_id', '_id name')
             .populate('brand_id', '_id name description')
-            .populate('product_type_id', '_id name')
             .lean();
 
         if (!product) {
@@ -837,6 +863,8 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
 
         if (primaryImage) delete primaryImage.__v;
 
+        const availableProductTypes = await getAvailableProductTypes(id);
+
         const formattedProduct = {
             ...product,
             create_at: product.createdAt,
@@ -844,10 +872,9 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
             images: primaryImage ? [primaryImage] : [],
             category_id: product.category_id?._id,
             brand_id: product.brand_id?._id,
-            product_type_id: product.product_type_id?._id,
             category: product.category_id || null,
             brand: product.brand_id || null,
-            product_type: product.product_type_id || null
+            product_types: availableProductTypes
         };
 
         delete formattedProduct.__v;
@@ -866,7 +893,6 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
     }
 });
 
-
 // Lấy chi tiết sản phẩm
 router.get('/product/:id/details', authenticateToken, async function (req, res, next) {
     try {
@@ -875,7 +901,6 @@ router.get('/product/:id/details', authenticateToken, async function (req, res, 
             .findById(id)
             .populate('category_id')
             .populate('brand_id')
-            .populate('product_type_id');
 
         if (!product) {
             return res.status(404).json({
@@ -909,11 +934,12 @@ router.get('/product/:id/details', authenticateToken, async function (req, res, 
             }));
         }
 
+        const availableProductTypes = await getAvailableProductTypes(id);
+
         const formattedProduct = {
             ...product.toObject(),
             category_id: product.category_id._id,
             brand_id: product.brand_id._id,
-            product_type_id: product.product_type_id._id,
             category: {
                 _id: product.category_id._id,
                 name: product.category_id.name,
@@ -923,20 +949,12 @@ router.get('/product/:id/details', authenticateToken, async function (req, res, 
                 name: product.brand_id.name,
                 description: product.brand_id.description,
             },
-            product_type: {
-                _id: product.product_type_id._id,
-                name: product.product_type_id.name,
-            },
+            product_types: availableProductTypes,
             images: images,
             sections: productSections,
-            create_at: product.createdAt,
-            update_at: product.updatedAt,
+            create_at: product.created_at,
+            update_at: product.updated_at,
         };
-
-        delete formattedProduct.__v;
-        delete formattedProduct.createdAt;
-        delete formattedProduct.updatedAt;
-
 
         return res.status(200).json({
             status: 200,
@@ -1399,7 +1417,6 @@ router.get('/category/:id', authenticateToken, async (req, res) => {
 
 
 
-
 router.get('/category/:id/products', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -1409,54 +1426,14 @@ router.get('/category/:id/products', authenticateToken, async (req, res) => {
         let limitNumber = Math.min(parseInt(limit) || 10, 20);
         const skip = (pageNumber - 1) * limitNumber;
 
-        const products = await Products.find({ category_id: id })
-            .populate({ path: 'category_id', select: '_id name' })
-            .populate({ path: 'brand_id', select: '_id name description' })
-            .populate({ path: 'product_type_id', select: '_id name' })
+        const products = await Products.find({ category_id: id, status: 'active' })
+            .select('_id')
             .skip(skip)
             .limit(limitNumber)
             .lean();
 
-        const productIds = products.map(product => product._id);
-
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        });
-
-        const imageMap = primaryImages.reduce((acc, img) => {
-            acc[img.product_id] = img;
-            return acc;
-        }, {});
-
-        const formattedProducts = products.map(product => ({
-            _id: product._id,
-            name: product.name,
-            category_id: product.category_id ? product.category_id._id : null,
-            brand_id: product.brand_id ? product.brand_id._id : null,
-            product_type_id: product.product_type_id ? product.product_type_id._id : null,
-            category: product.category_id ? {
-                _id: product.category_id._id,
-                name: product.category_id.name
-            } : null,
-            brand: product.brand_id ? {
-                _id: product.brand_id._id,
-                name: product.brand_id.name,
-                description: product.brand_id.description
-            } : null,
-            product_type: product.product_type_id ? {
-                _id: product.product_type_id._id,
-                name: product.product_type_id.name
-            } : null,
-            price: product.price,
-            short_description: product.short_description,
-            specification: product.specification,
-            origin_country: product.origin_country,
-            manufacturer: product.manufacturer,
-            average_rating: product.average_rating,
-            review_count: product.review_count,
-            images: imageMap[product._id] ? [imageMap[product._id]] : []
-        }));
+        const productDetailsPromises = products.map(product => getProductDetails(product._id));
+        const formattedProducts = (await Promise.all(productDetailsPromises)).filter(p => p !== null);
 
         const totalProducts = await Products.countDocuments({ category_id: id });
         const totalPages = Math.ceil(totalProducts / limitNumber);
@@ -1479,6 +1456,7 @@ router.get('/category/:id/products', authenticateToken, async (req, res) => {
         res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
     }
 });
+
 
 
 
@@ -1555,57 +1533,100 @@ router.get('/brand/:id', authenticateToken, async (req, res) => {
 });
 
 
+// router.get('/brand/:id/products', authenticateToken, async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         let { page = 1, limit = 10 } = req.query;
+
+//         const pageNumber = parseInt(page);
+//         let limitNumber = parseInt(limit);
+
+//         if (limitNumber > 20) {
+//             limitNumber = 20;
+//         }
+
+//         const skip = (pageNumber - 1) * limitNumber;
+
+//         const products = await Products.find({ brand_id: id })
+//             .populate('category_id', '_id name')
+//             .populate('brand_id', '_id name description')
+//             .skip(skip)
+//             .limit(limitNumber)
+//             .lean();
+
+//         const totalProducts = await Products.countDocuments({ brand_id: id });
+//         const totalPages = Math.ceil(totalProducts / limitNumber);
+
+//         const productIds = products.map(p => p._id);
+//         const primaryImages = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         }).lean();
+
+//         const imageMap = primaryImages.reduce((acc, img) => {
+//             acc[img.product_id] = img;
+//             return acc;
+//         }, {});
+
+//         const formattedProducts = products.map(product => ({
+//             _id: product._id,
+//             name: product.name,
+//             description: product.description,
+//             price: product.price,
+//             category_id: product.category_id._id,
+//             brand_id: product.brand_id._id,
+//             category: product.category_id,
+//             brand: product.brand_id,
+//             product_type: product.product_type,
+//             primary_image: imageMap[product._id] || null,
+//             create_at: product.createdAt,
+//             update_at: product.updatedAt
+//         }));
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Get Products by Brand Success!',
+//             data: {
+//                 currentPage: pageNumber,
+//                 totalPages,
+//                 totalProducts,
+//                 hasNextPage: pageNumber < totalPages,
+//                 hasPrevPage: pageNumber > 1,
+//                 data: formattedProducts
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Error fetching brand products:", error);
+//         return res.status(500).json({ status: 500, message: "Internal Server Error" });
+//     }
+// });
+
+
+
+// ----- Product Type Router ----- //
+
 router.get('/brand/:id/products', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         let { page = 1, limit = 10 } = req.query;
 
-        const pageNumber = parseInt(page);
-        let limitNumber = parseInt(limit);
-
-        if (limitNumber > 20) {
-            limitNumber = 20;
-        }
-
+        const pageNumber = parseInt(page) || 1;
+        let limitNumber = Math.min(parseInt(limit) || 10, 20);
         const skip = (pageNumber - 1) * limitNumber;
 
-        const products = await Products.find({ brand_id: id })
-            .populate('category_id', '_id name')
-            .populate('brand_id', '_id name description')
-            .populate('product_type_id', '_id name')
+        // Chỉ lấy sản phẩm có brand_id và status: 'active'
+        const products = await Products.find({ brand_id: id, status: 'active' })
+            .select('_id')
             .skip(skip)
             .limit(limitNumber)
             .lean();
 
-        const totalProducts = await Products.countDocuments({ brand_id: id });
+        const productDetailsPromises = products.map(product => getProductDetails(product._id));
+        const formattedProducts = (await Promise.all(productDetailsPromises)).filter(p => p !== null);
+
+        const totalProducts = await Products.countDocuments({ brand_id: id, status: 'active' });
         const totalPages = Math.ceil(totalProducts / limitNumber);
-
-        const productIds = products.map(p => p._id);
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIds },
-            is_primary: true
-        }).lean();
-
-        const imageMap = primaryImages.reduce((acc, img) => {
-            acc[img.product_id] = img;
-            return acc;
-        }, {});
-
-        const formattedProducts = products.map(product => ({
-            _id: product._id,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            category_id: product.category_id._id,
-            brand_id: product.brand_id._id,
-            product_type_id: product.product_type_id._id,
-            category: product.category_id,
-            brand: product.brand_id,
-            product_type: product.product_type,
-            primary_image: imageMap[product._id] || null,
-            create_at: product.createdAt,
-            update_at: product.updatedAt
-        }));
 
         return res.status(200).json({
             status: 200,
@@ -1622,13 +1643,10 @@ router.get('/brand/:id/products', authenticateToken, async (req, res) => {
 
     } catch (error) {
         console.error("Error fetching brand products:", error);
-        return res.status(500).json({ status: 500, message: "Internal Server Error" });
+        return res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
     }
 });
 
-
-
-// ----- Product Type Router ----- //
 
 router.get('/product-types', authenticateToken, async (req, res) => {
     try {
@@ -2278,9 +2296,9 @@ router.post('/answer/create', authenticateToken, async (req, res) => {
 router.post('/cart-item/add', authenticateToken, async (req, res) => {
     try {
         const user_id = req.user_id;
-        const product_id = req.body.product_id;
+        const product_product_type_id = req.body.product_product_type_id;
         const quantity = parseInt(req.body.quantity, MAX_QUANTITY_PER_PRODUCT);
-        if (!user_id || !product_id || !quantity || quantity < 1) {
+        if (!user_id || !product_product_type_id || !quantity || quantity < 1) {
             return res.status(400).json({
                 status: 400,
                 message: 'Missing or invalid required fields'
@@ -2293,14 +2311,14 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
             });
         }
 
-        const product = await getProductDetails(product_id);
-        if (!product) {
+        const productType = await ProductProductTypes.findById(product_product_type_id);
+        if (!productType) {
             return res.status(404).json({
                 status: 404,
-                message: 'Product not found'
+                message: 'ProductType not found'
             });
         }
-        const original_price = product.price;
+        const original_price = productType.price;
 
         let cart = await Carts.findOne({ user_id });
 
@@ -2311,15 +2329,14 @@ router.post('/cart-item/add', authenticateToken, async (req, res) => {
             cart = await cart.save();
         }
 
-        let cartItem = await CartItems.findOne({ cart_id: cart._id, product_id });
+        let cartItem = await CartItems.findOne({ cart_id: cart._id, product_product_type_id });
 
         if (cartItem) {
             cartItem.quantity = Math.min(cartItem.quantity + quantity, MAX_QUANTITY_PER_PRODUCT);
         } else {
             cartItem = new CartItems({
                 cart_id: cart._id,
-                product_id: product_id,
-                product: getProductDetails(product_id),
+                product_product_type_id,
                 quantity: Math.min(quantity, MAX_QUANTITY_PER_PRODUCT),
                 original_price,
             });
@@ -2457,7 +2474,6 @@ router.get('/search', authenticateToken, async (req, res) => {
         let products = await Products.find()
             .populate({ path: 'category_id', select: '_id name' })
             .populate({ path: 'brand_id', select: '_id name description' })
-            .populate({ path: 'product_type_id', select: '_id name' })
             .lean();
 
         let categories = await Categories.find().lean();
@@ -2498,37 +2514,6 @@ router.get('/search', authenticateToken, async (req, res) => {
     }
 });
 
-
-
-
-
-
-
-// const formattedProducts = filteredProducts.map(product => ({
-//     _id: product._id,
-//     name: product.name,
-//     category_id: product.category_id ? product.category_id._id : null,
-//     brand_id: product.brand_id ? product.brand_id._id : null,
-//     product_type_id: product.product_type_id ? product.product_type_id._id : null,
-//     category: product.category_id ? {
-//         _id: product.category_id._id,
-//         name: product.category_id.name
-//     } : null,
-//     brand: product.brand_id ? {
-//         _id: product.brand_id._id,
-//         name: product.brand_id.name,
-//         description: product.brand_id.description
-//     } : null,
-//     product_type: product.product_type_id ? {
-//         _id: product.product_type_id._id,
-//         name: product.product_type_id.name
-//     } : null,
-//     price: product.price,
-//     short_description: product.short_description,
-//     average_rating: product.average_rating,
-//     review_count: product.review_count,
-//     images: imageMap[product._id] ? [imageMap[product._id]] : []
-// }));
 
 
 
@@ -2874,6 +2859,137 @@ router.post("/calculate-shipping-fee", async (req, res) => {
 });
 
 
+// router.post("/orders/create", authenticateToken, async (req, res) => {
+//     try {
+//         const { payment_method, cart_item_ids } = req.body;
+//         const user_id = req.user_id;
+
+//         if (!user_id) {
+//             return res.status(401).json({ status: 401, message: "Unauthorized" });
+//         }
+
+//         const user = await Users.findById(user_id);
+//         if (!user) {
+//             return res.status(404).json({ status: 404, message: "User not found" });
+//         }
+
+//         const userAddress = await UserAddress.findOne({ user_id });
+//         if (!userAddress) {
+//             return res.status(404).json({ status: 404, message: "User address not found" });
+//         }
+
+//         const to_name = user.full_name;
+//         const to_phone = user.shipping_phone_number;
+//         const to_address = userAddress.street_address;
+//         const to_district_id = userAddress.district_id;
+//         const to_ward_code = userAddress.ward_id;
+
+
+//         if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !cart_item_ids || cart_item_ids.length === 0) {
+//             return res.status(400).json({ status: 400, message: "Missing required fields" });
+//         }
+
+//         const validPaymentMethods = ["COD", "ONLINE"];
+//         if (!validPaymentMethods.includes(payment_method)) {
+//             return res.status(400).json({ status: 400, message: "Invalid payment method" });
+//         }
+
+//         const cartItems = await CartItems.find({ _id: { $in: cart_item_ids } });
+//         if (cartItems.length !== cart_item_ids.length) {
+//             return res.status(400).json({ status: 400, message: "Some cart items are invalid" });
+//         }
+
+//         for (const item of cartItems) {
+//             const stockEntry = await StockEntries.findOne({ product_id: item.product_id, status: "active" });
+//             console.log(stockEntry);
+//             if (!stockEntry || stockEntry.remaining_quantity < item.quantity) {
+//                 return res.status(400).json({ status: 400, message: `Not enough stock for product: ${item.product_id}` });
+//             }
+//         }
+
+
+//         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
+//         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
+//         const total_price = totalItemPrice + shipping_fee;
+
+//         const newOrder = new Orders({
+//             user_id,
+//             to_name,
+//             to_phone,
+//             to_address,
+//             to_district_id,
+//             to_ward_code,
+//             payment_method,
+//             shipping_fee,
+//             total_price,
+//             payment_status: payment_method === "ONLINE" ? "pending" : null,
+//             status: payment_method === "ONLINE" ? "confirmed" : "pending"
+//         });
+
+//         await newOrder.save();
+
+//         const orderItems = [];
+//         for (const item of cartItems) {
+//             const stockEntry = await StockEntries.findOne({
+//                 product_id: item.product_id,
+//                 status: 'active',
+//                 expiry_date: { $gte: new Date() }
+//             }).sort({ import_date: 1 });
+
+
+//             if (!stockEntry) {
+//                 return res.status(400).json({
+//                     status: 400,
+//                     message: `No active stock available for product ${item.product_id}`
+//                 });
+//             }
+
+//             orderItems.push({
+//                 order_id: newOrder._id,
+//                 product_id: item.product_id,
+//                 batch_number: stockEntry.batch_number,
+//                 quantity: item.quantity,
+//                 price: item.original_price
+//             });
+//         }
+
+//         await OrderItems.insertMany(orderItems);
+
+
+//         // for (const item of cartItems) {
+//         //     await StockEntries.updateOne(
+//         //         { product_id: item.product_id, status: "active", batch_number: item.batch_number },
+//         //         { $inc: { remaining_quantity: -item.quantity } }
+//         //     );
+//         // }
+
+//         await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
+//         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
+
+//         let qrCodeUrl = null;
+//         if (payment_method === "ONLINE") {
+//             qrCodeUrl = generateVietQRQuickLink(newOrder);
+//             checkPaymentStatus(user_id, newOrder._id, total_price);
+//         }
+
+//         return res.status(200).json({
+//             status: 200,
+//             message: "Order created successfully",
+//             data: qrCodeUrl,
+//         });
+
+//     } catch (error) {
+//         console.error("Error creating order:", error);
+//         return res.status(500).json({
+//             status: 500,
+//             message: "Internal Server Error",
+//             error: error.response?.data || error.message
+//         });
+//     }
+// });
+
+
+
 router.post("/orders/create", authenticateToken, async (req, res) => {
     try {
         const { payment_method, cart_item_ids } = req.body;
@@ -2909,17 +3025,15 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             return res.status(400).json({ status: 400, message: "Invalid payment method" });
         }
 
-        const cartItems = await CartItems.find({ _id: { $in: cart_item_ids } });
+        const cartItems = await CartItems.find({ _id: { $in: cart_item_ids } })
+            .populate({
+                path: 'product_product_type_id',
+                model: 'productProductType',
+            })
+            .lean();
+
         if (cartItems.length !== cart_item_ids.length) {
             return res.status(400).json({ status: 400, message: "Some cart items are invalid" });
-        }
-
-        for (const item of cartItems) {
-            const stockEntry = await StockEntries.findOne({ product_id: item.product_id, status: "active" });
-            console.log(stockEntry);
-            if (!stockEntry || stockEntry.remaining_quantity < item.quantity) {
-                return res.status(400).json({ status: 400, message: `Not enough stock for product: ${item.product_id}` });
-            }
         }
 
 
@@ -2946,7 +3060,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         const orderItems = [];
         for (const item of cartItems) {
             const stockEntry = await StockEntries.findOne({
-                product_id: item.product_id,
+                product_id: item.product_product_type_id.product_id,
                 status: 'active',
                 expiry_date: { $gte: new Date() }
             }).sort({ import_date: 1 });
@@ -2961,7 +3075,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
             orderItems.push({
                 order_id: newOrder._id,
-                product_id: item.product_id,
+                product_product_type_id: item.product_product_type_id,
                 batch_number: stockEntry.batch_number,
                 quantity: item.quantity,
                 price: item.original_price
@@ -2971,12 +3085,12 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         await OrderItems.insertMany(orderItems);
 
 
-        // for (const item of cartItems) {
-        //     await StockEntries.updateOne(
-        //         { product_id: item.product_id, status: "active", batch_number: item.batch_number },
-        //         { $inc: { remaining_quantity: -item.quantity } }
-        //     );
-        // }
+        for (const item of cartItems) {
+            await StockEntries.updateOne(
+                { product_id: item.product_product_type_id.product_id, status: "active", batch_number: item.batch_number },
+                { $inc: { remaining_quantity: -item.quantity } }
+            );
+        }
 
         await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
@@ -3002,6 +3116,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         });
     }
 });
+
 
 router.delete('/delete-payment-status/:userId', authenticateToken, async (req, res) => {
     try {
@@ -3062,27 +3177,6 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
         }
     }, 20000);
 }
-
-// router.get('/test-payment', async (req, res) => {
-//     try {
-//         const total_price = 2000;
-//         const order_id = "67e55d5f061393fda5add1d5";
-//         const user_id = "67b344c3744eaa2ff0f0ce7d";
-
-//         if (!user_id || !order_id || !total_price) {
-//             return res.status(400).json({ error: "Thiếu tham số user_id, order_id hoặc total_price" });
-//         }
-
-//         await checkPaymentStatus(user_id, order_id, parseInt(total_price));
-
-//         res.json({ message: "Bắt đầu kiểm tra thanh toán..." });
-//     } catch (error) {
-//         console.error("❌ Lỗi:", error);
-//         res.status(500).json({ error: "Lỗi server" });
-//     }
-// });
-
-
 
 function generateVietQRQuickLink(order) {
     const bankId = process.env.BANK_ID;
@@ -3218,18 +3312,30 @@ router.get("/orders", authenticateToken, async (req, res) => {
         }
 
         const orderIds = orders.map(order => order._id);
-
         const orderItems = await OrderItems.find({ order_id: { $in: orderIds } })
+            .populate({
+                path: 'product_product_type_id',
+                populate: [
+                    { path: 'product_id' },
+                    { path: 'product_type_id', select: '_id name' }
+                ]
+            })
             .lean();
 
-        const itemsWithProducts = await Promise.all(orderItems.map(async (item) => {
-            const product = await getProductDetails(item.product_id);
-            return { ...item, product };
-        }));
 
+        const formattedOrderItems = await Promise.all(orderItems.map(async (item) => {
+            const product = await getProductDetails(item.product_product_type_id.product_id);
+            item.productType = item.product_product_type_id;
+            item.productType.product_id = item.productType.product_id._id;
+            item.productType.product_type_id = item.productType.product_type_id._id;
+            item.product_product_type_id = item.product_product_type_id._id;
+            item.productType.product = product;
+            item.productType.productType = await ProductTypes.findById(item.productType.product_type_id);
+            return { ...item };
+        }));
         const ordersWithItems = orders.map(order => ({
             ...order,
-            items: itemsWithProducts.filter(item => item.order_id.toString() === order._id.toString())
+            items: formattedOrderItems.filter(item => item.order_id.toString() === order._id.toString())
         }));
 
         res.status(200).json({
@@ -3260,12 +3366,29 @@ router.get("/orders/:id/detail", authenticateToken, async (req, res) => {
             });
         }
 
-        const orderItems = await OrderItems.find({ order_id: id }).lean();
+        const orderItems = await OrderItems.find({ order_id: id })
+            .populate({
+                path: 'product_product_type_id',
+                populate: [
+                    { path: 'product_id' },
+                    { path: 'product_type_id', select: '_id name' }
+                ]
+            })
+            .lean();
 
-        const itemsWithProducts = await Promise.all(orderItems.map(async (item) => {
-            const product = await getProductDetails(item.product_id);
-            return { ...item, product };
+
+        const formattedOrderItems = await Promise.all(orderItems.map(async (item) => {
+            const product = await getProductDetails(item.product_product_type_id.product_id);
+            item.productType = item.product_product_type_id;
+            item.productType.product_id = item.productType.product_id._id;
+            item.productType.product_type_id = item.productType.product_type_id._id;
+            item.product_product_type_id = item.product_product_type_id._id;
+            item.productType.product = product;
+            item.productType.productType = await ProductTypes.findById(item.productType.product_type_id);
+            return { ...item };
         }));
+
+
         const district = await getDistrict(order.to_district_id);
         const province = await getProvince(district.ProvinceID);
         const ward = await getWard(order.to_district_id, order.to_ward_code);
@@ -3277,7 +3400,7 @@ router.get("/orders/:id/detail", authenticateToken, async (req, res) => {
                 district,
                 province,
                 ward,
-                items: itemsWithProducts
+                items: formattedOrderItems
             }
         });
 
@@ -3289,6 +3412,7 @@ router.get("/orders/:id/detail", authenticateToken, async (req, res) => {
         });
     }
 });
+
 
 
 router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
@@ -3456,5 +3580,212 @@ router.get("/chat/fullChat", async (req, res) => {
         return res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 });
+
+
+router.get("/provinces", authenticateToken, async (req, res) => {
+    try {
+        const response = await axios.get(`${GHN_API}/master-data/province`, {
+            headers: { Token: TOKEN_GHN }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching provinces", error: error.response?.data || error.message });
+    }
+});
+
+router.post("/districts", authenticateToken, async (req, res) => {
+    try {
+        const response = await axios.post(`${GHN_API}/master-data/district`, req.body, {
+            headers: { Token: TOKEN_GHN }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching districts", error: error.response?.data || error.message });
+    }
+});
+
+router.get("/wards", authenticateToken, async (req, res) => {
+    try {
+        const district_id = req.query.district_id;
+        if (!district_id) return res.status(400).json({ message: "Missing district_id" });
+
+        const response = await axios.get(`${GHN_API}/master-data/ward`, {
+            params: { district_id },
+            headers: { Token: TOKEN_GHN }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching wards", error: error.response?.data || error.message });
+    }
+});
+
+const users = require('../public/users.json');
+
+const createTestAccounts = async (req, res) => {
+    try {
+
+        for (const user of users) {
+            let { full_name, phone_number, password } = user;
+            if (phone_number.startsWith("0")) {
+                phone_number = "+84" + phone_number.substring(1);
+            }
+            const existingUser = await Users.findOne({ phone_number });
+
+            if (existingUser) {
+                console.log(`User with phone number ${phone_number} already exists in MongoDB.`);
+                continue;
+            }
+
+            const firebaseUser = await auth.createUser({
+                phoneNumber: phone_number,
+                password: password,
+            });
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            const newUser = new Users({
+                uid: firebaseUser.uid,
+                full_name: full_name,
+                phone_number: phone_number,
+                password: hashedPassword
+            });
+
+            await newUser.save();
+        }
+
+        // res.status(200).json({
+        //     status: 200,
+        //     message: "Test accounts created successfully!",
+        // });
+
+    } catch (error) {
+        console.error("Error creating test accounts:", error);
+        // if (res) {
+        //     res.status(500).json({
+        //         status: 500,
+        //         message: "Internal server error",
+        //     });
+        // }
+    }
+};
+
+const deleteTestAccounts = async (req, res) => {
+    try {
+        for (const user of users) {
+            let { full_name, phone_number, password } = user;
+
+            if (phone_number.startsWith("0")) {
+                phone_number = "+84" + phone_number.substring(1);
+            }
+
+            // Tìm người dùng trong MongoDB
+            const existingUser = await Users.findOne({ phone_number });
+
+            if (existingUser) {
+                console.log(`User with phone number ${phone_number} found in MongoDB.`);
+
+                // Xóa người dùng khỏi Firebase
+                try {
+                    await auth.deleteUser(existingUser.uid);
+                    console.log(`User with phone number ${phone_number} deleted from Firebase.`);
+                } catch (firebaseError) {
+                    console.error(`Error deleting user from Firebase: ${firebaseError}`);
+                }
+
+                // Xóa người dùng khỏi MongoDB
+                await Users.deleteOne({ phone_number });
+                console.log(`User with phone number ${phone_number} deleted from MongoDB.`);
+            } else {
+                console.log(`User with phone number ${phone_number} does not exist in MongoDB.`);
+            }
+        }
+
+        res.status(200).json({
+            status: 200,
+            message: "Test accounts deleted successfully!",
+        });
+
+    } catch (error) {
+        console.error("Error deleting test accounts:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error",
+        });
+    }
+};
+
+
+
+//createTestAccounts();
+
+// deleteTestAccounts();
+
+
+// function generateUsers(count) {
+//     const users = [];
+//     const usedPhoneNumbers = new Set();
+
+//     // Hàm tạo tên ngẫu nhiên
+//     function generateRandomName() {
+//         const firstNames = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Huỳnh', 'Phan', 'Vũ', 'Võ', 'Đặng'];
+//         const middleNames = ['Văn', 'Thị', 'Hồng', 'Minh', 'Thu', 'Ngọc', 'Bảo', 'Kim', 'Thanh', 'Nhật'];
+//         const lastNames = ['Anh', 'Bình', 'Chi', 'Dũng', 'Giang', 'Hà', 'Khanh', 'Linh', 'Mai', 'Nga'];
+
+//         const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+//         const middleName = middleNames[Math.floor(Math.random() * middleNames.length)];
+//         const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+
+//         return `${firstName} ${middleName} ${lastName}`;
+//     }
+
+//     // Hàm tạo số điện thoại ngẫu nhiên (duy nhất)
+//     function generateUniquePhoneNumber() {
+//         let phoneNumber;
+//         do {
+//             phoneNumber = '0' + Math.floor(100000000 + Math.random() * 900000000).toString();
+//         } while (usedPhoneNumbers.has(phoneNumber));
+
+//         usedPhoneNumbers.add(phoneNumber);
+//         return phoneNumber;
+//     }
+
+//     // Hàm tạo mật khẩu đúng quy tắc
+//     function generateStrongPassword() {
+//         const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+//         const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+//         const numbers = '0123456789';
+//         const specials = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+//         // Đảm bảo mỗi loại ký tự có ít nhất 1
+//         let password = [
+//             uppercase[Math.floor(Math.random() * uppercase.length)],
+//             lowercase[Math.floor(Math.random() * lowercase.length)],
+//             numbers[Math.floor(Math.random() * numbers.length)],
+//             specials[Math.floor(Math.random() * specials.length)]
+//         ];
+
+//         const allChars = uppercase + lowercase + numbers + specials;
+//         while (password.length < 8) {
+//             password.push(allChars[Math.floor(Math.random() * allChars.length)]);
+//         }
+
+//         return password.sort(() => Math.random() - 0.5).join('');
+//     }
+
+//     for (let i = 0; i < count; i++) {
+//         users.push({
+//             full_name: generateRandomName(),
+//             phone_number: generateUniquePhoneNumber(),
+//             password: generateStrongPassword()
+//         });
+//     }
+
+//     return users;
+// }
+
+// // Tạo 100 user (bạn có thể thay đổi số lượng)
+// const userData = generateUsers(100);
+// console.log(JSON.stringify(userData, null, 2));
+
 
 module.exports = { router, getUserAddress, getShopInfo };

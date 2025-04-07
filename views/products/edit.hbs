@@ -1,4 +1,24 @@
+<style>
+    .product-type-item {
+        border: 1px solid #ddd;
+        /* Viền cho item */
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: #f9f9f9;
+    }
+
+    .product-type-header {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #333;
+    }
+</style>
 <div class="modal-body container px-4">
+    <a href="" class="btn btn-secondary mb-4" id="backBtn">
+        <i class="bi bi-arrow-left-circle"></i> Quay lại
+    </a>
     <div class="modal-content">
 
         <div class="modal-header">
@@ -44,26 +64,23 @@
                             </select>
                         </div>
 
-                        <!-- Product Type -->
                         <div class="mb-3">
-                            <label for="editProductType" class="form-label"><span data-lang="product type">Product
-                                    Type</span></label>
-                            <select class="form-select" id="editProductType" required>
-                                <option value="" selected disabled><span data-lang="select_product_type">Select
-                                        Product Type</span></option>
+                            <label for="productTypes" class="form-label"><span data-lang="product_types">Product
+                                    Types</span></label>
+                            <select class="form-select" id="productTypes" multiple required>
+                                <option value="" disabled><span data-lang="select_product_types">Select Product
+                                        Types</span></option>
                                 {{#each productTypes}}
                                 <option value="{{this._id}}">{{this.name}}</option>
                                 {{/each}}
                             </select>
                         </div>
 
-                        <!-- Price -->
-                        <div class="mb-3">
-                            <label for="editProductPrice" class="form-label"><span
-                                    data-lang="selling_price">Price</span>
-                                (VND)</label>
-                            <input type="number" class="form-control" id="editProductPrice" min="1" required>
+                        <!-- Price for each selected Product Type -->
+                        <div id="productTypePriceContainer" class="mb-3">
+                            <!-- Here we will dynamically generate price fields for each selected Product Type -->
                         </div>
+
 
                         <!-- Short Description -->
                         <div class="mb-3">
@@ -97,16 +114,38 @@
                                 placeholder="Enter the country of origin">
                         </div>
                         <!-- Status -->
-                        <div class="mb-3">
-                            <label for="editProductStatus" class="form-label"><span data-lang="product_status">Product
-                                    Status</span></label>
+                        {{!-- <div class="mb-3">
+                            <label for="editProductStatus" class="form-label">
+                                <span data-lang="product_status">Trạng thái sản phẩm</span>
+                            </label>
                             <select class="form-select" id="editProductStatus" required>
                                 <option value="not_started" data-lang="not_started">Chưa bắt đầu bán</option>
                                 <option value="active" data-lang="active">Đang bán</option>
                                 <option value="paused" data-lang="paused">Tạm ngừng bán</option>
                                 <option value="out_of_stock" data-lang="out_of_stock">Hết hàng</option>
+                                <option value="discontinued" data-lang="discontinued">Ngừng bán vĩnh viễn</option>
                             </select>
+                        </div> --}}
+                        <div class="mb-3" id="editProductStatusWrapper">
+                            <label for="editProductStatus" class="form-label">
+                                <span data-lang="product_status">Trạng thái sản phẩm</span>
+                            </label>
+
+                            <!-- Hiển thị nếu được phép chỉnh sửa -->
+                            <select class="form-select" id="editProductStatus" required>
+                                <option value="not_started" data-lang="not_started">Chưa bắt đầu bán</option>
+                                <option value="active" data-lang="active">Đang bán</option>
+                                <option value="paused" data-lang="paused">Tạm ngừng bán</option>
+                                <option value="discontinued" data-lang="discontinued">Ngừng bán vĩnh viễn</option>
+                            </select>
+
+                            <!-- Chỉ hiện nếu là discontinued -->
+                            <p id="readonlyProductStatus" class="form-control bg-light fw-semibold text-danger"
+                                style="display: none;">
+                                Ngừng bán vĩnh viễn
+                            </p>
                         </div>
+
 
 
                     </div>
@@ -209,7 +248,59 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('backBtn').addEventListener('click', function (e) {
+            e.preventDefault();
+
+            window.history.go(-1);
+            console.log("Check");
+        });
+
         const product_id = JSON.parse(document.getElementById("product_id").textContent);
+
+
+        document.getElementById('productTypes').addEventListener('change', function () {
+            const selectedTypes = Array.from(this.selectedOptions).map(option => ({
+                id: option.value,
+                name: option.text
+            }));
+
+            const priceContainer = document.getElementById('productTypePriceContainer');
+            priceContainer.innerHTML = '';
+
+            selectedTypes.forEach(type => {
+                const section = document.createElement('div');
+                section.classList.add('product-type-item');
+
+                const header = document.createElement('h5');
+                header.classList.add('product-type-header');
+                header.textContent = `Loại sản phẩm: ${type.name}`;
+
+                const div = document.createElement('div');
+                div.classList.add('mb-3');
+
+                const label = document.createElement('label');
+                label.setAttribute('for', `price_${type.id}`);
+                label.classList.add('form-label');
+                label.textContent = `Giá bán cho loại sản phẩm ${type.name}`;
+
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.classList.add('form-control');
+                input.id = `price_${type.id}`;
+                input.placeholder = `Nhập giá cho loại sản phẩm ${type.name}`;
+                input.min = 1;
+                input.required = true;
+
+                div.appendChild(label);
+                div.appendChild(input);
+
+                section.appendChild(header);
+                section.appendChild(div);
+
+                priceContainer.appendChild(section);
+            });
+        });
+
 
 
 
@@ -371,25 +462,87 @@
                     document.getElementById("editProductName").value = product.name;
                     document.getElementById("editProductCategory").value = product.category_id._id;
                     document.getElementById("editProductBrand").value = product.brand_id._id;
-                    document.getElementById("editProductType").value = product.product_type_id._id;
-                    document.getElementById("editProductPrice").value = product.price;
-                    //document.getElementById("editProductAverageRating").value = product.average_rating;
-                    //document.getElementById("editProductReviewCount").value = product.review_count;
                     document.getElementById("editProductShortDescription").value = product.short_description;
                     document.getElementById("editProductSpecification").value = product.specification;
                     document.getElementById("editProductOriginCountry").value = product.origin_country;
                     document.getElementById("editProductManufacturer").value = product.manufacturer;
 
                     const statusSelect = document.getElementById("editProductStatus");
-                    statusSelect.value = product.status; // Đặt trạng thái hiện tại
+                    const statusText = document.getElementById("readonlyProductStatus");
 
-                    if (product.status !== "not_started") {
-                        // Nếu sản phẩm đã được bán, ẩn tùy chọn "not_started"
-                        const notStartedOption = statusSelect.querySelector('option[value="not_started"]');
-                        if (notStartedOption) {
-                            notStartedOption.style.display = "none";
+                    if (product.status === "discontinued") {
+                        statusSelect.style.display = "none";
+                        statusText.textContent = "Ngừng bán vĩnh viễn";
+                        statusText.style.display = "block";
+                    } else {
+                        statusSelect.style.display = "block";
+                        statusText.style.display = "none";
+                        statusSelect.value = product.status;
+
+                        if (product.status !== "not_started") {
+                            const notStartedOption = statusSelect.querySelector('option[value="not_started"]');
+                            if (notStartedOption) {
+                                notStartedOption.style.display = "none";
+                            }
                         }
                     }
+
+
+
+
+                    const productTypesSelect = document.getElementById('productTypes');
+
+                    const selectedTypes = product.product_product_types.map(pt => pt.product_type_id._id);
+
+                    const options = productTypesSelect.options;
+                    for (let i = 0; i < options.length; i++) {
+                        const option = options[i];
+                        if (selectedTypes.includes(option.value)) {
+                            option.selected = true;
+                        } else {
+                            option.selected = false;
+                        }
+                    }
+
+
+                    const priceContainer = document.getElementById('productTypePriceContainer');
+                    priceContainer.innerHTML = ''; // Xóa nội dung cũ
+
+                    // Tạo một thẻ div chứa các loại sản phẩm đã chọn
+                    product.product_product_types.forEach(type => {
+                        const section = document.createElement('div');
+                        section.classList.add('product-type-item'); // Thêm lớp cho nhóm các item
+
+                        const header = document.createElement('h5');
+                        header.classList.add('product-type-header'); // Tiêu đề của nhóm
+                        header.textContent = `Loại sản phẩm: ${type.product_type_id.name}`;
+
+                        const div = document.createElement('div');
+                        div.classList.add('mb-3');
+
+                        const label = document.createElement('label');
+                        label.setAttribute('for', `price_${type.product_type_id._id}`);
+                        label.classList.add('form-label');
+                        label.textContent = `Giá bán cho loại sản phẩm ${type.product_type_id.name}`;
+
+                        const input = document.createElement('input');
+                        input.type = 'number';
+                        input.classList.add('form-control');
+                        input.id = `price_${type.product_type_id._id}`;
+                        input.placeholder = `Nhập giá cho loại sản phẩm ${type.product_type_id.name}`;
+                        input.min = 1;
+                        input.value = type.price;
+                        input.required = true;
+
+                        div.appendChild(label);
+                        div.appendChild(input);
+
+                        section.appendChild(header);
+                        section.appendChild(div);
+
+                        priceContainer.appendChild(section);
+                    });
+
 
                     const sectionContainer = document.getElementById("editSectionContainer");
                     sectionContainer.innerHTML = "";
@@ -514,6 +667,9 @@
 
             //new bootstrap.Modal(editProductModal).show();
         }
+
+
+
 
         const editSectionContainer = document.getElementById("editSectionContainer")
 
@@ -683,8 +839,6 @@
             formData.append('name', document.getElementById('editProductName').value);
             formData.append('category_id', document.getElementById('editProductCategory').value);
             formData.append('brand_id', document.getElementById('editProductBrand').value);
-            formData.append('product_type_id', document.getElementById('editProductType').value);
-            formData.append('price', document.getElementById('editProductPrice').value);
             formData.append('short_description', document.getElementById('editProductShortDescription').value);
             formData.append('specification', document.getElementById('editProductSpecification').value);
             formData.append('origin_country', document.getElementById('editProductOriginCountry').value);
@@ -743,6 +897,23 @@
             });
 
             formData.append("sections", JSON.stringify(sections));
+
+            const productTypePrices = [];
+            document.querySelectorAll('#productTypePriceContainer .product-type-item').forEach(section => {
+                const input = section.querySelector('input');
+                if (input) {
+                    const typeId = input.id.replace('price_', '');
+                    const price = input.value.trim();
+
+                    if (price) {
+                        productTypePrices.push({ product_type_id: typeId, price: Number(price) });
+                    }
+                }
+            });
+
+            formData.append('product_product_types', JSON.stringify(productTypePrices));
+
+
 
             try {
                 showLoadingModal("edit");

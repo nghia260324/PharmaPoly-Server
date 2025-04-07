@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Orders = require("../models/orders");
 const OrderItems = require("../models/orderItems");
 const Products = require("../models/products");
+const StockEntrys = require("../models/stockEntries");
 const dotenv = require("dotenv");
 
 dotenv.config();
@@ -29,6 +30,22 @@ cron.schedule("*/2 * * * *", async () => {
         console.log(`✅ Canceled ${orders.length} unpaid online orders.`);
     } catch (error) {
         console.error("❌ Error auto-canceling orders:", error);
+    }
+});
+
+cron.schedule("0 0 * * *", async () => {
+    try {
+        const today = new Date();
+
+        const expiredStock = await StockEntrys.updateMany(
+            { expiry_date: { $lte: today }, status: { $ne: 'expired' } },
+            { $set: { status: { $ne: 'expired', $ne: 'discontinued' } } }
+            
+        );
+
+        console.log(`✅ Cập nhật trạng thái 'expired' cho ${expiredStock.nModified} lô hàng đã hết hạn.`);
+    } catch (error) {
+        console.error("❌ Lỗi khi cập nhật trạng thái lô hàng đã hết hạn:", error);
     }
 });
 

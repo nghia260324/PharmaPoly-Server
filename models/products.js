@@ -5,8 +5,6 @@ const Products = new Schema({
     name: {type: String, required: true},
     category_id: {type: Schema.Types.ObjectId, ref: 'category', required: true},
     brand_id: {type: Schema.Types.ObjectId, ref: 'brand', required: true},
-    product_type_id: {type: Schema.Types.ObjectId, ref: 'productType', required: true},
-    price: {type: Number, required: true},
     short_description: {type: String, required: true},
     specification: {type: String, required: true},
     origin_country: {type: String, required: true},
@@ -20,6 +18,7 @@ const Products = new Schema({
             'active', // Sản phẩm đang được bán
             'paused', // Sản phẩm tạm ngừng bán
             'out_of_stock', // Sản phẩm hết hàng
+            'discontinued'   // Ngừng bán vĩnh viễn
         ],
         default: 'not_started' // Mặc định là chưa bắt đầu bán
     },

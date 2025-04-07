@@ -72,78 +72,78 @@ app.use("/chat", authenticateToken, authorizeAdmin, chatRouter);
 
 
 
-// app.post('/webhook/ghn', async (req, res) => {
-//   try {
-//     const data = req.body;
+app.post('/webhook/ghn', async (req, res) => {
+  try {
+    const data = req.body;
 
-//     if (!data || !data.OrderCode || !data.Status) {
-//       return res.status(400).send("Invalid Webhook Data");
-//     }
-//     if (data.ShopID !== SHOP_ID) {
-//       return res.status(403).send("Forbidden");
-//     }
-//     const ghnStatusMap = {
-//       "pending": "pending",
-//       "confirmed": "confirmed",
-//       "ready_to_pick": "ready_to_pick",
-//       "picking": "picking",
-//       "picked": "picked",
-//       "delivering": "delivering",
-//       "money_collect_delivering": "money_collect_delivering",
-//       "delivered": "delivered",
-//       "delivery_fail": "delivery_fail",
-//       "waiting_to_return": "waiting_to_return",
-//       "return": "return",
-//       "returned": "returned",
-//       "return_fail": "return_fail",
-//       "cancel": "canceled"
-//     };
+    if (!data || !data.OrderCode || !data.Status) {
+      return res.status(400).send("Invalid Webhook Data");
+    }
+    if (data.ShopID !== SHOP_ID) {
+      return res.status(403).send("Forbidden");
+    }
+    const ghnStatusMap = {
+      "pending": "pending",
+      "confirmed": "confirmed",
+      "ready_to_pick": "ready_to_pick",
+      "picking": "picking",
+      "picked": "picked",
+      "delivering": "delivering",
+      "money_collect_delivering": "money_collect_delivering",
+      "delivered": "delivered",
+      "delivery_fail": "delivery_fail",
+      "waiting_to_return": "waiting_to_return",
+      "return": "return",
+      "returned": "returned",
+      "return_fail": "return_fail",
+      "cancel": "canceled"
+    };
 
-//     const newStatus = ghnStatusMap[data.Status];
+    const newStatus = ghnStatusMap[data.Status];
 
-//     if (!newStatus) {
-//       console.log(`GHN status ${data.Status} is not recognized.`);
-//       return res.status(200).send("Unknown GHN status, ignored");
-//     }    
+    if (!newStatus) {
+      console.log(`GHN status ${data.Status} is not recognized.`);
+      return res.status(200).send("Unknown GHN status, ignored");
+    }    
 
-//     const order = await Orders.findOne({ order_code: data.OrderCode });
+    const order = await Orders.findOne({ order_code: data.OrderCode });
 
-//     if (!order) {
-//       console.log(`Order ${data.OrderCode} not found`);
-//       return res.status(404).send("Order not found");
-//     }
+    if (!order) {
+      console.log(`Order ${data.OrderCode} not found`);
+      return res.status(404).send("Order not found");
+    }
 
-//     if (order.status === "delivered") {
-//       return res.status(200).send("Order already delivered");
-//     }
+    if (order.status === "delivered") {
+      return res.status(200).send("Order already delivered");
+    }
 
-//     const updateFields = { status: newStatus };
+    const updateFields = { status: newStatus };
 
-//     if (newStatus === "delivered") {
-//       updateFields.delivered_at = new Date();
-//     }
+    if (newStatus === "delivered") {
+      updateFields.delivered_at = new Date();
+    }
 
-//     const updatedOrder = await Orders.findOneAndUpdate(
-//       { order_code: data.OrderCode },
-//       updateFields,
-//       { new: true }
-//     );
+    const updatedOrder = await Orders.findOneAndUpdate(
+      { order_code: data.OrderCode },
+      updateFields,
+      { new: true }
+    );
 
-//     if (!updatedOrder) {
-//       console.log(`Order ${data.OrderCode} not found`);
-//       return res.status(404).send("Order not found");
-//     }
+    if (!updatedOrder) {
+      console.log(`Order ${data.OrderCode} not found`);
+      return res.status(404).send("Order not found");
+    }
 
-//     console.log(`Order ${updatedOrder.order_code} updated to status ${updatedOrder.status}`);
-//     res.status(200).send("Webhook received and order updated");
-//   } catch (error) {
-//     console.error("Error processing webhook:", error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
+    console.log(`Order ${updatedOrder.order_code} updated to status ${updatedOrder.status}`);
+    res.status(200).send("Webhook received and order updated");
+  } catch (error) {
+    console.error("Error processing webhook:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
 
 
-app.post("/webhook/payment", async (req, res) => {
+app.post("/webhook/ghn", async (req, res) => {
   try {
     const { error, data } = req.body;
 
@@ -203,70 +203,6 @@ app.post("/webhook/payment", async (req, res) => {
 });
 
 
-app.post("/webhook/payment", async (req, res) => {
-  try {
-    const { error, data } = req.body;
-
-    if (error !== 0 || !data) {
-      return res.status(400).json({ status: 400, message: "Invalid Casso data" });
-    }
-
-    const { reference, description, amount } = data;
-
-    if (!reference || !description || !amount) {
-      return res.status(400).json({ status: 400, message: "Missing required fields" });
-    }
-
-    if (reference === "MA_GIAO_DICH_THU_NGHIEM" || description === "giao dich thu nghiem") {
-      return res.json({ status: 200, message: "Test transaction received successfully" });
-    }
-
-    if (description.length < 48) {
-      return res.status(400).json({ status: 400, message: "Invalid transaction description format" });
-    }
-
-    const match = description.match(/OID([a-f0-9]{24})END/);
-    if (!match) {
-      console.log(`Transaction with unrecognized format: ${description}`);
-      return res.status(200).json({ status: 200, message: "Invalid transaction format, ignored" });
-    }
-
-    const orderId = match[1];
-
-    const order = await Orders.findOne({ _id: orderId });
-    if (!order) {
-      return res.status(404).json({ status: 404, message: "Order not found" });
-    }
-
-    if (order.payment_status === "paid") {
-      return res.json({ status: 200, message: "Order already paid" });
-    }
-
-    const userId = order.user_id;
-
-    const paidAmount = Number(amount);
-    if (order.total_price === paidAmount) {
-      order.payment_status = "paid";
-      order.transaction_id = reference;
-      await order.save();
-
-      await db.ref(`payment_status/${userId}`).set("PAID");
-
-      res.json({ status: 200, message: "Webhook received successfully" });
-    } else {
-      return res.status(400).json({ status: 400, message: "Incorrect payment amount" });
-    }
-  } catch (error) {
-    console.error("Webhook Error:", error);
-    res.status(500).json({ status: 500, message: "Internal Server Error" });
-  }
-});
-// order.payment_status = "paid";
-// order.transaction_id = reference;
-// await order.save();
-
-// await db.ref(`payment_status/${userId}`).set("PAID");
-
 const verifyCassoSignature = (req, res, next) => {
   try {
     const secretKey = process.env.CASSO_SECRET_KEY;
@@ -289,9 +225,7 @@ const verifyCassoSignature = (req, res, next) => {
 };
 
 
-
 database.connect();
-// catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));
 });
@@ -299,11 +233,9 @@ app.use(function (req, res, next) {
 
 
 app.use(function (err, req, res, next) {
-  // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
 
-  // render the error page
   res.status(err.status || 500);
   res.render('error', { layout: false });
 

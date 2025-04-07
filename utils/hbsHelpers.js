@@ -47,7 +47,8 @@ const registerHelpers = () => {
       "return": "bg-info",
       "returned": "bg-success",
       "return_fail": "bg-danger",
-      "canceled": "bg-danger"
+      "canceled": "bg-danger",
+      "rejected": "bg-danger"
     };
     return statusClasses[status] || "bg-secondary";
   });
@@ -67,7 +68,8 @@ const registerHelpers = () => {
       "return": "Đang hoàn hàng",
       "returned": "Đã hoàn hàng",
       "return_fail": "Hoàn hàng thất bại",
-      "canceled": "Đơn hàng bị hủy"
+      "canceled": "Đơn hàng bị hủy",
+      "rejected": "Đơn hàng bị từ chối"
     };
     return statusTexts[status] || "Không xác định";
   });
@@ -102,6 +104,8 @@ const registerHelpers = () => {
         return 'Tạm ngừng bán';
       case 'out_of_stock':
         return 'Hết hàng';
+      case 'discontinued':
+        return 'Ngừng bán vĩnh viễn';
       default:
         return 'Trạng thái không xác định';
     }
@@ -111,7 +115,8 @@ const registerHelpers = () => {
       "not_started": "bg-secondary",
       "active": "bg-success",
       "paused": "bg-warning",
-      "out_of_stock": "bg-danger"
+      "out_of_stock": "bg-danger",
+      "discontinued": "bg-dark"
     };
     return statusClasses[status] || "bg-secondary";
   });
@@ -121,7 +126,43 @@ const registerHelpers = () => {
     }
     return price.toLocaleString("vi-VN");
   });
+  hbs.registerHelper("multiplyAndFormat", (quantity, price) => {
+    const result = quantity * price;
+    return result.toLocaleString("vi-VN");
+  });
 
+  hbs.registerHelper('getStatusIcon', function (status) {
+    const icons = {
+      'not_started': 'bi-hourglass',
+      'active': 'bi-check-circle',
+      'paused': 'bi-pause-circle',
+      'out_of_stock': 'bi-exclamation-circle',
+      'discontinued': 'bi-x-circle'
+    };
+    return icons[status] || 'bi-question-circle';
+  });
+  hbs.registerHelper('lowStockClass', function (stockQuantity) {
+    if (stockQuantity < 10) {
+      return 'text-danger fw-bold';
+    }
+    if (stockQuantity < 50) {
+      return 'text-warning';
+    }
+    return 'text-success';
+  });
+  hbs.registerHelper('formatDate', function (dateString) {
+    if (!dateString) return 'N/A';
+
+    const date = new Date(dateString);
+
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  });
 };
 
 module.exports = registerHelpers;
