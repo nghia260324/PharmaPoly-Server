@@ -163,6 +163,33 @@ const registerHelpers = () => {
 
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   });
+  hbs.registerHelper('stars', function (rating) {
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+      stars += `<i class="bi ${i <= rating ? 'bi-star-fill text-warning' : 'bi-star'}"></i>`;
+    }
+    return new hbs.SafeString(stars);
+  });
+  hbs.registerHelper('statusBadge', function (status) {
+    const classes = {
+      active: 'bg-success',
+      out_of_stock: 'bg-danger',
+      discontinued: 'bg-secondary',
+      paused: 'bg-warning'
+    };
+    return classes[status] || 'bg-secondary';
+  });
+
+  // Helper hiển thị label trạng thái
+  hbs.registerHelper('statusLabel', function (status) {
+    const labels = {
+      active: 'Đang bán',
+      out_of_stock: 'Hết hàng',
+      discontinued: 'Ngừng bán',
+      paused: 'Tạm dừng'
+    };
+    return labels[status] || 'Không xác định';
+  });
 };
 
 module.exports = registerHelpers;

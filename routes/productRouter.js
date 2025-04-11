@@ -280,14 +280,17 @@ router.post('/:product_id/import-stock/add', async (req, res) => {
 router.post('/:product_id/import-stock/:id/update-info', async (req, res) => {
     const { product_id, id } = req.params;
     const { batch_number, quantity, import_price, expiry_date, product_product_type_id } = req.body;
-
+    console.log(req.body)
     if (!batch_number || !quantity || !import_price || !expiry_date || !product_product_type_id) {
         return res.status(400).json({
             status: 400,
             message: "Missing required fields!"
         });
     }
-    const existingStockEntry = await StockEntries.findOne({ batch_number });
+    const existingStockEntry = await StockEntries.findOne({
+        batch_number,
+        _id: { $ne: id }
+    });
     if (existingStockEntry) {
         return res.status(400).json({
             status: 400,
@@ -303,27 +306,27 @@ router.post('/:product_id/import-stock/:id/update-info', async (req, res) => {
         });
     }
 
-    if (stockEntry.status !== 'not_started') {
-        return res.status(400).json({
-            status: 400,
-            message: "You can only update stock information when the status is 'not_started'."
-        });
-    }
+    // if (stockEntry.status !== 'not_started') {
+    //     return res.status(400).json({
+    //         status: 400,
+    //         message: "You can only update stock information when the status is 'not_started'."
+    //     });
+    // }
 
-    const expiryDateObj = new Date(expiry_date);
-    if (isNaN(expiryDateObj.getTime())) {
-        return res.status(400).json({
-            status: 400,
-            message: "Invalid expiry date format! Please use YYYY-MM-DD"
-        });
-    }
-    const importDateObj = new Date();
-    if (expiryDateObj <= importDateObj) {
-        return res.status(400).json({
-            status: 400,
-            message: "Expiry date must be greater than import date!"
-        });
-    }
+    // const expiryDateObj = new Date(expiry_date);
+    // if (isNaN(expiryDateObj.getTime())) {
+    //     return res.status(400).json({
+    //         status: 400,
+    //         message: "Invalid expiry date format! Please use YYYY-MM-DD"
+    //     });
+    // }
+    // const importDateObj = new Date();
+    // if (expiryDateObj <= importDateObj) {
+    //     return res.status(400).json({
+    //         status: 400,
+    //         message: "Expiry date must be greater than import date!"
+    //     });
+    // }
 
     try {
         const product = await Products.findById(product_id);
@@ -343,19 +346,19 @@ router.post('/:product_id/import-stock/:id/update-info', async (req, res) => {
 
 
 
-        if (stockEntry.status !== 'not_started') {
-            return res.status(400).json({
-                status: 400,
-                message: "You can only update stock information when the status is 'not_started'."
-            });
-        }
+        // if (stockEntry.status !== 'not_started') {
+        //     return res.status(400).json({
+        //         status: 400,
+        //         message: "You can only update stock information when the status is 'not_started'."
+        //     });
+        // }
 
-        stockEntry.batch_number = batch_number;
-        stockEntry.quantity = quantity;
+        //stockEntry.batch_number = batch_number;
+        //stockEntry.quantity = quantity;
         stockEntry.import_price = import_price;
-        stockEntry.expiry_date = expiryDateObj;
-        stockEntry.product_product_type_id = product_product_type_id;
-        stockEntry.remaining_quantity = quantity;
+        //stockEntry.expiry_date = expiryDateObj;
+        //stockEntry.product_product_type_id = product_product_type_id;
+        //stockEntry.remaining_quantity = quantity;
 
         const updatedStockEntry = await stockEntry.save();
 

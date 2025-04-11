@@ -1,4 +1,265 @@
-<div class="container mt-3">
-  <h2><span class="h2 mb-0"><span data-lang="dashboard">Dashboard</span></span></h2>
-  <p><span data-lang="welcome to the admin dashboard">Welcome to the admin dashboard.</span></p>
+<div class="container-fluid">
+  <form method="GET" action="/dashboards/revenue">
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <label for="timePeriod" class="form-label">Khoảng thời gian</label>
+        <select name="timePeriod" id="timePeriod" class="form-select">
+          <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
+          <option value="last_week" {{#if (eq filters.timePeriod "last_week" )}}selected{{/if}}>Tuần trước</option>
+          <option value="last_month" {{#if (eq filters.timePeriod "last_month" )}}selected{{/if}}>Tháng trước</option>
+          <option value="this_month" {{#if (eq filters.timePeriod "this_month" )}}selected{{/if}}>Tháng này</option>
+          <option value="last_3_months" {{#if (eq filters.timePeriod "last_3_months" )}}selected{{/if}}>3 tháng gần nhất
+          </option>
+          <option value="custom" {{#if (eq filters.timePeriod "custom" )}}selected{{/if}}>Tùy chỉnh</option>
+        </select>
+
+      </div>
+
+      <div class="col-md-2 custom-date-range d-none">
+        <label for="startDate" class="form-label">Từ ngày</label>
+        {{!-- <input type="date" name="startDate" id="startDate" class="form-control" /> --}}
+        <input type="date" name="startDate" id="startDate" class="form-control" value="{{filters.startDate}}" />
+
+      </div>
+
+      <div class="col-md-2 custom-date-range d-none">
+        <label for="endDate" class="form-label">Đến ngày</label>
+        {{!-- <input type="date" name="endDate" id="endDate" class="form-control" /> --}}
+        <input type="date" name="endDate" id="endDate" class="form-control" value="{{filters.endDate}}" />
+      </div>
+
+      <div class="col-md-3">
+        <label for="orderStatus" class="form-label">Trạng thái đơn hàng</label>
+        <select name="orderStatus" class="form-select">
+          <option value="" {{#unless filters.orderStatus}}selected{{/unless}}>Tất cả</option>
+          <option value="pending" {{#if (eq filters.orderStatus "pending" )}}selected{{/if}}>Chờ xác nhận</option>
+          <option value="confirmed" {{#if (eq filters.orderStatus "confirmed" )}}selected{{/if}}>Đã xác nhận</option>
+          <option value="delivering" {{#if (eq filters.orderStatus "delivering" )}}selected{{/if}}>Đang giao</option>
+          <option value="delivered" {{#if (eq filters.orderStatus "delivered" )}}selected{{/if}}>Đã giao</option>
+          <option value="canceled" {{#if (eq filters.orderStatus "canceled" )}}selected{{/if}}>Đã hủy</option>
+        </select>
+
+      </div>
+
+      <div class="col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100">Lọc</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Main Content -->
+  <div class="row">
+    <!-- Thống kê chính -->
+    <div class="col-md-4 mb-4">
+      <div class="card stat-card bg-primary text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="card-title"><i class="bi bi-cart"></i> Tổng đơn hàng</h5>
+              <h2 class="mb-0">{{totalOrders}}</h2>
+              <small>Trung bình mỗi ngày: {{averageOrders}}</small>
+            </div>
+            <i class="bi bi-cart4 display-4 opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+      <div class="card stat-card bg-success text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex flex-column flex-grow-1">
+              <h5 class="card-title">
+                <i class="bi bi-currency-dollar"></i> Tổng doanh thu
+              </h5>
+              <h2 class="mb-0 text-nowrap">{{formatPrice totalRevenue}} VND</h2>
+              <small>Trung bình mỗi ngày: {{formatPrice averageRevenue}} VND</small>
+            </div>
+            <i class="bi bi-graph-up display-4 opacity-50 ms-3"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+      <div class="card stat-card bg-warning text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex flex-column flex-grow-1">
+              <h5 class="card-title">
+                <i class="bi bi-cash-coin"></i> Tổng lợi nhuận
+              </h5>
+              <h2 class="mb-0 text-nowrap">{{formatPrice totalProfit}} VND</h2>
+              <small>Trung bình mỗi ngày: {{formatPrice averageProfit}} VND</small>
+            </div>
+            <i class="bi bi-coin display-4 opacity-50 ms-3"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Biểu đồ -->
+    <div class="col-10 mb-4">
+      <div class="chart-container">
+        <h5 class="mb-4">Biểu đồ doanh thu theo thời gian</h5>
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+
+    <div class="col-10 mb-4">
+      <div class="chart-container">
+        <h5 class="mb-4">Biểu đồ số lượng đơn hàng theo thời gian</h5>
+        <canvas id="orderCountChart"></canvas>
+      </div>
+    </div>
+
+
+    <div class="col-4 mb-4">
+      <div class="chart-container">
+        <h5 class="mb-4">Phân loại trạng thái đơn hàng</h5>
+        <canvas id="orderStatusChart"></canvas>
+      </div>
+    </div>
+  </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
+
+<script>
+  // Biểu đồ doanh thu theo thời gian
+  new Chart(document.getElementById('revenueChart'), {
+    type: 'line',
+    data: {
+      labels: {{{ revenueLabels }}},
+    datasets: [{
+      label: 'Doanh thu',
+      data: {{{ revenueData }}},
+    borderColor: '#4bc0c0',
+    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+    tension: 0.4
+      }]
+    },
+    options: {
+    responsive: true,
+    plugins: {
+      legend: { display: true },
+      tooltip: { mode: 'index', intersect: false },
+      zoom: {
+        pan: {
+          enabled: true,
+          mode: 'x',
+        },
+        zoom: {
+          wheel: {
+            enabled: true,
+          },
+          pinch: {
+            enabled: true,
+          },
+          mode: 'x',
+        },
+      }
+    },
+    scales: {
+      y: { beginAtZero: true },
+      x: { title: { display: true, text: 'Ngày' } }
+    }
+  }
+
+  });
+
+  // Biểu đồ số lượng đơn hàng theo thời gian
+  new Chart(document.getElementById('orderCountChart'), {
+    type: 'bar',
+    data: {
+      labels: {{{ orderLabels }}},
+    datasets: [{
+      label: 'Số đơn hàng',
+      data: {{{ orderData }}},
+    backgroundColor: 'rgba(153, 102, 255, 0.5)',
+    borderColor: 'rgba(153, 102, 255, 1)',
+    borderWidth: 1
+    }]
+  },
+    options: {
+    responsive: true,
+    plugins: {
+      legend: { display: true },
+      tooltip: { mode: 'index', intersect: false },
+      zoom: {
+        pan: { enabled: true, mode: 'x' },
+        zoom: {
+          wheel: { enabled: true },
+          pinch: { enabled: true },
+          mode: 'x',
+        }
+      }
+    },
+    scales: {
+      y: { beginAtZero: true },
+      x: { title: { display: true, text: 'Ngày' } }
+    }
+  }
+});
+
+
+  new Chart(document.getElementById('orderStatusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Đã giao', 'Đang giao', 'Chờ xác nhận', 'Đã hủy'],
+      datasets: [{
+        data: {{ orderStatusData }},
+    backgroundColor: ['#4CAF50', '#FFC107', '#9E9E9E', '#F44336']
+  }]
+  },
+    options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom' }
+    }
+  }
+});
+
+</script>
+
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+
+
+    const timePeriodSelect = document.getElementById('timePeriod');
+    const customDateRangeFields = document.querySelectorAll('.custom-date-range');
+
+
+    function toggleDateInputs() {
+      if (timePeriodSelect.value === 'custom') {
+        customDateRangeFields.forEach(el => el.classList.remove('d-none'));
+      } else {
+        customDateRangeFields.forEach(el => el.classList.add('d-none'));
+      }
+      if (timePeriodSelect.value === 'custom') {
+        customDateRangeFields.forEach(el => el.classList.remove('d-none'));
+      }
+    }
+
+    timePeriodSelect.addEventListener('change', toggleDateInputs);
+
+    // Gọi khi load trang nếu đang chọn "custom"
+    toggleDateInputs();
+
+
+  });
+</script>
+{{!-- 
+
+    timePeriodSelect.addEventListener('change', function () {
+      if (this.value === 'custom') {
+        customDateRangeFields.forEach(el => el.classList.remove('d-none'));
+      } else {
+        customDateRangeFields.forEach(el => el.classList.add('d-none'));
+      }
+    });
+    if (timePeriodSelect.value === 'custom') {
+      customDateRangeFields.forEach(el => el.classList.remove('d-none'));
+    } --}}

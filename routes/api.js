@@ -1201,7 +1201,7 @@ router.get('/product/:id/reviews', authenticateToken, async (req, res) => {
             product_id: review.product_id,
             rating: review.rating,
             review: review.review,
-            created_at: review.createdAt,
+            created_at: review.created_at,
             user: userMap.get(review.user_id.toString()) || null,
         }));
 
@@ -2859,136 +2859,6 @@ router.post("/calculate-shipping-fee", async (req, res) => {
 });
 
 
-// router.post("/orders/create", authenticateToken, async (req, res) => {
-//     try {
-//         const { payment_method, cart_item_ids } = req.body;
-//         const user_id = req.user_id;
-
-//         if (!user_id) {
-//             return res.status(401).json({ status: 401, message: "Unauthorized" });
-//         }
-
-//         const user = await Users.findById(user_id);
-//         if (!user) {
-//             return res.status(404).json({ status: 404, message: "User not found" });
-//         }
-
-//         const userAddress = await UserAddress.findOne({ user_id });
-//         if (!userAddress) {
-//             return res.status(404).json({ status: 404, message: "User address not found" });
-//         }
-
-//         const to_name = user.full_name;
-//         const to_phone = user.shipping_phone_number;
-//         const to_address = userAddress.street_address;
-//         const to_district_id = userAddress.district_id;
-//         const to_ward_code = userAddress.ward_id;
-
-
-//         if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !cart_item_ids || cart_item_ids.length === 0) {
-//             return res.status(400).json({ status: 400, message: "Missing required fields" });
-//         }
-
-//         const validPaymentMethods = ["COD", "ONLINE"];
-//         if (!validPaymentMethods.includes(payment_method)) {
-//             return res.status(400).json({ status: 400, message: "Invalid payment method" });
-//         }
-
-//         const cartItems = await CartItems.find({ _id: { $in: cart_item_ids } });
-//         if (cartItems.length !== cart_item_ids.length) {
-//             return res.status(400).json({ status: 400, message: "Some cart items are invalid" });
-//         }
-
-//         for (const item of cartItems) {
-//             const stockEntry = await StockEntries.findOne({ product_id: item.product_id, status: "active" });
-//             console.log(stockEntry);
-//             if (!stockEntry || stockEntry.remaining_quantity < item.quantity) {
-//                 return res.status(400).json({ status: 400, message: `Not enough stock for product: ${item.product_id}` });
-//             }
-//         }
-
-
-//         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
-//         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
-//         const total_price = totalItemPrice + shipping_fee;
-
-//         const newOrder = new Orders({
-//             user_id,
-//             to_name,
-//             to_phone,
-//             to_address,
-//             to_district_id,
-//             to_ward_code,
-//             payment_method,
-//             shipping_fee,
-//             total_price,
-//             payment_status: payment_method === "ONLINE" ? "pending" : null,
-//             status: payment_method === "ONLINE" ? "confirmed" : "pending"
-//         });
-
-//         await newOrder.save();
-
-//         const orderItems = [];
-//         for (const item of cartItems) {
-//             const stockEntry = await StockEntries.findOne({
-//                 product_id: item.product_id,
-//                 status: 'active',
-//                 expiry_date: { $gte: new Date() }
-//             }).sort({ import_date: 1 });
-
-
-//             if (!stockEntry) {
-//                 return res.status(400).json({
-//                     status: 400,
-//                     message: `No active stock available for product ${item.product_id}`
-//                 });
-//             }
-
-//             orderItems.push({
-//                 order_id: newOrder._id,
-//                 product_id: item.product_id,
-//                 batch_number: stockEntry.batch_number,
-//                 quantity: item.quantity,
-//                 price: item.original_price
-//             });
-//         }
-
-//         await OrderItems.insertMany(orderItems);
-
-
-//         // for (const item of cartItems) {
-//         //     await StockEntries.updateOne(
-//         //         { product_id: item.product_id, status: "active", batch_number: item.batch_number },
-//         //         { $inc: { remaining_quantity: -item.quantity } }
-//         //     );
-//         // }
-
-//         await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
-//         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
-
-//         let qrCodeUrl = null;
-//         if (payment_method === "ONLINE") {
-//             qrCodeUrl = generateVietQRQuickLink(newOrder);
-//             checkPaymentStatus(user_id, newOrder._id, total_price);
-//         }
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: "Order created successfully",
-//             data: qrCodeUrl,
-//         });
-
-//     } catch (error) {
-//         console.error("Error creating order:", error);
-//         return res.status(500).json({
-//             status: 500,
-//             message: "Internal Server Error",
-//             error: error.response?.data || error.message
-//         });
-//     }
-// });
-
-
 
 router.post("/orders/create", authenticateToken, async (req, res) => {
     try {
@@ -3621,6 +3491,9 @@ router.get("/wards", authenticateToken, async (req, res) => {
 
 const users = require('../public/users.json');
 
+
+
+
 const createTestAccounts = async (req, res) => {
     try {
 
@@ -3669,6 +3542,33 @@ const createTestAccounts = async (req, res) => {
     }
 };
 
+const updateAllPasswords = async (req, res) => {
+    try {
+        const newPassword = 'Test@1234';
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        const users = await Users.find();
+
+        for (const user of users) {
+            user.password = hashedPassword;
+            await user.save();
+            console.log(`Updated password for user ${user.phone_number}`);
+        }
+
+        res.status(200).json({
+            status: 200,
+            message: "All passwords updated successfully!",
+        });
+    } catch (error) {
+        console.error("Error updating passwords:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error",
+        });
+    }
+};
+
+
 const deleteTestAccounts = async (req, res) => {
     try {
         for (const user of users) {
@@ -3713,6 +3613,370 @@ const deleteTestAccounts = async (req, res) => {
         });
     }
 };
+
+
+const roundToNearestThousand = (value) => {
+    const remainder = value % 1000;
+    if (remainder < 500) {
+        return value - remainder;
+    } else {
+        return value + (1000 - remainder);
+    }
+};
+
+const updateStockEntriesWithCorrectImportPrice = async () => {
+    try {
+        const entries = await StockEntries.aggregate([
+            {
+                $lookup: {
+                    from: 'productProductTypes',
+                    localField: 'product_product_type_id',
+                    foreignField: '_id',
+                    as: 'productProductType'
+                }
+            },
+            { $unwind: '$productProductType' },
+            {
+                $match: {
+                    $expr: { $eq: ['$import_price', '$productProductType.price'] }
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    import_price: 1,
+                    price: '$productProductType.price'
+                }
+            }
+        ]);
+
+        const bulkOps = entries.map(entry => {
+            const newImportPrice = roundToNearestThousand(entry.price * 0.7); // Giảm 30%
+            return {
+                updateOne: {
+                    filter: { _id: entry._id },
+                    update: { import_price: newImportPrice }
+                }
+            };
+        });
+
+        if (bulkOps.length > 0) {
+            await StockEntries.bulkWrite(bulkOps);
+        }
+
+
+    } catch (err) {
+        // console.error('Error updating stock entries:', err);
+        // res.status(500).json({ error: 'Lỗi cập nhật lô hàng' });
+    }
+};
+
+
+const ghnAPI = axios.create({
+    baseURL: 'https://dev-online-gateway.ghn.vn/shiip/public-api',
+    headers: {
+        Token: TOKEN_GHN
+    }
+});
+const provinceIds = [201, 202];
+const getDistricts = async (province_id) => {
+    const res = await ghnAPI.get('/master-data/district', {
+        params: { province_id }
+    });
+    return res.data.data;
+};
+
+const getWards = async (district_id) => {
+    const res = await ghnAPI.get('/master-data/ward', {
+        params: { district_id }
+    });
+    return res.data.data;
+};
+
+async function updateUsersAddress() {
+    // let i = 0;
+    for (const user of users) {
+        // i++;
+        // if (i == 3) return;
+        let { phone_number } = user;
+
+        phone_number = "+84" + phone_number.substring(1);
+        // console.log(phone_number);
+        try {
+            const foundUser = await Users.findOne({ phone_number });
+            if (!foundUser) {
+                console.log(`❌ Không tìm thấy user với SĐT: ${phone_number}`);
+                continue;
+            }
+
+            const province_id = provinceIds[Math.floor(Math.random() * provinceIds.length)];
+            const districts = await getDistricts(province_id);
+
+            const randomDistrict = districts[Math.floor(Math.random() * districts.length)];
+
+            const wards = await getWards(randomDistrict.DistrictID);
+            const randomWard = wards[Math.floor(Math.random() * wards.length)];
+
+            const alley = Math.floor(Math.random() * 50) + 1;
+            const house = Math.floor(Math.random() * 200) + 1;
+            const street_address = `Ngõ ${alley}, Số ${house}`;
+
+            const address = new UserAddress({
+                user_id: foundUser._id,
+                province_id,
+                district_id: randomDistrict.DistrictID,
+                ward_id: randomWard.WardCode,
+                street_address
+            });
+
+            await address.save();
+        } catch (err) {
+            console.error(`❌ Lỗi với user ${phone_number}:`, err.message);
+        }
+    }
+}
+
+
+
+
+function getRandomDateWithin6Months() {
+    const now = new Date();
+    const past = new Date(now.setMonth(now.getMonth() - 3));
+    return new Date(past.getTime() + Math.random() * (Date.now() - past.getTime()));
+}
+
+function generateRandomCode(length = 6) {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        code += characters[randomIndex];
+    }
+    return code;
+}
+
+
+async function createFakeOrders() {
+    const productTypes = await ProductProductTypes.find(); // chứa product_id
+    const stockEntries = await StockEntries.find();
+
+    // ✅ Nhóm các loại theo sản phẩm
+    const typesByProduct = {};
+    for (const type of productTypes) {
+        // chỉ giữ loại có trong tồn kho
+        const hasStock = stockEntries.find(se =>
+            se.product_product_type_id &&
+            se.product_product_type_id.equals(type._id)
+        );
+        if (!hasStock) continue;
+
+        const productId = type.product_id.toString();
+        if (!typesByProduct[productId]) typesByProduct[productId] = [];
+        typesByProduct[productId].push({ type, stock: hasStock });
+    }
+
+    const validProducts = Object.entries(typesByProduct); // [ [productId, [{type, stock}, ...]], ... ]
+
+    // let i = 0;
+    for (const user of users) {
+        // i++;
+        // if (i === 3) break;
+
+        const phone_number = "+84" + user.phone_number.substring(1);
+        const foundUser = await Users.findOne({ phone_number });
+        if (!foundUser) continue;
+
+
+        const address = await UserAddress.findOne({ user_id: foundUser._id });
+        if (!address) continue;
+
+        const shipping_fee = await calculateShippingFee(address.district_id, address.ward_id);
+
+
+        const numOrders = Math.floor(Math.random() * 3) + 3; // 3–5 đơn
+        console.log(`\n👤 User: ${user.full_name} — ${numOrders} đơn hàng`);
+
+
+
+        for (let o = 0; o < numOrders; o++) {
+            const delivered_at = getRandomDateWithin6Months();
+            const created_at = new Date(delivered_at);
+            created_at.setDate(created_at.getDate() - (Math.floor(Math.random() * 2) + 3));
+            const payment_method = Math.random() > 0.5 ? 'COD' : 'ONLINE';
+
+            //const shipping_fee = await calculateShippingFee(address.district_id, address.ward_id);
+
+
+            const order = new Orders({
+                user_id: foundUser._id,
+                order_code: generateRandomCode(),
+                to_name: user.full_name,
+                to_phone: phone_number,
+                to_address: address.street_address,
+                to_district_id: address.district_id,
+                to_ward_code: address.ward_id,
+                payment_method,
+                shipping_fee,
+                total_price: 0,
+                status: 'delivered',
+                payment_status: 'paid',
+                delivered_at,
+                created_at
+            });
+
+
+            const selectedItems = [];
+            const usedProductIds = new Set();
+
+            const numItems = Math.floor(Math.random() * 5) + 1; // 1–5 sản phẩm
+
+            while (selectedItems.length < numItems && usedProductIds.size < validProducts.length) {
+                const [productId, typesArray] = validProducts[Math.floor(Math.random() * validProducts.length)];
+                if (usedProductIds.has(productId)) continue;
+                usedProductIds.add(productId);
+
+                // chọn ngẫu nhiên 1 loại của sản phẩm
+                const { type, stock } = typesArray[Math.floor(Math.random() * typesArray.length)];
+
+                const quantity = Math.floor(Math.random() * 3) + 1;
+
+                selectedItems.push({
+                    product_product_type_id: type._id,
+                    batch_number: stock.batch_number,
+                    quantity,
+                    price: type.price
+                });
+
+                order.total_price += quantity * type.price;
+            }
+
+            if (selectedItems.length > 0) {
+                order.total_price += shipping_fee;
+                // console.log(`\n📦 Đơn hàng #${o + 1} của ${user.full_name}`);
+                // console.log(`Ngày: ${order.created_at}`);
+                // console.log(`Sản phẩm (${selectedItems.length}):`);
+                // selectedItems.forEach(item => {
+                //     console.log(`  - ID: ${item.product_product_type_id} | SL: ${item.quantity} | Giá: ${item.price}`);
+                // });
+                // console.log(`➡️ Tổng: ${order.total_price}đ (đã gồm phí ship: ${order.shipping_fee})`);
+
+                // ✅ Ghi DB
+                try {
+                    await order.save();
+                    for (const item of selectedItems) {
+                        await OrderItems.create({ order_id: order._id, ...item });
+                    }
+                    console.log(`✅ Đã tạo đơn cho ${user.full_name}`);
+                } catch (err) {
+                    console.error(`❌ Lỗi khi tạo đơn cho ${user.full_name}:`, err.message);
+                }
+
+            }
+        }
+    }
+}
+
+
+async function createFakeCanceledOrders() {
+    const productTypes = await ProductProductTypes.find(); // chứa product_id
+    const stockEntries = await StockEntries.find();
+
+    // ✅ Nhóm các loại theo sản phẩm
+    const typesByProduct = {};
+    for (const type of productTypes) {
+        const hasStock = stockEntries.find(se =>
+            se.product_product_type_id &&
+            se.product_product_type_id.equals(type._id)
+        );
+        if (!hasStock) continue;
+
+        const productId = type.product_id.toString();
+        if (!typesByProduct[productId]) typesByProduct[productId] = [];
+        typesByProduct[productId].push({ type, stock: hasStock });
+    }
+
+    const validProducts = Object.entries(typesByProduct);
+
+    for (const user of users) {
+        const phone_number = "+84" + user.phone_number.substring(1);
+        const foundUser = await Users.findOne({ phone_number });
+        if (!foundUser) continue;
+
+        const address = await UserAddress.findOne({ user_id: foundUser._id });
+        if (!address) continue;
+
+        const shipping_fee = await calculateShippingFee(address.district_id, address.ward_id);
+
+        const numOrders = Math.floor(Math.random() * 2) + 1; // 1–2 đơn hủy
+        console.log(`\n👤 User: ${user.full_name} — ${numOrders} đơn hàng *bị hủy*`);
+
+        for (let o = 0; o < numOrders; o++) {
+            const created_at = getRandomDateWithin6Months();
+            const payment_method = Math.random() > 0.5 ? 'COD' : 'ONLINE';
+
+            const order = new Orders({
+                user_id: foundUser._id,
+                order_code: null,
+                to_name: user.full_name,
+                to_phone: phone_number,
+                to_address: address.street_address,
+                to_district_id: address.district_id,
+                to_ward_code: address.ward_id,
+                payment_method,
+                shipping_fee,
+                total_price: 0,
+                status: 'canceled',
+                payment_status: 'failed',
+                created_at
+            });
+
+            const selectedItems = [];
+            const usedProductIds = new Set();
+            const numItems = Math.floor(Math.random() * 3) + 1;
+
+            while (selectedItems.length < numItems && usedProductIds.size < validProducts.length) {
+                const [productId, typesArray] = validProducts[Math.floor(Math.random() * validProducts.length)];
+                if (usedProductIds.has(productId)) continue;
+                usedProductIds.add(productId);
+
+                const { type, stock } = typesArray[Math.floor(Math.random() * typesArray.length)];
+
+                const quantity = Math.floor(Math.random() * 3) + 1;
+
+                selectedItems.push({
+                    product_product_type_id: type._id,
+                    batch_number: stock.batch_number,
+                    quantity,
+                    price: type.price
+                });
+
+                order.total_price += quantity * type.price;
+            }
+
+            if (selectedItems.length > 0) {
+                order.total_price += shipping_fee;
+
+                try {
+                    await order.save();
+                    for (const item of selectedItems) {
+                        await OrderItems.create({ order_id: order._id, ...item });
+                    }
+                    console.log(`🗑️ Đã tạo đơn bị hủy cho ${user.full_name}`);
+                } catch (err) {
+                    console.error(`❌ Lỗi khi tạo đơn bị hủy cho ${user.full_name}:`, err.message);
+                }
+            }
+        }
+    }
+}
+
+
+
+
+// createFakeCanceledOrders();
+
+// createFakeOrders();
+
 
 
 

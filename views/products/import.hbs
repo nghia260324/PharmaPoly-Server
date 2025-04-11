@@ -183,14 +183,14 @@
 
 
                 <td>
-                    {{#if (eq this.status "not_started")}}
+                    {{!-- {{#if (eq this.status "not_started")}} --}}
                     <button class="btn btn-primary btn-sm edit-btn" data-batch-number="{{this.batch_number}}"
                         data-product-product-type-id="{{this.product_product_type_id._id}}"
                         data-quantity="{{this.quantity}}" data-import-price="{{this.import_price}}"
                         data-expiry-date="{{this.expiry_date}}" data-id="{{this._id}}">Sửa</button>
                     <button class="btn btn-danger btn-sm delete-btn" data-produc-id="{{../product_id}}"
                         data-id="{{this._id}}">Xóa</button>
-                    {{/if}}
+                    {{!-- {{/if}} --}}
                 </td>
             </tr>
             {{/each}}
@@ -274,8 +274,8 @@
         document.getElementById('backBtn').addEventListener('click', function (e) {
             e.preventDefault();
 
-          window.history.go(-1);
-          console.log("Check");
+            window.history.go(-1);
+            console.log("Check");
         });
 
         const toast = new bootstrap.Toast(document.getElementById('toastMessage'));
@@ -475,6 +475,14 @@
 
             return `${prefix}-${year}${month}${day}-${randomNum}`;
         }
+
+        const batchNumbers = [];
+        for (let i = 0; i < 200; i++) {
+            batchNumbers.push(generateBatchNumber());
+        }
+
+        console.log(batchNumbers);
+
         document.querySelectorAll('td:nth-child(6), td:nth-child(7)').forEach(td => {
             if (td.textContent) {
                 td.textContent = formatDate(td.textContent);

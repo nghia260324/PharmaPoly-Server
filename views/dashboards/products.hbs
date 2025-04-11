@@ -1,0 +1,131 @@
+<style>
+  .column-name-limit {
+    max-width: 240px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+
+<!-- views/products/stats.hbs -->
+<div class="container-fluid">
+  <h1 class="h3 mb-4">Thống kê sản phẩm</h1>
+
+  <!-- Bộ lọc -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form id="filterForm" class="row g-3">
+        <!-- Lựa chọn tiêu chí -->
+        <div class="col-md-4">
+          <label class="form-label">Sắp xếp theo</label>
+          <select class="form-select" name="sortBy">
+            <option value="best_selling">Bán chạy nhất</option>
+            <option value="worst_selling">Bán ế nhất</option>
+            <option value="highest_revenue">Doanh thu cao nhất</option>
+            <option value="lowest_revenue">Doanh thu thấp nhất</option>
+            <option value="highest_rating">Đánh giá cao nhất</option>
+          </select>
+        </div>
+
+        <!-- Lọc theo trạng thái -->
+        <div class="col-md-3">
+          <label class="form-label">Trạng thái</label>
+          <select class="form-select" name="status">
+            <option value="">Tất cả</option>
+            <option value="active">Đang bán</option>
+            <option value="out_of_stock">Hết hàng</option>
+            <option value="discontinued">Ngừng bán</option>
+          </select>
+        </div>
+
+        <!-- Chọn số lượng hiển thị -->
+        <div class="col-md-2">
+          <label class="form-label">Hiển thị</label>
+          <select class="form-select" name="perPage">
+            <option>10</option>
+            <option>20</option>
+            <option>50</option>
+          </select>
+        </div>
+
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-funnel me-2"></i>Áp dụng
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bảng thống kê -->
+  <div class="card">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Hình ảnh</th>
+              <th>Tên sản phẩm</th>
+              <th>Đã bán</th>
+              <th>Doanh thu</th>
+              <th>Tồn kho</th>
+              <th>Đánh giá</th>
+              <th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each products}}
+            <tr>
+              <td>
+                <img src="{{this.image}}" alt="Ảnh sản phẩm" class="img-thumbnail"
+                  style="width: 60px; height: 60px; object-fit: cover;">
+              </td>
+
+              <td>
+                <div class="column-name-limit" title="{{this.name}}">
+                  {{this.name}}
+                </div>
+              </td>
+              <td>{{this.sold_quantity}}</td>
+              <td>{{formatPrice this.total_revenue}}</td>
+              <td>{{this.stock_quantity}}</td>
+              <td>
+                <div class="d-flex align-items-center small">
+                  <span class="me-2">{{this.average_rating}}</span>
+                  <div class="rating-stars">
+                    {{#stars this.average_rating}}{{/stars}}
+                  </div>
+                  <small class="text-muted ms-2">({{this.review_count}})</small>
+                </div>
+              </td>
+              <td>
+                <span class="badge {{statusBadge this.status}}">
+                  {{statusLabel this.status}}
+                </span>
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Phân trang -->
+      <nav class="d-flex justify-content-between">
+        <div class="form-text">Hiển thị {{products.length}}/{{total}} sản phẩm</div>
+        <ul class="pagination">
+          {{!-- {{#paginate pagination}}{{/paginate}} --}}
+        </ul>
+      </nav>
+    </div>
+  </div>
+</div>
+
+<!-- Script xử lý filter -->
+<script>
+  document.getElementById('filterForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams(formData);
+    window.location.search = params.toString();
+  });
+</script>
