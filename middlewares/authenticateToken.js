@@ -4,23 +4,23 @@ function authenticateToken(req, res, next) {
     const token = req.cookies.token || req.header("Authorization")?.split(" ")[1];
 
     if (!token) {
-        return res.redirect("/login"); // Chuyển hướng nếu không có token
+        return res.redirect("/login");
     }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            return res.redirect("/login"); // Chuyển hướng nếu token sai hoặc hết hạn
+            return res.redirect("/login");
         }
-        req.user = user; // Gán thông tin user vào request
+        req.user = user;
         next();
     });
 }
 
 function authorizeAdmin(req, res, next) {
     if (req.user?.role === 0) {
-        return next(); // Nếu là admin, tiếp tục
+        return next();
     }
-    return res.status(403).json({ message: "Bạn không có quyền truy cập" }); // Không phải admin thì chặn
+    return res.status(403).json({ message: "Bạn không có quyền truy cập" });
 }
 
 module.exports = { authenticateToken, authorizeAdmin };

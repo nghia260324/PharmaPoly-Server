@@ -3,10 +3,32 @@
     <h5 class="mb-0 text-white">Admin Panel</h5>
   </div>
   <ul class="nav flex-column">
+
     <li class="nav-item">
-      <a class="nav-link text-white" href="/dashboards">
-        <i class="bi bi-kanban"></i> <span data-lang="dashboard">Dashboard</span>
+      <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
+        data-bs-toggle="collapse" data-bs-target="#dashboardSubmenu">
+        <div>
+          <i class="bi bi-kanban"></i><span data-lang="dashboard">Dashboard</span>
+        </div>
+        <i class="bi bi-chevron-right toggle-icon"></i>
       </a>
+      <ul class="collapse list-unstyled ps-3" id="dashboardSubmenu">
+        <li>
+          <a class="nav-link text-white" href="/dashboards/products">
+            <i class="bi bi-box-seam"></i> Thống kê sản phẩm
+          </a>
+        </li>
+        <li>
+          <a class="nav-link text-white" href="/dashboards/inventory">
+            <i class="bi bi-archive"></i> Thống kê tồn kho
+          </a>
+        </li>
+        <li>
+          <a class="nav-link text-white" href="/dashboards/revenue">
+            <i class="bi bi-graph-up-arrow"></i> Doanh thu & Đơn hàng
+          </a>
+        </li>
+      </ul>
     </li>
     <li class="nav-item">
       <a class="nav-link text-white" href="/chat">
@@ -172,3 +194,28 @@
     });
   });
 </script>
+
+
+    {{!-- <li class="nav-item">
+      {{!-- <a class="nav-link text-white" href="/dashboards"> --}}
+        <a class="nav-link text-white" href="#">
+          <i class="bi bi-kanban"></i> <span data-lang="dashboard">Dashboard</span>
+        </a>
+        <ul class="collapse list-unstyled ps-3" id="dashboardSubmenu">
+          <li>
+            <a class="nav-link text-white" href="/dashboards/products">
+              <i class="bi bi-box-seam"></i> Thống kê sản phẩm
+            </a>
+          </li>
+          <li>
+            <a class="nav-link text-white" href="/dashboards/inventory">
+              <i class="bi bi-archive"></i> Thống kê tồn kho
+            </a>
+          </li>
+          <li>
+            <a class="nav-link text-white" href="/dashboards/revenue">
+              <i class="bi bi-graph-up-arrow"></i> Doanh thu & Đơn hàng
+            </a>
+          </li>
+        </ul>
+    </li> --}}
