@@ -15,36 +15,88 @@
   <div class="card mb-4">
     <div class="card-body">
       <form id="filterForm" class="row g-3">
+
+        <div class="col-md-12 row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Sắp xếp theo</label>
+            <select class="form-select" name="sortBy">
+              {{!-- <option value="best_selling">Bán chạy nhất</option>
+              <option value="worst_selling">Bán chậm nhất</option>
+              <option value="highest_revenue">Doanh thu cao nhất</option>
+              <option value="lowest_revenue">Doanh thu thấp nhất</option>
+              <option value="highest_rating">Đánh giá cao nhất</option> --}}
+              <option value="best_selling" {{#if (eq filters.sortBy "best_selling" )}}selected{{/if}}>Bán chạy nhất
+              </option>
+              <option value="worst_selling" {{#if (eq filters.sortBy "worst_selling" )}}selected{{/if}}>Bán chậm nhất
+              </option>
+              <option value="highest_revenue" {{#if (eq filters.sortBy "highest_revenue" )}}selected{{/if}}>Doanh thu
+                cao nhất</option>
+              <option value="lowest_revenue" {{#if (eq filters.sortBy "lowest_revenue" )}}selected{{/if}}>Doanh thu thấp
+                nhất</option>
+              <option value="highest_rating" {{#if (eq filters.sortBy "highest_rating" )}}selected{{/if}}>Đánh giá cao
+                nhất</option>
+
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Trạng thái</label>
+            <select class="form-select" name="status">
+              {{!-- <option value="">Tất cả</option>
+              <option value="active">Đang bán</option>
+              <option value="out_of_stock">Hết hàng</option>
+              <option value="discontinued">Ngừng bán</option> --}}
+              <option value="" {{#unless filters.status}}selected{{/unless}}>Tất cả</option>
+              <option value="active" {{#if (eq filters.status "active" )}}selected{{/if}}>Đang bán</option>
+              <option value="out_of_stock" {{#if (eq filters.status "out_of_stock" )}}selected{{/if}}>Hết hàng</option>
+              <option value="discontinued" {{#if (eq filters.status "discontinued" )}}selected{{/if}}>Ngừng bán</option>
+
+            </select>
+          </div>
+        </div>
         <!-- Lựa chọn tiêu chí -->
-        <div class="col-md-4">
-          <label class="form-label">Sắp xếp theo</label>
-          <select class="form-select" name="sortBy">
-            <option value="best_selling">Bán chạy nhất</option>
-            <option value="worst_selling">Bán ế nhất</option>
-            <option value="highest_revenue">Doanh thu cao nhất</option>
-            <option value="lowest_revenue">Doanh thu thấp nhất</option>
-            <option value="highest_rating">Đánh giá cao nhất</option>
+
+
+        <!-- Lọc theo trạng thái -->
+
+
+        <div class="col-md-3">
+          <label for="timePeriod" class="form-label">Khoảng thời gian</label>
+          <select name="timePeriod" id="timePeriod" class="form-select">
+            <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
+            <option value="last_week" {{#if (eq filters.timePeriod "last_week" )}}selected{{/if}}>Tuần trước</option>
+            <option value="last_month" {{#if (eq filters.timePeriod "last_month" )}}selected{{/if}}>Tháng trước</option>
+            <option value="this_month" {{#if (eq filters.timePeriod "this_month" )}}selected{{/if}}>Tháng này</option>
+            <option value="last_3_months" {{#if (eq filters.timePeriod "last_3_months" )}}selected{{/if}}>3 tháng gần
+              nhất</option>
+            <option value="custom" {{#if (eq filters.timePeriod "custom" )}}selected{{/if}}>Tùy chỉnh</option>
           </select>
         </div>
 
-        <!-- Lọc theo trạng thái -->
-        <div class="col-md-3">
-          <label class="form-label">Trạng thái</label>
-          <select class="form-select" name="status">
-            <option value="">Tất cả</option>
-            <option value="active">Đang bán</option>
-            <option value="out_of_stock">Hết hàng</option>
-            <option value="discontinued">Ngừng bán</option>
-          </select>
+        <!-- Ngày bắt đầu -->
+        <div class="col-md-2 custom-date-field" style="display: none;">
+          <label class="form-label">Từ ngày</label>
+          {{!-- <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}"> --}}
+          <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}">
+        </div>
+
+        <!-- Ngày kết thúc -->
+        <div class="col-md-2 custom-date-field" style="display: none;">
+          <label class="form-label">Đến ngày</label>
+          {{!-- <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}"> --}}
+          <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}">
         </div>
 
         <!-- Chọn số lượng hiển thị -->
         <div class="col-md-2">
           <label class="form-label">Hiển thị</label>
           <select class="form-select" name="perPage">
-            <option>10</option>
+            {{!-- <option>10</option>
             <option>20</option>
-            <option>50</option>
+            <option>50</option> --}}
+            <option value="10" {{#if (eq filters.perPage "10" )}}selected{{/if}}>10</option>
+            <option value="20" {{#if (eq filters.perPage "20" )}}selected{{/if}}>20</option>
+            <option value="50" {{#if (eq filters.perPage "50" )}}selected{{/if}}>50</option>
+
           </select>
         </div>
 
@@ -68,7 +120,7 @@
               <th>Tên sản phẩm</th>
               <th>Đã bán</th>
               <th>Doanh thu</th>
-              <th>Tồn kho</th>
+              {{!-- <th>Tồn kho</th> --}}
               <th>Đánh giá</th>
               <th>Trạng thái</th>
             </tr>
@@ -85,10 +137,13 @@
                 <div class="column-name-limit" title="{{this.name}}">
                   {{this.name}}
                 </div>
+                <div title="{{this.product_type_name}}">
+                  ({{this.product_type_name}})
+                </div>
               </td>
               <td>{{this.sold_quantity}}</td>
               <td>{{formatPrice this.total_revenue}}</td>
-              <td>{{this.stock_quantity}}</td>
+              {{!-- <td>{{this.stock_quantity}}</td> --}}
               <td>
                 <div class="d-flex align-items-center small">
                   <span class="me-2">{{this.average_rating}}</span>
@@ -127,5 +182,24 @@
     const formData = new FormData(this);
     const params = new URLSearchParams(formData);
     window.location.search = params.toString();
+  });
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const timeSelect = document.getElementById('timePeriod');
+    const customFields = document.querySelectorAll('.custom-date-field');
+
+    function toggleCustomDates() {
+      const isCustom = timeSelect.value === 'custom';
+      customFields.forEach(el => {
+        el.style.display = isCustom ? 'block' : 'none';
+      });
+    }
+
+    // Initial check
+    toggleCustomDates();
+
+    // Update on change
+    timeSelect.addEventListener('change', toggleCustomDates);
   });
 </script>
