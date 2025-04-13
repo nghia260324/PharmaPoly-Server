@@ -4,12 +4,41 @@ var router = express.Router();
 const Categories = require('../models/categories');
 
 
+// router.get('/', async function (req, res, next) {
+//     const categories = await Categories.find();
+//     res.render('categories/list', {
+//         categories: categories,
+//     });
+// });
 router.get('/', async function (req, res, next) {
-    const categories = await Categories.find();
+    const { page = 1, limit = 10, search, sort } = req.query;
+
+    let query = {};
+    if (search) {
+        query.name = { $regex: search, $options: 'i' };
+    }
+
+    let sortOption = { name: 1 };
+    if (sort === 'name_desc') sortOption = { name: -1 };
+
+    const categories = await Categories.find(query)
+        .sort(sortOption)
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+    const totalCategories = await Categories.countDocuments(query);
+    const totalPages = Math.ceil(totalCategories / limit);
+
     res.render('categories/list', {
-        categories: categories,
+        categories,
+        currentPage: parseInt(page),
+        totalPages,
+        limit: parseInt(limit),
+        search,
+        sort
     });
 });
+
 
 module.exports = router;
 

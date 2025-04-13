@@ -1,42 +1,109 @@
 <div class="p-4">
     <div id="productTypeSection" class="product-type-section">
-        <div class="form-container">
-            <h5><span data-lang="add_new_product_type">Add New Product Type</span></h5>
-            <form id="productTypeForm" class="row g-3">
-                <input type="hidden" id="productTypeId">
-                <div class="col-md-6">
-                    <input type="text" class="form-control" id="productTypeName"data-lang-placeholder="product_type_name" placeholder="Product Type Name" required>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5><span data-lang="add_new_product_type">Add New Product Type</span></h5>
+                <form id="productTypeForm" class="row g-3">
+                    <input type="hidden" id="productTypeId">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="productTypeName"
+                            data-lang-placeholder="product_type_name" placeholder="Product Type Name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-primary">
+                            {{!-- <span data-lang="save">Save</span> --}}
+                            <i class="bi bi-save"></i>
+                            <span data-lang="save">Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{!-- <div id="productTypeList">
+        {{#each productTypes}}
+        <div class="product-type-card p-2" data-id="{{this._id}}" data-name="{{this.name}}">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-muted product-type-id">ID: {{this._id}}</small>
+                    <h5 class="product-type-name mb-0"><span data-lang="name">Name</span>: {{this.name}}</h5>
                 </div>
-                <div class="col-md-6">
-                    <button type="button" class="btn btn-primary">
-                        {{!-- <span data-lang="save">Save</span> --}}
-                        <i class="bi bi-save"></i> 
-                        <span data-lang="save">Save</span>
+                <div>
+                    <button class="btn btn-sm btn-warning me-2" onclick="editProductType(this)">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteProductType(this)">
+                        <i class="bi bi-trash"></i>
                     </button>
                 </div>
-            </form>
+            </div>
+        </div>
+        {{/each}}
+    </div> --}}
+    <div class="card mb-4">
+        <div class="card-body">
+
+
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>
+                            Tên loại sản phẩm
+                            <a href="?sort={{#if (eq sort 'name_asc')}}name_desc{{else}}name_asc{{/if}}"
+                                class="ms-1 text-decoration-none">
+                                {{#if (eq sort 'name_asc')}}
+                                <i class="bi bi-sort-alpha-down"></i>
+                                {{else if (eq sort 'name_desc')}}
+                                <i class="bi bi-sort-alpha-up"></i>
+                                {{else}}
+                                <i class="bi bi-arrow-down-up"></i>
+                                {{/if}}
+                            </a>
+                        </th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each productTypes}}
+                    <tr class="product-type-card" data-id="{{this._id}}" data-name="{{this.name}}">
+                        <td>{{this._id}}</td>
+                        <td>{{this.name}}</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning me-2" data onclick="editProductType(this)">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            {{!-- <button class="btn btn-sm btn-danger" onclick="deleteProductType(this)">
+                                <i class="bi bi-trash"></i>
+                            </button> --}}
+                        </td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {{#if (gt currentPage 1)}}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
+                    </li>
+                    {{/if}}
+
+                    <li class="page-item disabled">
+                        <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+                    </li>
+
+                    {{#if (lt currentPage totalPages)}}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+                    </li>
+                    {{/if}}
+                </ul>
+            </nav>
         </div>
 
-        <div id="productTypeList">
-            {{#each productTypes}}
-            <div class="product-type-card p-2" data-id="{{this._id}}" data-name="{{this.name}}">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <small class="text-muted product-type-id">ID: {{this._id}}</small>
-                        <h5 class="product-type-name mb-0"><span data-lang="name">Name</span>: {{this.name}}</h5>
-                    </div>
-                    <div>
-                        <button class="btn btn-sm btn-warning me-2" onclick="editProductType(this)">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteProductType(this)">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            {{/each}}
-        </div>
     </div>
 </div>
 <!-- Bootstrap Toast Notification -->
@@ -45,7 +112,7 @@
         aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
             <div class="toast-body">
-               <span data-lang="product_type_added_successfully!">Product Type added successfully! </span>
+                <span data-lang="product_type_added_successfully!">Product Type added successfully! </span>
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
                 aria-label="Close"></button>
@@ -60,25 +127,25 @@
         {{!-- modal-dialog-centered --}}
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="editProductTypeModalLabel">Edit Product Type</h5>
+                <h5 class="modal-title" id="editProductTypeModalLabel">Chỉnh sửa loại sản phẩm</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="editProductTypeForm">
                     <input type="hidden" id="editProductTypeId">
                     <div class="mb-3">
-                        <label for="editProductTypeIdDisplay" class="form-label">Product Type ID</label>
+                        <label for="editProductTypeIdDisplay" class="form-label">ID</label>
                         <input type="text" class="form-control" id="editProductTypeIdDisplay" disabled>
                     </div>
 
                     <div class="mb-3">
-                        <label for="editProductTypeName" class="form-label">Product Type Name</label>
+                        <label for="editProductTypeName" class="form-label">Tên loại sản phẩm</label>
                         <input type="text" class="form-control" id="editProductTypeName" placeholder="Product Type Name"
                             required>
                     </div>
 
                     <!-- Submit button -->
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
                 </form>
             </div>
         </div>
@@ -134,9 +201,12 @@
             if (result.status === 200) {
                 showToast(result.message, "success");
 
-                addProductTypeToDOM(result.data);
+                //addProductTypeToDOM(result.data);
 
                 nameInput.value = '';
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
                 showToast(result.message, "danger");
             }
@@ -192,8 +262,11 @@
                 .then(result => {
                     if (result.status === 200) {
                         showToast(result.message, "success");
-                        productTypeCard.remove();
+                        //productTypeCard.remove();
                         modal.hide();
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
                     } else {
                         showToast(result.message, "danger");
                     }
@@ -241,9 +314,12 @@
             const result = await response.json();
             if (result.status === 200) {
                 showToast(result.message, "success");
-                updateProductTypeInDOM(result.data);
+                //updateProductTypeInDOM(result.data);
                 const modal = bootstrap.Modal.getInstance(document.getElementById('editProductTypeModal'));
                 modal.hide();
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
                 showToast(result.message, "danger");
             }

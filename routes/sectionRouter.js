@@ -3,14 +3,43 @@ var router = express.Router();
 
 const Sections = require('../models/sections');
 
+// router.get('/', async function (req, res, next) {
+//     const sections = await Sections.find();
+//     res.render('sections/list', {
+//         sections: sections,
+//     });
+// });
+
 router.get('/', async function (req, res, next) {
-    const sections = await Sections.find();
+    const { page = 1, limit = 10, search, sort } = req.query;
+
+    let query = {};
+    if (search) {
+        query.name = { $regex: search, $options: 'i' };
+    }
+
+    let sortOption = { created_at: -1 };
+    if (sort === 'name_asc') sortOption = { name: 1 };
+    if (sort === 'name_desc') sortOption = { name: -1 };
+
+    const sections = await Sections.find(query)
+        .sort(sortOption)
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+    const totalSections = await Sections.countDocuments(query);
+    const totalPages = Math.ceil(totalSections / limit);
+
     res.render('sections/list', {
-        sections: sections,
+        sections,
+        currentPage: parseInt(page),
+        totalPages,
+        limit: parseInt(limit),
+        search,
+        sort
     });
 });
 
-module.exports = router;
 
 router.post('/add', async (req, res) => {
     try {
@@ -78,3 +107,6 @@ router.put('/update/:id', async (req, res) => {
         return res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
     }
 });
+
+
+module.exports = router;

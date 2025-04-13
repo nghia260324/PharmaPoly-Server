@@ -4,9 +4,31 @@ const Brands = require('../models/brands');
 
 
 router.get('/', async function (req, res, next) {
-    const brands = await Brands.find();
+    const { page = 1, limit = 10, search, sort } = req.query;
+
+    let query = {};
+    if (search) {
+        query.name = { $regex: search, $options: 'i' };
+    }
+
+    let sortOption = { name: 1 };
+    if (sort === 'name_desc') sortOption = { name: -1 };
+
+    const brands = await Brands.find(query)
+        .sort(sortOption)
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+    const totalBrands = await Brands.countDocuments(query);
+    const totalPages = Math.ceil(totalBrands / limit);
+
     res.render('brands/list', {
-        brands: brands,
+        brands,
+        currentPage: parseInt(page),
+        totalPages,
+        limit: parseInt(limit),
+        search,
+        sort
     });
 });
 

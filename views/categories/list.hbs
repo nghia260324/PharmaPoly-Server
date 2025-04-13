@@ -1,26 +1,29 @@
 <div class="p-4">
     <div id="categorySection" class="category-section">
-        <div class="form-container">
-            <h5 data-lang="add_new_category">Add New Category</h5>
-            <form id="categoryForm" class="row g-3">
-                <input type="hidden" id="categoryId">
-                <div class="col-md-6">
-                    <input type="text" class="form-control" id="categoryName" data-lang-placeholder="category_name"
-                        placeholder="Category Name" required>
-                </div>
-                <div class="col-md-6">
-                    <button type="button" class="btn btn-primary">
-                        <i class="bi bi-save"></i>
-                        <span data-lang="save">Save</span>
-                    </button>
-                    {{!-- <button type="button" class="btn btn-secondary" onclick="clearCategoryForm()">
-                        <i class="bi bi-x-circle"></i> Cancel
-                    </button> --}}
-                </div>
-            </form>
+        <div class="card mb-4">
+            <div class="card-body">
+
+                <h5 data-lang="add_new_category">Add New Category</h5>
+                <form id="categoryForm" class="row g-3">
+                    <input type="hidden" id="categoryId">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="categoryName" data-lang-placeholder="category_name"
+                            placeholder="Category Name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-primary">
+                            <i class="bi bi-save"></i>
+                            <span data-lang="save">Save</span>
+                        </button>
+                        {{!-- <button type="button" class="btn btn-secondary" onclick="clearCategoryForm()">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button> --}}
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div id="categoryList">
+        {{!-- <div id="categoryList">
             {{#each categories}}
             <div class="category-card p-2" data-id="{{this._id}}" data-name="{{this.name}}">
                 <div class="d-flex justify-content-between align-items-center">
@@ -39,6 +42,66 @@
                 </div>
             </div>
             {{/each}}
+        </div> --}}
+        <div class="card mb-4">
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th style="width: 36%;">
+                                Tên danh mục
+                                <a href="?sort={{#if (eq sort 'name_asc')}}name_desc{{else}}name_asc{{/if}}"
+                                    class="ms-1 text-decoration-none">
+                                    {{#if (eq sort 'name_asc')}}
+                                    <i class="bi bi-sort-alpha-down"></i>
+                                    {{else if (eq sort 'name_desc')}}
+                                    <i class="bi bi-sort-alpha-up"></i>
+                                    {{else}}
+                                    <i class="bi bi-arrow-down-up"></i>
+                                    {{/if}}
+                                </a>
+                            </th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each categories}}
+                        <tr class="category-card" data-id="{{this._id}}" data-name="{{this.name}}">
+                            <td>{{this._id}}</td>
+                            <td>{{this.name}}</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning me-2" onclick="editCategory(this)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {{!-- <button class="btn btn-sm btn-danger" onclick="deleteCategory(this)">
+                                    <i class="bi bi-trash"></i>
+                                </button> --}}
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {{#if (gt currentPage 1)}}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
+                        </li>
+                        {{/if}}
+
+                        <li class="page-item disabled">
+                            <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+                        </li>
+
+                        {{#if (lt currentPage totalPages)}}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+                        </li>
+                        {{/if}}
+                    </ul>
+                </nav>
+            </div>
         </div>
     </div>
 </div>
