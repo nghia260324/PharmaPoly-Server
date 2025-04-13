@@ -1,128 +1,150 @@
 <div class="container-fluid">
-  <form method="GET" action="/dashboards/revenue">
-    <div class="row mb-4">
-      <div class="col-md-3">
-        <label for="timePeriod" class="form-label">Khoảng thời gian</label>
-        <select name="timePeriod" id="timePeriod" class="form-select">
-          <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
-          <option value="last_week" {{#if (eq filters.timePeriod "last_week" )}}selected{{/if}}>Tuần trước</option>
-          <option value="last_month" {{#if (eq filters.timePeriod "last_month" )}}selected{{/if}}>Tháng trước</option>
-          <option value="this_month" {{#if (eq filters.timePeriod "this_month" )}}selected{{/if}}>Tháng này</option>
-          <option value="last_3_months" {{#if (eq filters.timePeriod "last_3_months" )}}selected{{/if}}>3 tháng gần nhất
-          </option>
-          <option value="custom" {{#if (eq filters.timePeriod "custom" )}}selected{{/if}}>Tùy chỉnh</option>
-        </select>
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="GET" action="/dashboards/revenue">
+        <div class="row mb-4">
+          <div class="col-md-3">
+            <label for="timePeriod" class="form-label">Khoảng thời gian</label>
+            <select name="timePeriod" id="timePeriod" class="form-select">
+              <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
+              <option value="last_week" {{#if (eq filters.timePeriod "last_week" )}}selected{{/if}}>Tuần trước</option>
+              <option value="last_month" {{#if (eq filters.timePeriod "last_month" )}}selected{{/if}}>Tháng trước
+              </option>
+              <option value="this_month" {{#if (eq filters.timePeriod "this_month" )}}selected{{/if}}>Tháng này</option>
+              <option value="last_3_months" {{#if (eq filters.timePeriod "last_3_months" )}}selected{{/if}}>3 tháng gần
+                nhất
+              </option>
+              <option value="custom" {{#if (eq filters.timePeriod "custom" )}}selected{{/if}}>Tùy chỉnh</option>
+            </select>
 
-      </div>
+          </div>
 
-      <div class="col-md-2 custom-date-range d-none">
-        <label for="startDate" class="form-label">Từ ngày</label>
-        {{!-- <input type="date" name="startDate" id="startDate" class="form-control" /> --}}
-        <input type="date" name="startDate" id="startDate" class="form-control" value="{{filters.startDate}}" />
+          <div class="col-md-2 custom-date-range d-none">
+            <label for="startDate" class="form-label">Từ ngày</label>
+            {{!-- <input type="date" name="startDate" id="startDate" class="form-control" /> --}}
+            <input type="date" name="startDate" id="startDate" class="form-control" value="{{filters.startDate}}" />
 
-      </div>
+          </div>
 
-      <div class="col-md-2 custom-date-range d-none">
-        <label for="endDate" class="form-label">Đến ngày</label>
-        {{!-- <input type="date" name="endDate" id="endDate" class="form-control" /> --}}
-        <input type="date" name="endDate" id="endDate" class="form-control" value="{{filters.endDate}}" />
-      </div>
+          <div class="col-md-2 custom-date-range d-none">
+            <label for="endDate" class="form-label">Đến ngày</label>
+            {{!-- <input type="date" name="endDate" id="endDate" class="form-control" /> --}}
+            <input type="date" name="endDate" id="endDate" class="form-control" value="{{filters.endDate}}" />
+          </div>
 
-      <div class="col-md-3">
-        <label for="orderStatus" class="form-label">Trạng thái đơn hàng</label>
-        <select name="orderStatus" class="form-select">
-          <option value="" {{#unless filters.orderStatus}}selected{{/unless}}>Tất cả</option>
-          <option value="pending" {{#if (eq filters.orderStatus "pending" )}}selected{{/if}}>Chờ xác nhận</option>
-          <option value="confirmed" {{#if (eq filters.orderStatus "confirmed" )}}selected{{/if}}>Đã xác nhận</option>
-          <option value="delivering" {{#if (eq filters.orderStatus "delivering" )}}selected{{/if}}>Đang giao</option>
-          <option value="delivered" {{#if (eq filters.orderStatus "delivered" )}}selected{{/if}}>Đã giao</option>
-          <option value="canceled" {{#if (eq filters.orderStatus "canceled" )}}selected{{/if}}>Đã hủy</option>
-        </select>
+          {{!-- <div class="col-md-3">
+            <label for="orderStatus" class="form-label">Trạng thái đơn hàng</label>
+            <select name="orderStatus" class="form-select">
+              <option value="" {{#unless filters.orderStatus}}selected{{/unless}}>Tất cả</option>
+              <option value="pending" {{#if (eq filters.orderStatus "pending" )}}selected{{/if}}>Chờ xác nhận</option>
+              <option value="confirmed" {{#if (eq filters.orderStatus "confirmed" )}}selected{{/if}}>Đã xác nhận
+              </option>
+              <option value="delivering" {{#if (eq filters.orderStatus "delivering" )}}selected{{/if}}>Đang giao
+              </option>
+              <option value="delivered" {{#if (eq filters.orderStatus "delivered" )}}selected{{/if}}>Đã giao</option>
+              <option value="canceled" {{#if (eq filters.orderStatus "canceled" )}}selected{{/if}}>Đã hủy</option>
+            </select>
 
-      </div>
+          </div> --}}
 
-      <div class="col-md-2 d-flex align-items-end">
-        <button type="submit" class="btn btn-primary w-100">Lọc</button>
-      </div>
-    </div>
-  </form>
+          <div class="col-md-3">
+            <label for="paymentMethod" class="form-label">Phương thức thanh toán</label>
+            <select name="paymentMethod" class="form-select">
+              <option value="" {{#unless filters.paymentMethod}}selected{{/unless}}>Tất cả</option>
+              <option value="COD" {{#if (eq filters.paymentMethod "COD" )}}selected{{/if}}>COD</option>
+              <option value="ONLINE" {{#if (eq filters.paymentMethod "ONLINE" )}}selected{{/if}}>Online</option>
+            </select>
+          </div>
 
-  <!-- Main Content -->
-  <div class="row">
-    <!-- Thống kê chính -->
-    <div class="col-md-4 mb-4">
-      <div class="card stat-card bg-primary text-white h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="card-title"><i class="bi bi-cart"></i> Tổng đơn hàng</h5>
-              <h2 class="mb-0">{{totalOrders}}</h2>
-              <small>Trung bình mỗi ngày: {{averageOrders}}</small>
-            </div>
-            <i class="bi bi-cart4 display-4 opacity-50"></i>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Lọc</button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
+  </div>
 
-    <div class="col-md-4 mb-4">
-      <div class="card stat-card bg-success text-white h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex flex-column flex-grow-1">
-              <h5 class="card-title">
-                <i class="bi bi-currency-dollar"></i> Tổng doanh thu
-              </h5>
-              <h2 class="mb-0 text-nowrap">{{formatPrice totalRevenue}} VND</h2>
-              <small>Trung bình mỗi ngày: {{formatPrice averageRevenue}} VND</small>
+  <div class="card">
+    <div class="card-body">
+      <div class="row">
+        <!-- Thống kê chính -->
+        <div class="col-md-4 mb-4">
+          <div class="card stat-card bg-primary text-white h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h5 class="card-title"><i class="bi bi-cart"></i> Tổng đơn hàng</h5>
+                  <h2 class="mb-0">{{totalOrders}}</h2>
+                  <small>Trung bình mỗi ngày: {{averageOrders}}</small>
+                </div>
+                <i class="bi bi-cart4 display-4 opacity-50"></i>
+              </div>
             </div>
-            <i class="bi bi-graph-up display-4 opacity-50 ms-3"></i>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div class="col-md-4 mb-4">
-      <div class="card stat-card bg-warning text-white h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex flex-column flex-grow-1">
-              <h5 class="card-title">
-                <i class="bi bi-cash-coin"></i> Tổng lợi nhuận
-              </h5>
-              <h2 class="mb-0 text-nowrap">{{formatPrice totalProfit}} VND</h2>
-              <small>Trung bình mỗi ngày: {{formatPrice averageProfit}} VND</small>
+        <div class="col-md-4 mb-4">
+          <div class="card stat-card bg-success text-white h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex flex-column flex-grow-1">
+                  <h5 class="card-title">
+                    <i class="bi bi-currency-dollar"></i> Tổng doanh thu
+                  </h5>
+                  <h2 class="mb-0 text-nowrap">{{formatPrice totalRevenue}} VND</h2>
+                  <small>Trung bình mỗi ngày: {{formatPrice averageRevenue}} VND</small>
+                </div>
+                <i class="bi bi-graph-up display-4 opacity-50 ms-3"></i>
+              </div>
             </div>
-            <i class="bi bi-coin display-4 opacity-50 ms-3"></i>
           </div>
         </div>
-      </div>
-    </div>
+
+        <div class="col-md-4 mb-4">
+          <div class="card stat-card bg-warning text-white h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex flex-column flex-grow-1">
+                  <h5 class="card-title">
+                    <i class="bi bi-cash-coin"></i> Tổng lợi nhuận
+                  </h5>
+                  <h2 class="mb-0 text-nowrap">{{formatPrice totalProfit}} VND</h2>
+                  <small>Trung bình mỗi ngày: {{formatPrice averageProfit}} VND</small>
+                </div>
+                <i class="bi bi-coin display-4 opacity-50 ms-3"></i>
+              </div>
+            </div>
+          </div>
+        </div>
 
 
-    <!-- Biểu đồ -->
-    <div class="col-10 mb-4">
-      <div class="chart-container">
-        <h5 class="mb-4">Biểu đồ doanh thu theo thời gian</h5>
-        <canvas id="revenueChart"></canvas>
-      </div>
-    </div>
+        <!-- Biểu đồ -->
+        <div class="col-10 mb-4">
+          <div class="chart-container">
+            <h5 class="mb-4">Biểu đồ doanh thu theo thời gian</h5>
+            <canvas id="revenueChart"></canvas>
+          </div>
+        </div>
 
-    <div class="col-10 mb-4">
-      <div class="chart-container">
-        <h5 class="mb-4">Biểu đồ số lượng đơn hàng theo thời gian</h5>
-        <canvas id="orderCountChart"></canvas>
-      </div>
-    </div>
+        <div class="col-10 mb-4">
+          <div class="chart-container">
+            <h5 class="mb-4">Biểu đồ số lượng đơn hàng theo thời gian</h5>
+            <canvas id="orderCountChart"></canvas>
+          </div>
+        </div>
 
 
-    <div class="col-4 mb-4">
-      <div class="chart-container">
-        <h5 class="mb-4">Phân loại trạng thái đơn hàng</h5>
-        <canvas id="orderStatusChart"></canvas>
+        <div class="col-4 mb-4">
+          <div class="chart-container">
+            <h5 class="mb-4">Phân loại trạng thái đơn hàng</h5>
+            <canvas id="orderStatusChart"></canvas>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+  <!-- Main Content -->
+
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
@@ -251,15 +273,15 @@
 
   });
 </script>
-{{!-- 
+{{!--
 
-    timePeriodSelect.addEventListener('change', function () {
-      if (this.value === 'custom') {
-        customDateRangeFields.forEach(el => el.classList.remove('d-none'));
-      } else {
-        customDateRangeFields.forEach(el => el.classList.add('d-none'));
-      }
-    });
-    if (timePeriodSelect.value === 'custom') {
-      customDateRangeFields.forEach(el => el.classList.remove('d-none'));
-    } --}}
+timePeriodSelect.addEventListener('change', function () {
+if (this.value === 'custom') {
+customDateRangeFields.forEach(el => el.classList.remove('d-none'));
+} else {
+customDateRangeFields.forEach(el => el.classList.add('d-none'));
+}
+});
+if (timePeriodSelect.value === 'custom') {
+customDateRangeFields.forEach(el => el.classList.remove('d-none'));
+} --}}

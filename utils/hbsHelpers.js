@@ -172,6 +172,7 @@ const registerHelpers = () => {
   });
   hbs.registerHelper('statusBadge', function (status) {
     const classes = {
+      not_started: 'bg-secondary',
       active: 'bg-success',
       out_of_stock: 'bg-danger',
       discontinued: 'bg-secondary',
@@ -183,6 +184,7 @@ const registerHelpers = () => {
   // Helper hiển thị label trạng thái
   hbs.registerHelper('statusLabel', function (status) {
     const labels = {
+      not_started: 'Chưa mở bán',
       active: 'Đang bán',
       out_of_stock: 'Hết hàng',
       discontinued: 'Ngừng bán',

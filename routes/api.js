@@ -620,7 +620,7 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
         let cartItems = await CartItems.find({ cart_id: cart._id })
             .populate('product_product_type_id')
             .lean();
-
+        console.log(cartItems);
         const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
             const product = await getProductDetails(item.product_product_type_id.product_id);
             item.productType = item.product_product_type_id;
