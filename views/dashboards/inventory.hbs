@@ -1,131 +1,220 @@
 <!-- views/inventory/stats.hbs -->
 <div class="container-fluid">
-  <h1 class="h3 mb-4">Thống kê tồn kho</h1>
+    <h1 class="h3 mb-4">Thống kê tồn kho</h1>
 
-  <!-- Bộ lọc -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <form id="filterForm" class="row g-3">
-        <div class="col-md-12 row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Sắp xếp theo</label>
-            <select class="form-select" name="sortBy">
-              <option value="highest_stock" {{#if (eq filters.sortBy "highest_stock" )}}selected{{/if}}>Tồn kho cao nhất</option>
-              <option value="lowest_stock" {{#if (eq filters.sortBy "lowest_stock" )}}selected{{/if}}>Tồn kho thấp nhất</option>
-              <option value="nearest_expiry" {{#if (eq filters.sortBy "nearest_expiry" )}}selected{{/if}}>Hạn sử dụng gần nhất</option>
-              <option value="oldest_stock" {{#if (eq filters.sortBy "oldest_stock" )}}selected{{/if}}>Hàng nhập cũ nhất</option>
-            </select>
-          </div>
-          
-          <div class="col-md-3">
-            <label class="form-label">Trạng thái</label>
-            <select class="form-select" name="status">
-              <option value="" {{#unless filters.status}}selected{{/unless}}>Tất cả</option>
-              <option value="not_started" {{#if (eq filters.status "not_started" )}}selected{{/if}}>Chưa kích hoạt</option>
-              <option value="active" {{#if (eq filters.status "active" )}}selected{{/if}}>Đang bán</option>
-              <option value="paused" {{#if (eq filters.status "paused" )}}selected{{/if}}>Tạm ngừng</option>
-              <option value="sold_out" {{#if (eq filters.status "sold_out" )}}selected{{/if}}>Đã bán hết</option>
-              <option value="expired" {{#if (eq filters.status "expired" )}}selected{{/if}}>Hết hạn</option>
-            </select>
-          </div>
-        </div>
+    <!-- Bộ lọc -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="filterForm" class="row g-3">
+                <div class="col-md-12 row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Sắp xếp theo</label>
+                        <select class="form-select" name="sortBy">
+                            <option value="highest_stock" {{#if (eq filters.sortBy "highest_stock" )}}selected{{/if}}>
+                                Tồn kho cao nhất</option>
+                            <option value="lowest_stock" {{#if (eq filters.sortBy "lowest_stock" )}}selected{{/if}}>Tồn
+                                kho thấp nhất</option>
+                            <option value="nearest_expiry" {{#if (eq filters.sortBy "nearest_expiry" )}}selected{{/if}}>
+                                Hạn sử dụng gần nhất</option>
+                            <option value="oldest_stock" {{#if (eq filters.sortBy "oldest_stock" )}}selected{{/if}}>Hàng
+                                nhập cũ nhất</option>
+                        </select>
+                    </div>
 
-        <!-- Các trường lọc khác giữ nguyên -->
-
-        <div class="col-md-3 d-flex align-items-end">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-funnel me-2"></i>Áp dụng
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Bảng thống kê -->
-  <div class="card">
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-hover">
-          <thead>
-            <tr>
-              <th>Mã lô</th>
-              <th>Sản phẩm</th>
-              <th>Giá nhập</th>
-              <th>Tổng SL</th>
-              <th>SL tồn</th>
-              <th>HSD</th>
-              <th>Ngày nhập</th>
-              <th>Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each stocks}}
-            <tr>
-              <td>{{this.batch_number}}</td>
-              <td>
-                <div class="column-name-limit" title="{{this.product.name}}">
-                  {{this.product.name}}
-                  <small class="text-muted">({{this.product_type.name}})</small>
+                    <div class="col-md-3">
+                        <label class="form-label">Trạng thái</label>
+                        <select class="form-select" name="status">
+                            <option value="" {{#unless filters.status}}selected{{/unless}}>Tất cả</option>
+                            <option value="not_started" {{#if (eq filters.status "not_started" )}}selected{{/if}}>Chưa
+                                kích hoạt</option>
+                            <option value="active" {{#if (eq filters.status "active" )}}selected{{/if}}>Đang bán
+                            </option>
+                            <option value="paused" {{#if (eq filters.status "paused" )}}selected{{/if}}>Tạm ngừng
+                            </option>
+                            <option value="sold_out" {{#if (eq filters.status "sold_out" )}}selected{{/if}}>Đã bán hết
+                            </option>
+                            <option value="expired" {{#if (eq filters.status "expired" )}}selected{{/if}}>Hết hạn
+                            </option>
+                        </select>
+                    </div>
                 </div>
-              </td>
-              <td>{{formatPrice this.import_price}}</td>
-              <td>{{this.quantity}}</td>
-              <td class="{{#if (lt this.remaining_quantity 10)}}text-danger fw-bold{{/if}}">
-                {{this.remaining_quantity}}
-              </td>
-              <td>{{formatDate this.expiry_date}}</td>
-              <td>{{formatDate this.import_date}}</td>
-              <td>
-                <span class="badge {{stockStatusBadge this.status}}">
-                  {{stockStatusLabel this.status}}
-                </span>
-              </td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
 
-      <!-- Phân trang -->
-      <nav class="d-flex justify-content-between">
-        <div class="form-text">Hiển thị {{stocks.length}}/{{total}} lô hàng</div>
-        <ul class="pagination">
-          {{!-- Giữ nguyên phân trang --}}
-        </ul>
-      </nav>
+
+                <div class="col-md-3">
+                    <label for="timePeriod" class="form-label">Khoảng thời gian</label>
+                    <select name="timePeriod" id="timePeriod" class="form-select">
+                        <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
+                        <option value="last_week" {{#if (eq filters.timePeriod "last_week" )}}selected{{/if}}>Tuần trước
+                        </option>
+                        <option value="last_month" {{#if (eq filters.timePeriod "last_month" )}}selected{{/if}}>Tháng
+                            trước</option>
+                        <option value="this_month" {{#if (eq filters.timePeriod "this_month" )}}selected{{/if}}>Tháng
+                            này</option>
+                        <option value="last_3_months" {{#if (eq filters.timePeriod "last_3_months" )}}selected{{/if}}>3
+                            tháng gần
+                            nhất</option>
+                        <option value="custom" {{#if (eq filters.timePeriod "custom" )}}selected{{/if}}>Tùy chỉnh
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Ngày bắt đầu -->
+                <div class="col-md-2 custom-date-field" style="display: none;">
+                    <label class="form-label">Từ ngày</label>
+                    {{!-- <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}"> --}}
+                    <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}">
+                </div>
+
+                <!-- Ngày kết thúc -->
+                <div class="col-md-2 custom-date-field" style="display: none;">
+                    <label class="form-label">Đến ngày</label>
+                    {{!-- <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}"> --}}
+                    <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Hiển thị</label>
+                    <select class="form-select" name="perPage">
+                        <option value="10" {{#if (eq perPage 10 )}}selected{{/if}}>10</option>
+                        <option value="20" {{#if (eq perPage 20 )}}selected{{/if}}>20</option>
+                        <option value="50" {{#if (eq perPage 50 )}}selected{{/if}}>50</option>
+
+                    </select>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-2"></i>Áp dụng
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-  </div>
+
+    <!-- Bảng thống kê -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Mã lô</th>
+                            <th>Sản phẩm</th>
+                            <th>Giá nhập</th>
+                            <th>Tổng SL</th>
+                            <th>SL tồn</th>
+                            <th>HSD</th>
+                            <th>Ngày nhập</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each stocks}}
+                        <tr>
+                            <td>{{this.batch_number}}</td>
+                            <td>
+                                <div class="column-name-limit" title="{{this.product_name}}">
+                                    {{this.product_name}}
+                                    <small class="text-muted">({{this.product_type_name}})</small>
+                                </div>
+                            </td>
+                            <td>{{formatPrice this.import_price}}</td>
+                            <td>{{this.quantity}}</td>
+                            <td class="{{#if (lt this.remaining_quantity 10)}}text-danger fw-bold{{/if}}">
+                                {{this.remaining_quantity}}
+                            </td>
+                            <td>{{formatDate this.expiry_date}}</td>
+                            <td>{{formatDate this.import_date}}</td>
+                            <td>
+                                <span class="badge {{statusBadge this.status}}">
+                                    {{statusLabel this.status}}
+                                </span>
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Phân trang -->
+            <nav class="d-flex justify-content-between">
+                <div class="form-text">Hiển thị {{stocks.length}}/{{total}} lô hàng</div>
+                <ul class="pagination">
+                    {{!-- Giữ nguyên phân trang --}}
+                </ul>
+            </nav>
+
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {{#if (gt currentPage 1)}}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
+                    </li>
+                    {{/if}}
+
+                    <li class="page-item disabled">
+                        <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+                    </li>
+
+                    {{#if (lt currentPage totalPages)}}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+                    </li>
+                    {{/if}}
+                </ul>
+            </nav>
+        </div>
+    </div>
 </div>
 
 <!-- Thêm helpers mới -->
 <script>
-  // Helper định dạng ngày
-  Handlebars.registerHelper('formatDate', function(date) {
-    return new Date(date).toLocaleDateString('vi-VN');
-  });
+    // Helper định dạng ngày
+    Handlebars.registerHelper('formatDate', function (date) {
+        return new Date(date).toLocaleDateString('vi-VN');
+    });
 
-  // Helper trạng thái tồn kho
-  Handlebars.registerHelper('stockStatusLabel', function(status) {
-    const labels = {
-      'not_started': 'Chưa kích hoạt',
-      'active': 'Đang bán',
-      'paused': 'Tạm dừng',
-      'sold_out': 'Hết hàng',
-      'expired': 'Hết hạn',
-      'discontinued': 'Ngừng bán'
-    };
-    return labels[status] || 'Unknown';
-  });
+    // Helper trạng thái tồn kho
+    Handlebars.registerHelper('stockStatusLabel', function (status) {
+        const labels = {
+            'not_started': 'Chưa kích hoạt',
+            'active': 'Đang bán',
+            'paused': 'Tạm dừng',
+            'sold_out': 'Hết hàng',
+            'expired': 'Hết hạn',
+            'discontinued': 'Ngừng bán'
+        };
+        return labels[status] || 'Unknown';
+    });
 
-  Handlebars.registerHelper('stockStatusBadge', function(status) {
-    const classes = {
-      'not_started': 'bg-secondary',
-      'active': 'bg-success',
-      'paused': 'bg-warning',
-      'sold_out': 'bg-danger',
-      'expired': 'bg-dark',
-      'discontinued': 'bg-danger'
-    };
-    return classes[status] || 'bg-secondary';
+    Handlebars.registerHelper('stockStatusBadge', function (status) {
+        const classes = {
+            'not_started': 'bg-secondary',
+            'active': 'bg-success',
+            'paused': 'bg-warning',
+            'sold_out': 'bg-danger',
+            'expired': 'bg-dark',
+            'discontinued': 'bg-danger'
+        };
+        return classes[status] || 'bg-secondary';
+    });
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const timeSelect = document.getElementById('timePeriod');
+    const customFields = document.querySelectorAll('.custom-date-field');
+
+    function toggleCustomDates() {
+      const isCustom = timeSelect.value === 'custom';
+      customFields.forEach(el => {
+        el.style.display = isCustom ? 'block' : 'none';
+      });
+    }
+
+    // Initial check
+    toggleCustomDates();
+
+    // Update on change
+    timeSelect.addEventListener('change', toggleCustomDates);
   });
 </script>

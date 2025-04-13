@@ -93,9 +93,9 @@
             {{!-- <option>10</option>
             <option>20</option>
             <option>50</option> --}}
-            <option value="10" {{#if (eq filters.perPage "10" )}}selected{{/if}}>10</option>
-            <option value="20" {{#if (eq filters.perPage "20" )}}selected{{/if}}>20</option>
-            <option value="50" {{#if (eq filters.perPage "50" )}}selected{{/if}}>50</option>
+            <option value="10" {{#if (eq perPage 10 )}}selected{{/if}}>10</option>
+            <option value="20" {{#if (eq perPage 20 )}}selected{{/if}}>20</option>
+            <option value="50" {{#if (eq perPage 50 )}}selected{{/if}}>50</option>
 
           </select>
         </div>
@@ -169,6 +169,26 @@
         <div class="form-text">Hiển thị {{products.length}}/{{total}} sản phẩm</div>
         <ul class="pagination">
           {{!-- {{#paginate pagination}}{{/paginate}} --}}
+        </ul>
+      </nav>
+
+      <nav>
+        <ul class="pagination justify-content-center">
+          {{#if (gt currentPage 1)}}
+          <li class="page-item">
+            <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
+          </li>
+          {{/if}}
+
+          <li class="page-item disabled">
+            <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+          </li>
+
+          {{#if (lt currentPage totalPages)}}
+          <li class="page-item">
+            <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+          </li>
+          {{/if}}
         </ul>
       </nav>
     </div>
