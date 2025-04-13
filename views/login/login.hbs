@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PharmaPoly - Login</title>
+    <title>PharmaPoly - Đăng nhập</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
     <style>
         body {
             background: #f8f9fa;
@@ -13,6 +16,7 @@
             justify-content: center;
             align-items: center;
         }
+
         .login-container {
             background: #fff;
             padding: 2rem;
@@ -21,9 +25,11 @@
             max-width: 400px;
             width: 100%;
         }
+
         .password-wrapper {
             position: relative;
         }
+
         .toggle-password {
             position: absolute;
             right: 10px;
@@ -37,38 +43,45 @@
         }
     </style>
 </head>
+
 <body>
-    <!-- Toast Notification -->
+    <!-- Thông báo Toast -->
     <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+            aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
                 <div class="toast-body" id="toastBody">
-                    Login successful!
+                    Đăng nhập thành công!
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Đóng"></button>
             </div>
         </div>
     </div>
 
     <div class="login-container">
-        <h3 class="text-center">Login</h3>
+        <h3 class="text-center">Đăng nhập</h3>
         <form id="loginForm">
             <div class="mb-3">
-                <label for="phone" class="form-label">Phone Number</label>
-                <input type="text" class="form-control" id="phone" placeholder="Enter your phone number" required>
+                <label for="phone" class="form-label">Số điện thoại</label>
+                <input type="text" class="form-control" id="phone" placeholder="Nhập số điện thoại của bạn" required>
             </div>
-            <div class="mb-3 password-wrapper">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
-                <button type="button" class="toggle-password" id="togglePassword">
-                    <i class="bi bi-eye"></i>
-                </button>
-            </div>
-            <button type="submit" class="btn btn-primary w-100">Login</button>
+<div class="mb-3">
+    <label for="password" class="form-label">Mật khẩu</label>
+    <div class="input-group">
+        <input type="password" class="form-control border-end-0" id="password" placeholder="Nhập mật khẩu" required>
+        <span class="input-group-text bg-white border-start-0">
+            <button type="button" id="togglePassword" class="btn p-0 border-0 bg-transparent">
+                <i class="bi bi-eye text-muted"></i>
+            </button>
+        </span>
+    </div>
+</div>
+
+
+
+            <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
         </form>
-        {{!-- <div class="text-center mt-3">
-            <a href="#">Forgot password?</a>
-        </div> --}}
     </div>
 
     <script>
@@ -96,14 +109,14 @@
             toast.show();
         }
 
-        document.getElementById('loginForm').addEventListener('submit', async function(event) {
-            event.preventDefault(); // Ngăn chặn reload trang
+        document.getElementById('loginForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
 
             const phone_number = document.getElementById('phone').value.trim();
             const password = document.getElementById('password').value.trim();
 
             if (!phone_number || !password) {
-                showToast("Please enter your phone number and password!", false);
+                showToast("Vui lòng nhập số điện thoại và mật khẩu!", false);
                 return;
             }
 
@@ -117,21 +130,21 @@
                 const result = await response.json();
 
                 if (result.status === 200) {
-                    showToast("Login successful!", true);
-             
+                    showToast("Đăng nhập thành công!", true);
                     setTimeout(() => {
                         window.location.href = "/dashboards/revenue";
                     }, 1500);
                 } else {
-                    showToast(result.message, false);
+                    showToast(result.message || "Đăng nhập thất bại!", false);
                 }
             } catch (error) {
-                console.error("Login error:", error);
-                showToast("An error occurred during login!", false);
+                console.error("Lỗi đăng nhập:", error);
+                showToast("Đã xảy ra lỗi khi đăng nhập!", false);
             }
         });
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

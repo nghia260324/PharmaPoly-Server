@@ -616,11 +616,9 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
             return res.status(404).json({ status: 404, message: 'Cart not found' });
         }
 
-        // let cartItems = await CartItems.find({ cart_id: cart._id }).lean();
         let cartItems = await CartItems.find({ cart_id: cart._id })
             .populate('product_product_type_id')
             .lean();
-        console.log(cartItems);
         const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
             const product = await getProductDetails(item.product_product_type_id.product_id);
             item.productType = item.product_product_type_id;
@@ -4051,5 +4049,18 @@ async function createFakeCanceledOrders() {
 // const userData = generateUsers(100);
 // console.log(JSON.stringify(userData, null, 2));
 
+
+async function deleteUserByPhoneNumber(phoneNumber) {
+    try {
+        const result = await Users.findOneAndDelete({ phone_number: phoneNumber });
+        if (result) {
+            console.log(`✅ Đã xóa user có số điện thoại: ${phoneNumber}`);
+        } else {
+            console.log(`⚠️ Không tìm thấy user với số điện thoại: ${phoneNumber}`);
+        }
+    } catch (error) {
+        console.error('❌ Lỗi khi xóa user:', error.message);
+    }
+}
 
 module.exports = { router, getUserAddress, getShopInfo };

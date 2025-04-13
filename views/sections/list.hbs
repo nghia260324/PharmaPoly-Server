@@ -1,22 +1,25 @@
 <div class="p-4">
     <div id="sectionSection" class="section-section">
-        <div class="form-container">
-            <h5 data-lang="add_new_section">Add New Section</h5>
-            <form id="SectionForm" class="row g-3">
-                <input type="hidden" id="sectionId">
-                <div class="col-md-6">
-                    <input type="text" class="form-control" id="sectionName" data-lang-placeholder="section_name" placeholder="Section Name" required>
-                </div>
-                <div class="col-md-6">
-                    <button type="button" class="btn btn-primary">
-                        <i class="bi bi-save"></i>
-                        <span data-lang="save">Save</span>
-                    </button>
-                </div>
-            </form>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 data-lang="add_new_section">Add New Section</h5>
+                <form id="SectionForm" class="row g-3">
+                    <input type="hidden" id="sectionId">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="sectionName" data-lang-placeholder="section_name"
+                            placeholder="Section Name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-primary">
+                            <i class="bi bi-save"></i>
+                            <span data-lang="save">Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div id="sectionList">
+        {{!-- <div id="sectionList">
             {{#each sections}}
             <div class="section-card p-2" data-id="{{this._id}}" data-name="{{this.name}}">
                 <div class="d-flex justify-content-between align-items-center">
@@ -35,6 +38,74 @@
                 </div>
             </div>
             {{/each}}
+        </div> --}}
+        <div class="card mb-4">
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            {{!-- <th>Tiêu đề nội dung</th> --}}
+                            <th>
+                                Tiêu đề nội dung
+                                <a href="?sort={{#ifEquals sort 'name_asc'}}name_desc{{else}}name_asc{{/ifEquals}}{{#if search}}&search={{search}}{{/if}}"
+                                    class="ms-1 text-decoration-none">
+                                    {{#ifEquals sort 'name_asc'}}
+                                    <i class="bi bi-arrow-up"></i>
+                                    {{else ifEquals sort 'name_desc'}}
+                                    <i class="bi bi-arrow-down"></i>
+                                    {{else}}
+                                    <i class="bi bi-arrow-down-up"></i>
+                                    {{/ifEquals}}
+                                </a>
+                            </th>
+
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each sections}}
+                        <tr class="section-card product-type-card" data-id="{{this._id}}" data-name="{{this.name}}">
+                            <td>{{this._id}}</td>
+                            <td>{{this.name}}</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning me-2" onclick="editSection(this)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {{!-- <button class="btn btn-sm btn-danger" onclick="deleteSection(this)">
+                                    <i class="bi bi-trash"></i>
+                                </button> --}}
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {{#if (gt currentPage 1)}}
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="?page={{sub currentPage 1}}&limit={{limit}}&search={{search}}&sort={{sort}}">Trang
+                            trước</a>
+                    </li>
+                    {{/if}}
+
+                    <li class="page-item disabled">
+                        <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+                    </li>
+
+                    {{#if (lt currentPage totalPages)}}
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="?page={{add currentPage 1}}&limit={{limit}}&search={{search}}&sort={{sort}}">Trang
+                            sau</a>
+                    </li>
+                    {{/if}}
+                </ul>
+            </nav>
+
         </div>
     </div>
 </div>
@@ -54,14 +125,13 @@
 
 
 <!-- Popup Modal Edit Section -->
-<div class="modal fade" id="editSectionModal" tabindex="-1" aria-labelledby="editSectionModalLabel"
-    aria-hidden="true">
+<div class="modal fade" id="editSectionModal" tabindex="-1" aria-labelledby="editSectionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         {{!-- modal-dialog-centered --}}
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="editSectionModalLabel">Edit Section</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="editSectionModalLabel">Chỉnh sửa phần nội dung</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
                 <form id="editSectionForm">
@@ -69,19 +139,19 @@
 
                     <!-- ID display field (disabled and greyed out) -->
                     <div class="mb-3">
-                        <label for="editSectionIdDisplay" class="form-label">Section ID</label>
+                        <label for="editSectionIdDisplay" class="form-label">ID</label>
                         <input type="text" class="form-control" id="editSectionIdDisplay" disabled>
                     </div>
 
                     <!-- Section Name input field -->
                     <div class="mb-3">
-                        <label for="editSectionName" class="form-label">Section Name</label>
+                        <label for="editSectionName" class="form-label">Tiêu đề nội dung</label>
                         <input type="text" class="form-control" id="editSectionName" placeholder="Section Name"
                             required>
                     </div>
 
                     <!-- Submit button -->
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
                 </form>
             </div>
         </div>
@@ -138,9 +208,12 @@
             if (result.status === 200) {
                 showToast(result.message, "success");
 
-                addSectionToDOM(result.data);
+                //addSectionToDOM(result.data);
 
                 nameInput.value = '';
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
                 showToast(result.message, "danger");
             }
@@ -198,8 +271,11 @@
                 .then(result => {
                     if (result.status === 200) {
                         showToast(result.message, "success");
-                        sectionCard.remove();
+                        //sectionCard.remove();
                         modal.hide();
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
                     } else {
                         showToast(result.message, "danger");
                     }
@@ -247,9 +323,12 @@
             const result = await response.json();
             if (result.status === 200) {
                 showToast(result.message, "success");
-                updateSectionInDOM(result.data);
+                //updateSectionInDOM(result.data);
                 const modal = bootstrap.Modal.getInstance(document.getElementById('editSectionModal'));
                 modal.hide();
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
             } else {
                 showToast(result.message, "danger");
             }

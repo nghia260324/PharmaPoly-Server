@@ -3,12 +3,41 @@ var router = express.Router();
 
 const ProductTypes = require('../models/productTypes');
 
+// router.get('/', async function (req, res, next) {
+//     const productTypes = await ProductTypes.find();
+//     res.render('productTypes/list', {
+//         productTypes: productTypes,
+//     });
+// });
 router.get('/', async function (req, res, next) {
-    const productTypes = await ProductTypes.find();
+    const { page = 1, limit = 10, search, sort } = req.query;
+
+    let query = {};
+    if (search) {
+        query.name = { $regex: search, $options: 'i' };
+    }
+
+    let sortOption = { name: 1 };
+    if (sort === 'name_desc') sortOption = { name: -1 };
+
+    const productTypes = await ProductTypes.find(query)
+        .sort(sortOption)
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+    const totalProductTypes = await ProductTypes.countDocuments(query);
+    const totalPages = Math.ceil(totalProductTypes / limit);
+
     res.render('productTypes/list', {
-        productTypes: productTypes,
+        productTypes,
+        currentPage: parseInt(page),
+        totalPages,
+        limit: parseInt(limit),
+        search,
+        sort
     });
 });
+
 
 module.exports = router;
 
