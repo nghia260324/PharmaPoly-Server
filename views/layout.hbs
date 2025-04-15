@@ -71,44 +71,9 @@
     <nav class="app-header navbar navbar-expand bg-body">{{> header}}</nav>
     <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">{{> sidebar}}</aside>
     <main class="app-main">{{{body}}}</main>
-    <footer class="app-footer">{{> footer}}</footer>
+    {{!-- <footer class="app-footer">{{> footer}}</footer> --}}
   </div>
   <script src="/javascripts/main.js"></script>
-  {{!--
-  <script>
-    window.languageData = {};
-    document.addEventListener("DOMContentLoaded", function () {
-      const languageLinks = document.querySelectorAll("#language-menu a");
-      const savedLang = localStorage.getItem("language") || "en";
-
-      window.loadLanguage = function (lang) {
-        fetch("/languages.json")
-          .then(response => response.json())
-          .then(data => {
-            languageData = data;
-            localStorage.setItem("language", lang);
-            document.querySelectorAll("[data-lang]").forEach(el => {
-              const key = el.getAttribute("data-lang");
-              if (data[lang] && data[lang][key]) {
-                el.textContent = data[lang][key];
-              }
-            });
-          })
-          .catch(error => console.error("Lỗi tải ngôn ngữ:", error));
-      }
-
-      languageLinks.forEach(link => {
-        link.addEventListener("click", function (event) {
-          event.preventDefault();
-          const selectedLang = this.getAttribute("href").split("=")[1];
-          loadLanguage(selectedLang);
-        });
-      });
-
-      window.loadLanguage(savedLang);
-    });
-  </script> --}}
-
   <script>
     window.languageData = {};
 
@@ -173,4 +138,5 @@
     });
   </script>
 </body>
+
 </html>

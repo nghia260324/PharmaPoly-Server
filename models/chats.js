@@ -13,8 +13,8 @@ const chatSchema = new Schema({
   lastMessage: { type: String, required: true },
   timeSentLastMessage: { type: Date, required: true },
   sentBy: { type: String, required: true },
-  fullChat: { type: [messageSchema], default: [] } 
-}); 
+  fullChat: { type: [messageSchema], default: [] }
+});
 
 const chat = mongoose.model('chat', chatSchema, 'chats');
 

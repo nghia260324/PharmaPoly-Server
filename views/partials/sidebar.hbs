@@ -1,115 +1,3 @@
-<aside class="app-sidebar shadow sidebar">
-  <div class="sidebar-header text-center py-3">
-    <h5 class="mb-0 text-white">PharmaPoly</h5>
-  </div>
-  <ul class="nav flex-column">
-
-    <li class="nav-item">
-      <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
-        data-bs-toggle="collapse" data-bs-target="#dashboardSubmenu">
-        <div>
-          <i class="bi bi-kanban"></i><span data-lang="dashboard">Dashboard</span>
-        </div>
-        <i class="bi bi-chevron-right toggle-icon"></i>
-      </a>
-      <ul class="collapse list-unstyled ps-3" id="dashboardSubmenu">
-        <li>
-          <a class="nav-link text-white" href="/dashboards/products">
-            <i class="bi bi-box-seam"></i> Thống kê sản phẩm
-          </a>
-        </li>
-        <li>
-          <a class="nav-link text-white" href="/dashboards/inventory">
-            <i class="bi bi-archive"></i> Thống kê tồn kho
-          </a>
-        </li>
-        <li>
-          <a class="nav-link text-white" href="/dashboards/revenue">
-            <i class="bi bi-graph-up-arrow"></i> Doanh thu & Đơn hàng
-          </a>
-        </li>
-      </ul>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-white" href="/chat">
-        <i class="bi bi-chat-dots"></i> <span data-lang="chat">Chat</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-white" href="/orders">
-        <i class="bi bi-card-checklist"></i> <span data-lang="orders">Order</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-white" href="/products">
-        <i class="bi bi-box"></i> <span data-lang="product">Product</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-white" href="/categories">
-        <i class="bi bi-list"></i> <span data-lang="category">Category</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-white" href="/brands">
-        <i class="bi bi-tags"></i> <span data-lang="brand">Brand</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-white" href="/product-types">
-        <i class="bi bi-box-seam"></i> <span data-lang="product_type">Product Type</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-white" href="/sections">
-        <i class="bi bi-menu-up"></i></i> <span data-lang="section">Section</span>
-      </a>
-    </li>
-    {{!-- <li class="nav-item">
-      <a class="nav-link text-white" href="/discounts">
-        <i class="bi bi-ticket"></i> <span data-lang="discount">Discount</span>
-      </a>
-    </li> --}}
-
-    {{!-- <li class="nav-item">
-      <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
-        data-bs-toggle="collapse" data-bs-target="#discount-menu">
-        <div>
-          <i class="bi bi-ticket"></i> <span data-lang="discount">Discount</span>
-        </div>
-        <i class="bi bi-chevron-right toggle-icon"></i>
-      </a>
-      <ul id="discount-menu" class="collapse list-unstyled">
-        <li>
-          <a class="nav-link text-white" href="/discount-condition-type">DiscountConditionType</span></a>
-        </li>
-        <li>
-          <a class="nav-link text-white" href="/discounts"><span data-lang="discount">Discount</span></a>
-        </li>
-      </ul>
-    </li> --}}
-
-    <li class="nav-item">
-      <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
-        data-bs-toggle="collapse" data-bs-target="#language-menu">
-        <div>
-          <i class="bi bi-translate"></i> <span data-lang="language">Language</span>
-        </div>
-        <i class="bi bi-chevron-right toggle-icon"></i>
-      </a>
-      <ul id="language-menu" class="collapse list-unstyled">
-        <li>
-          <a class="nav-link text-white" href="?lang=en">English</span></a>
-        </li>
-        <li>
-          <a class="nav-link text-white" href="?lang=vi">VietNamese</span></a>
-        </li>
-      </ul>
-    </li>
-
-  </ul>
-</aside>
-
 <style>
   .sidebar {
     width: 250px;
@@ -157,6 +45,94 @@
     transform: rotate(90deg);
   }
 </style>
+<aside class="app-sidebar shadow sidebar">
+  <div class="sidebar-header text-center py-3">
+    <h5 class="mb-0 text-white">PharmaPoly</h5>
+  </div>
+  <ul class="nav flex-column">
+
+    <li class="nav-item">
+      <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
+        data-bs-toggle="collapse" data-bs-target="#dashboardSubmenu">
+        <div>
+          <i class="bi bi-kanban"></i><span data-lang="dashboard">Dashboard</span>
+        </div>
+        <i class="bi bi-chevron-right toggle-icon"></i>
+      </a>
+      <ul class="collapse list-unstyled ps-3" id="dashboardSubmenu">
+        <li>
+          <a class="nav-link text-white" href="/dashboards/products">
+            <i class="bi bi-box-seam"></i> Thống kê sản phẩm
+          </a>
+        </li>
+        <li>
+          <a class="nav-link text-white" href="/dashboards/inventory">
+            <i class="bi bi-archive"></i> Thống kê tồn kho
+          </a>
+        </li>
+        <li>
+          <a class="nav-link text-white" href="/dashboards/revenue">
+            <i class="bi bi-graph-up-arrow"></i> Doanh thu & Đơn hàng
+          </a>
+        </li>
+      </ul>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/chat">
+        <i class="bi bi-card-checklist"></i> <span data-lang="chat">Chat</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/orders">
+        <i class="bi bi-card-checklist"></i> <span data-lang="orders">Order</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/products">
+        <i class="bi bi-box"></i> <span data-lang="product">Product</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/categories">
+        <i class="bi bi-list"></i> <span data-lang="category">Category</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/brands">
+        <i class="bi bi-tags"></i> <span data-lang="brand">Brand</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/product-types">
+        <i class="bi bi-box-seam"></i> <span data-lang="product_type">Product Type</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-white" href="/sections">
+        <i class="bi bi-menu-up"></i></i> <span data-lang="section">Section</span>
+      </a>
+    </li>
+
+
+    <li class="nav-item">
+      <a class="nav-link text-white d-flex justify-content-between align-items-center" href="#"
+        data-bs-toggle="collapse" data-bs-target="#language-menu">
+        <div>
+          <i class="bi bi-translate"></i> <span data-lang="language">Language</span>
+        </div>
+        <i class="bi bi-chevron-right toggle-icon"></i>
+      </a>
+      <ul id="language-menu" class="collapse list-unstyled">
+        <li>
+          <a class="nav-link text-white" href="?lang=en">English</span></a>
+        </li>
+        <li>
+          <a class="nav-link text-white" href="?lang=vi">VietNamese</span></a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</aside>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -194,28 +170,3 @@
     });
   });
 </script>
-
-
-    {{!-- <li class="nav-item">
-      {{!-- <a class="nav-link text-white" href="/dashboards"> --}}
-        <a class="nav-link text-white" href="#">
-          <i class="bi bi-kanban"></i> <span data-lang="dashboard">Dashboard</span>
-        </a>
-        <ul class="collapse list-unstyled ps-3" id="dashboardSubmenu">
-          <li>
-            <a class="nav-link text-white" href="/dashboards/products">
-              <i class="bi bi-box-seam"></i> Thống kê sản phẩm
-            </a>
-          </li>
-          <li>
-            <a class="nav-link text-white" href="/dashboards/inventory">
-              <i class="bi bi-archive"></i> Thống kê tồn kho
-            </a>
-          </li>
-          <li>
-            <a class="nav-link text-white" href="/dashboards/revenue">
-              <i class="bi bi-graph-up-arrow"></i> Doanh thu & Đơn hàng
-            </a>
-          </li>
-        </ul>
-    </li> --}}

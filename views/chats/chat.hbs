@@ -1,549 +1,262 @@
-{{!-- <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" /> --}}
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<div class="container-fluid h-100">
+    <div class="row h-100">
+        <div class="col-lg-12 h-100">
+            {{!-- <div class="card chat-app shadow border-0"> --}}
+                <div class="row no-gutters h-100">
+                    <!-- Danh sách chat -->
+                    <div id="plist" class="col-md-4 border-end people-list p-3 bg-light">
+                        <h5 class="mb-3">List All Chat</h5>
+                        <ul id="list-chats" class="list-unstyled chat-list mb-0">
+                            {{#each chats}}
+                            <li class="clearfix mb-2 p-2 rounded bg-white d-flex align-items-center"
+                                data-id="{{this._id}}" data-user-id="{{this.user_id}}"
+                                data-full-chat='{{json this.fullChat}}' data-last-message="{{this.lastMessage}}"
+                                data-user-avatar='{{lookup (lookup ../userMap this.user_id) "avatar"}}'
+                                data-user-name="{{lookup (lookup ../userMap this.user_id) "name"}}"
+                                onclick="loadChat(this)">
 
-<style>
-    body {
-        background-color: #f4f7f6;
-    }
+                                {{!-- <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar"
+                                    class="rounded-circle me-3" width="45"> --}}
+                                <img src="{{lookup (lookup ../userMap this.user_id) "avatar"}}" alt="avatar"
+                                    class="rounded-circle me-3" width="45"
+                                    style="aspect-ratio: 1/1; object-fit: cover;">
+                                <span style="display: none;">
+                                    Avatar: {{lookup (lookup ../userMap this.user_id) "avatar"}}
+                                </span>
 
-    .card {
-        background: #fff;
-        transition: .5s;
-        border: 0;
-        border-radius: .55rem;
-        position: relative;
-        width: 100%;
-        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
-    }
+                                <div class="about flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        {{!-- <div class="name fw-bold">{{lookup ../userNames this.user_id}}</div> --}}
+                                        <div class="name fw-bold">{{lookup (lookup ../userMap this.user_id) "name"}}
+                                        </div>
 
-    .chat-app .people-list {
-        width: 380px;
-        position: absolute;
-        left: 0;
-        top: 0;
-        padding: 20px;
-        z-index: 7
-    }
-
-    .chat-app .chat {
-        margin-left: 380px;
-        border-left: 1px solid #eaeaea
-    }
-
-    .people-list {
-        -moz-transition: .5s;
-        -o-transition: .5s;
-        -webkit-transition: .5s;
-        transition: .5s
-    }
-
-    .people-list .chat-list li {
-        padding: 10px 15px;
-        list-style: none;
-        border-radius: 3px
-    }
-
-    .people-list .chat-list li:hover {
-        background: #efefef;
-        cursor: pointer
-    }
-
-    .people-list .chat-list li.active {
-        background: #efefef
-    }
-
-    .people-list .chat-list li .name {
-        width: 248px;
-        font-size: 15px
-    }
-
-    .people-list .chat-list img {
-        width: 45px;
-        border-radius: 50%
-    }
-
-    .people-list img {
-        float: left;
-        border-radius: 50%
-    }
-
-    .people-list .about {
-        float: left;
-        padding-left: 8px
-    }
-
-    .people-list .status {
-        color: #999;
-        font-size: 13px
-    }
-
-    .chat .chat-header {
-        padding: 15px 20px;
-        border-bottom: 2px solid #f4f7f6
-    }
-
-    .chat .chat-header img {
-        float: left;
-        border-radius: 40px;
-        width: 40px
-    }
-
-    .chat .chat-header .chat-about {
-        float: left;
-        padding-left: 10px
-    }
-
-    .chat .chat-history {
-        height: 700px;
-        overflow-y: auto;
-        padding: 20px;
-        border-bottom: 2px solid #fff
-    }
-
-    .chat .chat-history ul {
-        padding: 0
-    }
-
-    .chat .chat-history ul li {
-        list-style: none;
-        margin-bottom: 10px
-    }
-
-    .chat .chat-history ul li:last-child {
-        margin-bottom: 0px
-    }
-
-    .chat .chat-history .message-data {
-        margin-left: 50px;
-        margin-bottom: 15px
-    }
-
-    .chat .chat-history .message-data img {
-        border-radius: 40px;
-        width: 40px
-    }
-
-    .chat .chat-history .message-data-time {
-        color: #434651;
-        padding-left: 600px
-    }
-
-    .chat .chat-history .message {
-        color: #444;
-        padding: 18px 20px;
-        line-height: 26px;
-        font-size: 16px;
-        border-radius: 7px;
-        display: inline-block;
-        position: relative
-    }
-
-    .chat .chat-history .message:after {
-        bottom: 100%;
-        left: 7%;
-        border: solid transparent;
-        content: " ";
-        height: 0;
-        width: 0;
-        position: absolute;
-        pointer-events: none;
-        border-bottom-color: #fff;
-        border-width: 10px;
-        margin-left: -10px
-    }
-
-    .status p {
-        margin-bottom: 0px;
-    }
-
-    .chat .chat-history .my-message {
-        background: #efefef
-    }
-
-    .chat .chat-history .other-message {
-        background: #e8f1f3;
-        padding: 10px 15px;
-        border-radius: 10px;
-        max-width: 70%;
-        position: relative;
-        display: inline-block;
-        text-align: left;
-    }
-
-    .chat .chat-message {
-        padding: 20px
-    }
-
-    .online,
-    .offline,
-    .me {
-        margin-right: 2px;
-        font-size: 8px;
-        vertical-align: middle
-    }
-
-    .online {
-        color: #86c541
-    }
-
-    .offline {
-        color: #e47297
-    }
-
-    .me {
-        color: #1d8ecd
-    }
-
-    .float-right {
-        float: right
-    }
-
-    .clearfix:after {
-        visibility: hidden;
-        display: block;
-        font-size: 0;
-        content: " ";
-        clear: both;
-        height: 0
-    }
-
-    .input-group {
-        display: flex;
-        align-items: center;
-        border-radius: 25px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        background: #fff;
-    }
-
-    .input-group .form-control {
-        border: none;
-        padding: 12px 15px;
-        font-size: 16px;
-        border-radius: 25px;
-        outline: none;
-        transition: all 0.3s ease-in-out;
-    }
-
-    .input-group .form-control:focus {
-        box-shadow: none;
-    }
-
-    .input-group-prepend {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: #007bff;
-        border-radius: 50%;
-        cursor: pointer;
-        padding: 10px;
-        margin-right: 5px;
-    }
-
-    .input-group-text {
-        background: transparent;
-        color: white;
-        border: none;
-        font-size: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .input-group-prepend:hover {
-        background: #0056b3;
-    }
-
-    .input-group-text i {
-        font-size: 18px;
-    }
-
-    .wrapper {
-        display: flex;
-        align-items: center;
-        /* Canh giữa theo chiều dọc */
-        justify-content: space-between;
-        /* Đẩy icon về cuối hàng */
-        width: 100%;
-        /* Đảm bảo phần tử con trải rộng hết hàng */
-    }
-
-    .wrapper .name {
-        font-size: 16px;
-        font-weight: bold;
-        flex-grow: 1;
-        /* Giúp name mở rộng để đẩy icon về cuối */
-    }
-
-    h6 {
-        margin-top: 12px;
-    }
-
-
-
-    @media only screen and (max-width: 767px) {
-        .chat-app .people-list {
-            height: 465px;
-            width: 100%;
-            overflow-x: auto;
-            background: #fff;
-            left: -400px;
-            display: none
-        }
-
-        .chat-app .people-list.open {
-            left: 0
-        }
-
-        .chat-app .chat {
-            margin: 0
-        }
-
-        .chat-app .chat .chat-header {
-            border-radius: 0.55rem 0.55rem 0 0
-        }
-
-        .chat-app .chat-history {
-            height: 300px;
-            overflow-x: auto
-        }
-    }
-
-    @media only screen and (min-width: 768px) and (max-width: 992px) {
-        .chat-app .chat-list {
-            height: 650px;
-            overflow-x: auto
-        }
-
-        .chat-app .chat-history {
-            height: 600px;
-            overflow-x: auto
-        }
-    }
-
-    @media only screen and (min-device-width: 768px) and (max-device-width: 1024px) and (orientation: landscape) and (-webkit-min-device-pixel-ratio: 1) {
-        .chat-app .chat-list {
-            height: 480px;
-            overflow-x: auto
-        }
-
-        .chat-app .chat-history {
-            height: calc(100vh - 350px);
-            overflow-x: auto
-        }
-    }
-</style>
-
-<div class="container-fluid">
-    <div class="row clearfix">
-        <div class="col-lg-12">
-            <div class="card chat-app">
-                <div id="plist" class="people-list">
-                    <h3>List All Chat</h3>
-                    <ul id="list-chats" class="list-unstyled chat-list mt-2 mb-0">
-                        {{#each chats}}
-                        <li class="clearfix" data-id="{{this._id}}" data-user-id="{{this.user_id}}"
-                            data-full-chat='{{json this.fullChat}}' data-last-message="{{this.lastMessage}}"
-                            data-user-name=" {{lookup ../userNames this.user_id}}" onclick="loadChat(this)">
-                            {{!-- <img src="{{this.avatar}}" alt="avatar"> --}}
-                            <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar">
-                            <div class="about">
-                                <div class="wrapper">
-                                    <div class="name">{{lookup ../userNames this.user_id}}</div>
-                                    <i class="fa fa-circle offline"></i>
+                                        <i class="bi bi-circle-fill text-secondary small"></i>
+                                        <!-- Trạng thái offline -->
+                                    </div>
+                                    <div class="status text-muted small">
+                                        <p class="mb-0">{{lookup (lookup ../userMap this.sentBy) "name"}} :
+                                            {{this.lastMessage}}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div class="status">
-                                    <p>{{lookup ../userNames this.sentBy}} : {{this.lastMessage}}</p>
-                                </div>
-                            </div>
-                        </li>
-
-                        {{/each}}
-                    </ul>
-                </div>
-                <div class="chat" style="display: none;">
-                    <div class="chat-header clearfix">
-                        <div class="row">
-                            <div class="col-lg-6">
-                                <a href="javascript:void(0);" data-toggle="modal" data-target="#view_info">
-                                    <img src="https://bootdey.com/img/Content/avatar/avatar2.png" alt="avatar">
-                                </a>
-                                <div class="chat-about">
-                                    <h6 id="name_user_chat" class="m-b-0">Aiden Chavez</h6>
-                                    {{!-- <small>Last seen: 2 hours ago</small> --}}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="chat-history">
-                        <ul class="m-b-0">
+                            </li>
+                            {{/each}}
                         </ul>
                     </div>
-                    <div class="chat-message clearfix">
-                        <div class="input-group mb-0">
-                            <input type="text" class="form-control" placeholder="Enter text here...">
-                            <div class="input-group-prepend" onclick="sendMessage()">
-                                <span class="input-group-text"><i class="fa fa-send"></i></span>
+
+                    {{!-- <div class="col-md-8 chat d-none d-md-block"> --}}
+                        <div class="col-md-8 chat d-flex flex-column">
+                            <div class="chat-header clearfix border-bottom px-3 py-2 bg-white">
+                                <div class="d-flex align-items-center">
+                                    <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#view_info"
+                                        class="me-2">
+                                        <img id="avatar_user_chat"
+                                            src="https://bootdey.com/img/Content/avatar/avatar2.png" alt="avatar"
+                                            class="rounded-circle" width="45"
+                                            style="aspect-ratio: 1/1; object-fit: cover;">
+                                    </a>
+                                    <div class="chat-about">
+                                        <h6 id="name_user_chat" class="m-0 fw-bold">Aiden Chavez</h6>
+                                    </div>
+                                </div>
                             </div>
+
+                            {{!-- <div class="chat-history p-3" style="height: 400px; overflow-y: auto;"> --}}
+                                <div class="chat-history p-3" style="flex: 1 1 auto; overflow-y: auto;">
+
+                                    <ul class="list-unstyled mb-0">
+                                        <!-- tin nhắn -->
+                                    </ul>
+                                </div>
+
+                                <div class="chat-message clearfix border-top p-3 bg-light">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" placeholder="Enter text here...">
+                                        <button class="btn btn-primary" type="button" onclick="sendMessage()">
+                                            <i class="bi bi-send-fill"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
-                </div>
+                    {{!--
+                </div> --}}
             </div>
         </div>
-    </div>
-</div>
 
-<script>
-    const adminId = "67b344c3744eaa2ff0f0ce7d";
-    console.log("🟢 userId gửi lên socket:", adminId);
-    window.socket = io("http://localhost:3000", { query: { userId: adminId } });
+        <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+        <script>
+            const adminId = "67b344c3744eaa2ff0f0ce7d";
+            window.socket = io("http://localhost:3000", { query: { userId: adminId } });
 
-    socket.on("receiveMessage", (data) => {
-        if (data.status === "success") {
-            const chatBox = document.querySelector(".chat-history ul");
-            const chatHistory = document.querySelector('.chat-history ul');
-            const message = data.data;
-            const messageTime = new Date(message.timestamp).toLocaleTimeString();
-            let messageHTML = '';
-            if (document.querySelector(`li[data-user-id="${message.senderId}"]`)) {
-                document.querySelector(`li[data-user-id="${message.senderId}"] .status p`).innerHTML = document.querySelector(`li[data-user-id="${message.senderId}"]`).getAttribute('data-user-name') + ': ' + message.message;
-
-                if (message.senderId === adminId) {
-                    // Nếu người gửi là admin
-                    messageHTML = `
-                            <li class="clearfix">
-                                <div class="message-data text-left">
-                                    <span class="message-data-time">${messageTime}</span>
-                                </div>
-                                <div class="message my-message float-right">${message.message}</div>
-                            </li>
-                            `;
-                } else {
-                    document.querySelector(`li[data-user-id="${message.senderId}"] i`).style.display = 'inline-block';
-
-                    if (window.userId == message.senderId) {
-                        // Nếu người gửi không phải admin
-                        messageHTML = `
-                                <li class="clearfix">
-                                    <div class="message-data">
-                                        <span class="message-data-time">${messageTime}</span>
-                                    </div>
-                                    <div class="message other-message">${message.message}</div>
-                                </li>
-                                `;
-                    }
-                }
-
-                chatHistory.innerHTML += messageHTML;
-                setTimeout(() => {
-                    chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
-                }, 100);
-
-                const input = document.querySelector('.chat-message input');
-                input.addEventListener("focus", function () {
-                    document.querySelector(`li[data-user-id="${message.senderId}"] i`).style.display = 'none';
-                });
-                input.addEventListener("input", function () {
-                    document.querySelector(`li[data-user-id="${message.senderId}"] i`).style.display = 'none';
-                });
-            } else {
-                location.reload();
-
-            }
-
-
-        } else {
-            console.error("Lỗi nhận tin nhắn:", data.message);
-        }
-    });
-</script>
-
-<script>
-    async function loadChat(e) {
-        const parent = document.querySelector('.chat');
-        const chatHistory = document.querySelector('.chat-history ul');
-        document.getElementById("name_user_chat").innerHTML = e.getAttribute('data-user-name');
-        parent.style.display = 'block';
-        const user_id = e.getAttribute('data-user-id');
-        window.userId = user_id;
-        document.querySelector(`li[data-user-id="${user_id}"] i`).style.display = 'none';
-        try {
-            const response = await fetch(`api/chat/fullChat?user_id=${user_id}`);
-            const result = await response.json();
-            if (result.status === 200) {
-                // Xóa tin nhắn cũ
-                chatHistory.innerHTML = "";
-
-                // Hiển thị tin nhắn mới
-                result.data.forEach(message => {
+            socket.on("receiveMessage", (data) => {
+                if (data.status === "success") {
+                    const chatHistory = document.querySelector('.chat-history ul');
+                    const message = data.data;
                     const messageTime = new Date(message.timestamp).toLocaleTimeString();
                     let messageHTML = '';
+                    const lastMessage = chatHistory.querySelector('.message:last-child');
 
-                    if (message.senderId === adminId) {
-                        // Nếu người gửi là admin
-                        messageHTML = `
-                            <li class="clearfix">
-                                <div class="message-data text-left">
+                    // Kiểm tra nếu tin nhắn trước đó là của cùng người gửi
+                    const shouldDisplayTime = !lastMessage || lastMessage.getAttribute('data-sender-id') !== message.senderId;
+
+                    if (document.querySelector(`li[data-user-id="${message.senderId}"]`)) {
+                        document.querySelector(`li[data-user-id="${message.senderId}"] .status p`).innerHTML = document.querySelector(`li[data-user-id="${message.senderId}"]`).getAttribute('data-user-name') + ': ' + message.message;
+
+                        if (message.senderId === adminId) {
+                            // Nếu người gửi là admin
+                            messageHTML = `
+                        <li class="clearfix" data-sender-id="${message.senderId}">
+                            ${shouldDisplayTime ? `<div class="message-data text-left d-flex align-item-center justify-content-center">
+                                <span class="message-data-time">${messageTime}</span>
+                            </div>` : ''}
+                            <div class="message my-message" style="text-align: right">${message.message}</div>
+                        </li>
+                    `;
+                        } else {
+                            document.querySelector(`li[data-user-id="${message.senderId}"] i`).style.display = 'inline-block';
+
+                            if (window.userId == message.senderId) {
+                                // Nếu người gửi không phải admin
+                                messageHTML = `
+                            <li class="clearfix" data-sender-id="${message.senderId}">
+                                ${shouldDisplayTime ? `<div class="message-data d-flex align-item-center justify-content-center">
                                     <span class="message-data-time">${messageTime}</span>
-                                </div>
-                                <div class="message my-message float-right">${message.message}</div>
-                            </li>
-                            `;
-                    } else {
-                        // Nếu người gửi không phải admin
-                        messageHTML = `
-                            <li class="clearfix">
-                                <div class="message-data">
-                                    <span class="message-data-time">${messageTime}</span>
-                                </div>
+                                </div>` : ''}
                                 <div class="message other-message">${message.message}</div>
                             </li>
-                            `;
+                        `;
+                            }
+                        }
+
+                        chatHistory.innerHTML += messageHTML;
+                        setTimeout(() => {
+                            chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
+                        }, 100);
+
+                        const input = document.querySelector('.chat-message input');
+                        input.addEventListener("focus", function () {
+                            document.querySelector(`li[data-user-id="${message.senderId}"] i`).style.display = 'none';
+                        });
+                        input.addEventListener("input", function () {
+                            document.querySelector(`li[data-user-id="${message.senderId}"] i`).style.display = 'none';
+                        });
+                    } else {
+                        location.reload();
                     }
+                } else {
+                    console.error("Lỗi nhận tin nhắn:", data.message);
+                }
+            });
+        </script>
 
-                    chatHistory.innerHTML += messageHTML;
-                });
-                // Cuộn xuống tin nhắn mới nhất sau khi nội dung được cập nhật
-                setTimeout(() => {
-                    chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
-                }, 100);
-            } else {
-                console.error("Lỗi:", result.message);
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const firstChatItem = document.querySelector("#list-chats li");
+                if (firstChatItem) {
+                    firstChatItem.click(); // Kích hoạt sự kiện onclick để gọi loadChat()
+                }
+            });
+            async function loadChat(e) {
+                const parent = document.querySelector('.chat');
+                const chatHistory = document.querySelector('.chat-history ul');
+                document.getElementById("name_user_chat").innerHTML = e.getAttribute('data-user-name');
+                const avatarUrl = e.getAttribute('data-user-avatar');
+                document.getElementById("avatar_user_chat").src = avatarUrl;
+                //parent.style.display = 'block';
+                const user_id = e.getAttribute('data-user-id');
+                window.userId = user_id;
+                document.querySelector(`li[data-user-id="${user_id}"] i`).style.display = 'none';
+
+                try {
+                    const response = await fetch(`api/chat/fullChat?user_id=${user_id}`);
+                    const result = await response.json();
+                    if (result.status === 200) {
+                        // Xóa tin nhắn cũ
+                        chatHistory.innerHTML = "";
+
+                        let lastSenderId = null;  // Biến theo dõi người gửi của tin nhắn trước đó
+
+                        // Hiển thị tin nhắn mới
+                        result.data.forEach(message => {
+                            const messageTime = new Date(message.timestamp).toLocaleTimeString();
+                            let messageHTML = '';
+
+                            // Kiểm tra xem có phải là tin nhắn đầu tiên của người gửi này trong loạt tin nhắn liên tiếp không
+                            const shouldDisplayTime = message.senderId !== lastSenderId;
+                            lastSenderId = message.senderId;  // Cập nhật người gửi của tin nhắn hiện tại
+
+                            if (message.senderId === adminId) {
+                                // Nếu người gửi là admin
+                                messageHTML = `
+                            <li class="clearfix" data-sender-id="${message.senderId}">
+                                ${shouldDisplayTime ? `<div class="message-data text-left d-flex align-item-center justify-content-center">
+                                    <span class="message-data-time">${messageTime}</span>
+                                </div>` : ''}
+                                <div class="message my-message" style="text-align: right">${message.message}</div>
+                            </li>
+                        `;
+                            } else {
+                                // Nếu người gửi không phải admin
+                                messageHTML = `
+                            <li class="clearfix" data-sender-id="${message.senderId}">
+                                ${shouldDisplayTime ? `<div class="message-data d-flex align-item-center justify-content-center">
+                                    <span class="message-data-time">${messageTime}</span>
+                                </div>` : ''}
+                                <div class="message other-message">${message.message}</div>
+                            </li>
+                        `;
+                            }
+
+                            chatHistory.innerHTML += messageHTML;
+                        });
+
+                        // Cuộn xuống tin nhắn mới nhất sau khi nội dung được cập nhật
+                        setTimeout(() => {
+                            chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
+                        }, 100);
+                    } else {
+                        console.error("Lỗi:", result.message);
+                    }
+                } catch (error) {
+                    console.error("Lỗi khi tải dữ liệu chat:", error);
+                }
             }
-        } catch (error) {
-            console.error("Lỗi khi tải dữ liệu chat:", error);
-        }
-    }
 
-    function sendMessage() {
-        const input = document.querySelector('.chat-message input');
-        const message = input.value.trim();
-        const chatHistory = document.querySelector('.chat-history ul');
-        const userId = window.userId;
-        const messageTime = new Date().toLocaleTimeString();
-        const adminId = "67b344c3744eaa2ff0f0ce7d";
+            function sendMessage() {
+                const input = document.querySelector('.chat-message input');
+                const message = input.value.trim();
+                const chatHistory = document.querySelector('.chat-history ul');
+                const userId = window.userId;
+                const messageTime = new Date().toLocaleTimeString();
+                const adminId = "67b344c3744eaa2ff0f0ce7d";
 
-        if (message) {
-            console.log({ senderId: adminId, receiverId: userId, message: message });
-            window.socket.emit("sendMessageByAdmin", { adminId: adminId, userId: userId, message: message });
-            document.querySelector(`li[data-user-id="${window.userId}"] .status p`).innerHTML = "You" + ': ' + message;
+                if (message) {
+                    //console.log({ senderId: adminId, receiverId: userId, message: message });
+                    window.socket.emit("sendMessageByAdmin", { adminId: adminId, userId: userId, message: message });
+                    document.querySelector(`li[data-user-id="${window.userId}"] .status p`).innerHTML = "You" + ': ' + message;
 
-            // Hiển thị tin nhắn trong giao diện
-            chatHistory.innerHTML += `
-                <li class="clearfix">
-                    <div class="message-data text-left">
+                    // Hiển thị tin nhắn trong giao diện
+                    const lastMessage = chatHistory.querySelector('.message:last-child');
+                    const shouldDisplayTime = !lastMessage || lastMessage.getAttribute('data-sender-id') !== adminId;
+
+                    chatHistory.innerHTML += `
+                <li class="clearfix" data-sender-id="${adminId}">
+                    ${shouldDisplayTime ? `<div class="message-data text-left d-flex align-item-center justify-content-center">
                         <span class="message-data-time">${messageTime}</span>
-                    </div>
-                    <div class="message my-message float-right">${message}</div>
+                    </div>` : ''}
+                    <div class="message my-message" style="text-align: right">${message}</div>
                 </li>
             `;
 
-            // Xóa nội dung ô nhập liệu sau khi gửi tin nhắn
-            input.value = '';
-            // Cuộn xuống tin nhắn mới nhất sau khi nội dung được cập nhật
-            setTimeout(() => {
-                chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
-            }, 100);
-        }
-    }
-</script>
+                    // Xóa nội dung ô nhập liệu sau khi gửi tin nhắn
+                    input.value = '';
+                    // Cuộn xuống tin nhắn mới nhất sau khi nội dung được cập nhật
+                    setTimeout(() => {
+                        chatHistory.parentElement.scrollTop = chatHistory.parentElement.scrollHeight;
+                    }, 100);
+                }
+            }
+        </script>

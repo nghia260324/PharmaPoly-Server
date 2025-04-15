@@ -20,31 +20,8 @@
             </div>
         </div>
     </div>
-
-    {{!-- <div id="productTypeList">
-        {{#each productTypes}}
-        <div class="product-type-card p-2" data-id="{{this._id}}" data-name="{{this.name}}">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-muted product-type-id">ID: {{this._id}}</small>
-                    <h5 class="product-type-name mb-0"><span data-lang="name">Name</span>: {{this.name}}</h5>
-                </div>
-                <div>
-                    <button class="btn btn-sm btn-warning me-2" onclick="editProductType(this)">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteProductType(this)">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        {{/each}}
-    </div> --}}
     <div class="card mb-4">
         <div class="card-body">
-
-
             <table class="table table-striped">
                 <thead>
                     <tr>
@@ -62,7 +39,9 @@
                                 {{/if}}
                             </a>
                         </th>
-                        <th>Hành động</th>
+                        <th style="width: 10%;">
+                            Hành động
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -71,39 +50,40 @@
                         <td>{{this._id}}</td>
                         <td>{{this.name}}</td>
                         <td>
-                            <button class="btn btn-sm btn-warning me-2" data onclick="editProductType(this)">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            {{!-- <button class="btn btn-sm btn-danger" onclick="deleteProductType(this)">
-                                <i class="bi bi-trash"></i>
-                            </button> --}}
+                            <div class="d-flex align-item-center justify-content-center">
+
+                                <button class="btn btn-sm btn-warning me-2" data onclick="editProductType(this)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {{!-- <button class="btn btn-sm btn-danger" onclick="deleteProductType(this)">
+                                    <i class="bi bi-trash"></i>
+                                </button> --}}
+                            </div>
                         </td>
                     </tr>
                     {{/each}}
                 </tbody>
             </table>
-
-            <nav>
-                <ul class="pagination justify-content-center">
-                    {{#if (gt currentPage 1)}}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
-                    </li>
-                    {{/if}}
-
-                    <li class="page-item disabled">
-                        <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
-                    </li>
-
-                    {{#if (lt currentPage totalPages)}}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
-                    </li>
-                    {{/if}}
-                </ul>
-            </nav>
         </div>
+        <nav>
+            <ul class="pagination justify-content-center">
+                {{#if (gt currentPage 1)}}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
+                </li>
+                {{/if}}
 
+                <li class="page-item disabled">
+                    <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+                </li>
+
+                {{#if (lt currentPage totalPages)}}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+                </li>
+                {{/if}}
+            </ul>
+        </nav>
     </div>
 </div>
 <!-- Bootstrap Toast Notification -->
@@ -112,7 +92,7 @@
         aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
             <div class="toast-body">
-                <span data-lang="product_type_added_successfully!">Product Type added successfully! </span>
+                <span data-lang="product_type_added_successfully!">Đã thêm loại sản phẩm thành công!</span>
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
                 aria-label="Close"></button>
@@ -152,7 +132,7 @@
     </div>
 </div>
 <!-- Popup Modal Confirmation for Delete -->
-<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel"
+{{!-- <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel"
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -169,7 +149,7 @@
             </div>
         </div>
     </div>
-</div>
+</div> --}}
 
 
 <script>
