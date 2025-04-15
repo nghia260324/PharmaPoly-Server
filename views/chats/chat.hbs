@@ -89,7 +89,10 @@
         <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
         <script>
             const adminId = "67b344c3744eaa2ff0f0ce7d";
-            window.socket = io("http://localhost:3000", { query: { userId: adminId } });
+            //window.socket = io("http://localhost:3000", { query: { userId: adminId } });
+            const socketHost = window.location.origin.replace(/^http/, "ws");
+
+            window.socket = io(socketHost, { query: { userId: adminId } });
 
             socket.on("receiveMessage", (data) => {
                 if (data.status === "success") {
