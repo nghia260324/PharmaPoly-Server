@@ -754,7 +754,7 @@ const getProductDetails = async (product_id) => {
         return {
             _id: product._id,
             name: product.name,
-            description: product.short_description,
+            short_description: product.short_description,
             specification: product.specification,
             origin_country: product.origin_country,
             manufacturer: product.manufacturer,
@@ -2920,7 +2920,8 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             shipping_fee,
             total_price,
             payment_status: payment_method === "ONLINE" ? "pending" : null,
-            status: payment_method === "ONLINE" ? "confirmed" : "pending"
+            // status: payment_method === "ONLINE" ? "confirmed" : "pending"
+            status: "pending"
         });
 
         await newOrder.save();
@@ -2952,13 +2953,12 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         await OrderItems.insertMany(orderItems);
 
-
-        for (const item of cartItems) {
-            await StockEntries.updateOne(
-                { product_id: item.product_product_type_id.product_id, status: "active", batch_number: item.batch_number },
-                { $inc: { remaining_quantity: -item.quantity } }
-            );
-        }
+        // for (const item of cartItems) {
+        //     await StockEntries.updateOne(
+        //         { product_id: item.product_product_type_id.product_id, status: "active", batch_number: item.batch_number },
+        //         { $inc: { remaining_quantity: -item.quantity } }
+        //     );
+        // }
 
         await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
@@ -3220,6 +3220,7 @@ router.get("/orders", authenticateToken, async (req, res) => {
         });
     }
 });
+
 
 router.get("/orders/:id/detail", authenticateToken, async (req, res) => {
     try {
@@ -3793,8 +3794,6 @@ async function createFakeOrders() {
         const numOrders = Math.floor(Math.random() * 3) + 3; // 3–5 đơn
         console.log(`\n👤 User: ${user.full_name} — ${numOrders} đơn hàng`);
 
-
-
         for (let o = 0; o < numOrders; o++) {
             const delivered_at = getRandomDateWithin6Months();
             const created_at = new Date(delivered_at);
@@ -4062,4 +4061,4 @@ async function deleteUserByPhoneNumber(phoneNumber) {
     }
 }
 
-module.exports = { router, getUserAddress, getShopInfo };
+module.exports = { router, getUserAddress, getShopInfo, getProductDetails, getAvailableProductTypes };

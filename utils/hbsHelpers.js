@@ -195,6 +195,43 @@ const registerHelpers = () => {
   hbs.registerHelper('ifEquals', function (arg1, arg2, options) {
     return (arg1 == arg2) ? options.fn(this) : options.inverse(this);
   });
+  hbs.registerHelper('firstImageUrl', function (images) {
+    if (Array.isArray(images) && images.length > 0) {
+      return images[0].image_url;
+    }
+    return '/images/default-product.jpg';
+  });
+  // Helper định dạng ngày tháng
+  hbs.registerHelper('formatDate', (date) => {
+    return new Date(date).toLocaleDateString('vi-VN');
+  });
+
+  // Helper tạo rating stars
+  hbs.registerHelper('starRating', (rating) => {
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+    const emptyStars = 5 - fullStars - halfStar;
+
+    return [
+      ...Array(fullStars).fill('★'),
+      ...Array(halfStar).fill('½'),
+      ...Array(emptyStars).fill('☆')
+    ].join('');
+  });
+  // Helper định dạng ngày giờ
+  hbs.registerHelper('formatDateTime', (date) => {
+    return new Date(date).toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  });
+  hbs.registerHelper('eqId', (a, b) => {
+    if (!a || !b) return false;
+    return a.toString() === b.toString();
+  });
 };
 
 module.exports = registerHelpers;

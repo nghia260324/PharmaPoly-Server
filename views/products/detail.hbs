@@ -1,0 +1,211 @@
+<div class="container">
+    <a href="" class="btn btn-secondary mb-4" id="backBtn">
+        <i class="bi bi-arrow-left-circle"></i> Quay lại
+    </a>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="sticky-top" style="top: 20px;">
+                <div id="productCarousel" class="carousel slide mb-3" data-bs-ride="carousel">
+                    <div class="carousel-inner rounded-3">
+                        {{#each product.images}}
+                        <div class="carousel-item {{#if @first}}active{{/if}}">
+                            <img src="{{this.image_url}}" class="d-block w-100 product-image"
+                                alt="Ảnh sản phẩm {{../product.name}}">
+                        </div>
+                        {{/each}}
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel"
+                        data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#productCarousel"
+                        data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                </div>
+
+                <!-- Thumbnails -->
+                <div class="row g-2">
+                    {{#each product.images}}
+                    <div class="col-3">
+                        <img src="{{this.image_url}}" class="img-thumbnail cursor-pointer {{#if @first}}active{{/if}}"
+                            style="height: 80px; object-fit: cover;" data-bs-target="#productCarousel"
+                            data-bs-slide-to="{{@index}}" alt="Thumbnail {{@index}}">
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Info -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h3 class="fw-bold mb-3">{{product.name}}</h3>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span class="badge bg-primary">{{product.brand.name}}</span>
+                            <span class="badge bg-secondary">{{product.category.name}}</span>
+                            <span class="badge {{statusBadge product.status}}">
+                                <i class="bi {{getStatusIcon product.status}} me-1"></i>
+                                {{statusLabel product.status}}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Rating & Description -->
+                    <div class="d-flex align-items-center gap-2 mb-4">
+                        <div class="rating-stars text-warning fs-5">
+                            {{{starRating product.average_rating}}}
+                        </div>
+                        <small class="text-muted">({{product.average_rating}}/5 từ {{product.review_count}} đánh
+                            giá)</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="text-primary">Mô tả ngắn</h5>
+                        <p class="mb-0">{{product.short_description}}</p>
+                    </div>
+
+                    <!-- Basic Info -->
+                    <div class="row row-cols-md-2 g-3 mb-4">
+                        <div class="col">
+                            <div class="bg-light p-3 rounded">
+                                <small class="text-muted d-block">Hãng sản xuất</small>
+                                <strong>{{product.manufacturer}}</strong>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="bg-light p-3 rounded">
+                                <small class="text-muted d-block">Xuất xứ</small>
+                                <strong>{{product.origin_country}}</strong>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="bg-light p-3 rounded">
+                                <small class="text-muted d-block">Đóng gói</small>
+                                <strong>{{product.specification}}</strong>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="bg-light p-3 rounded">
+                                <small class="text-muted d-block">Cập nhật</small>
+                                <strong>{{formatDate product.updated_at}}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Types -->
+                    <div class="mb-4">
+                        <h5 class="text-primary mb-3">Loại sản phẩm</h5>
+                        <div class="list-group">
+                            {{#each product.product_types}}
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div>
+                                    <div class="fw-bold">{{this.name}}</div>
+                                    {{!-- <small class="text-muted">SKU: {{this._id}}</small> --}}
+                                </div>
+                                <span class="badge bg-danger fs-6">{{formatPrice this.price}}VND</span>
+                            </div>
+                            {{/each}}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col-12 mt-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <nav>
+                        <div class="nav nav-tabs px-3 pt-3" id="section-tab" role="tablist">
+                            {{#each product.sections}}
+                            <button class="nav-link {{#if (eq @index 0)}}active{{/if}}"
+                                id="section-{{this.section_id}}-tab" data-bs-toggle="tab"
+                                data-bs-target="#section-{{this.section_id}}" type="button" role="tab">
+                                {{this.section.name}}
+                            </button>
+                            {{/each}}
+                        </div>
+                    </nav>
+
+                    <div class="tab-content p-4">
+                        {{#each product.sections}}
+                        <div class="tab-pane fade {{#if (eq @index 0)}}show active{{/if}}"
+                            id="section-{{this.section_id}}" role="tabpanel">
+                            <div class="accordion" id="accordion-{{this.section_id}}">
+                                {{#each this.details}}
+                                <div class="accordion-item">
+                                    <h3 class="accordion-header">
+                                        <button class="accordion-button {{#unless (eq @index 0)}}collapsed{{/unless}}"
+                                            type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#collapse-{{@../index}}-{{@index}}">
+                                            {{this.title}}
+                                        </button>
+                                    </h3>
+                                    <div id="collapse-{{@../index}}-{{@index}}"
+                                        class="accordion-collapse collapse {{#if (eq @index 0)}}show{{/if}}"
+                                        data-bs-parent="#accordion-{{../section_id}}">
+                                        <div class="accordion-body">
+                                            {{{this.content}}}
+                                        </div>
+                                    </div>
+                                </div>
+                                {{/each}}
+                            </div>
+                        </div>
+                        {{/each}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .product-image {
+        max-height: 500px;
+        object-fit: contain;
+        border-radius: 10px;
+        background: #f8f9fa;
+        padding: 15px;
+    }
+
+    .carousel-control-prev-icon,
+    .carousel-control-next-icon {
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 50%;
+        padding: 15px;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #28a745;
+        background-color: #e9f5ee;
+    }
+
+    .accordion-button:hover {
+        background-color: #e9ecef;
+    }
+
+    .carousel-control-next:hover,
+    .carousel-control-prev:hover {
+        background-color: #e9ecef;
+    }
+
+    .img-thumbnail.active {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, .25);
+    }
+</style>
+
+<script>
+    document.getElementById('backBtn').addEventListener('click', function (e) {
+        e.preventDefault();
+
+        window.history.go(-1);
+    });
+</script>

@@ -4,6 +4,7 @@ const Orders = require('../models/orders');
 const OrderItems = require('../models/orderItems');
 const ProductImages = require('../models/productImages');
 const Products = require('../models/products');
+const StockEntries = require('../models/stockEntries');
 const { db } = require("../firebase/firebaseAdmin");
 const { getUserAddress, getShopInfo } = require("./api");
 const axios = require('axios');
@@ -117,34 +118,43 @@ router.put("/:order_id/confirm", async (req, res) => {
         if (order.status !== "pending") {
             return res.status(400).json({ status: 400, message: "Order can only be confirmed from 'pending' status" });
         }
-        // const orderItems = await OrderItems.find({ order_id }).populate({
-        //     path: "product_id",
-        //     select: "_id stock_quantity name"
-        // });
 
-        // const orderItems = await OrderItems.find({ order_id }).populate({
-        //     path: "product_product_type_id",
-        //     populate: {
-        //         path: "product_id",
-        //         select: "_id name"
-        //     }
-        // });
+        const orderItems = await OrderItems.find({ order_id })
+            .populate({
+                path: "product_product_type_id",
+                model: "productProductType",
+            });
 
-        // for (const item of orderItems) {
-        //     if (item.product_id.stock_quantity < item.quantity) {
-        //         return res.status(400).json({
-        //             status: 400,
-        //             message: `Product ${item.product_id.name} is out of stock`
-        //         });
-        //     }
-        // }
+        for (const item of orderItems) {
+            const productId = item.product_product_type_id.product_id;
 
-        // for (const item of orderItems) {
-        //     await Products.updateOne(
-        //         { _id: item.product_id._id },
-        //         { $inc: { stock_quantity: -item.quantity } }
-        //     );
-        // }
+            const stockEntry = await StockEntries.findOne({
+                product_product_type_id: item.product_product_type_id._id,
+                product_id: productId,
+                batch_number: item.batch_number,
+                status: "active"
+            });
+
+            if (!stockEntry) {
+                return res.status(400).json({
+                    status: 400,
+                    message: `Không tìm thấy lô hàng còn hoạt động cho sản phẩm ${productId}`
+                });
+            }
+
+            if (stockEntry.remaining_quantity < item.quantity) {
+                return res.status(400).json({
+                    status: 400,
+                    message: `Lô hàng ${stockEntry.batch_number} không đủ số lượng cho sản phẩm ${productId}`
+                });
+            }
+            stockEntry.remaining_quantity -= item.quantity;
+            if (stockEntry.remaining_quantity === 0) {
+                stockEntry.status = "sold_out";
+            }
+
+            await stockEntry.save();
+        }
 
         order.status = "confirmed";
         await order.save();

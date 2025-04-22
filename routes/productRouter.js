@@ -17,6 +17,7 @@ const ProductSectionDetails = require('../models/productSectionDetails');
 const Uploads = require('../config/common/upload');
 const StockEntries = require('../models/stockEntries');
 
+const { getProductDetails, getAvailableProductTypes } = require("./api");
 
 router.get("/", async (req, res) => {
     const { page = 1, limit = 10, search, sort } = req.query;
@@ -94,6 +95,72 @@ router.get("/", async (req, res) => {
     });
 });
 
+
+router.get("/:id/detail", async (req, res) => {
+    const id = req.params.id;
+    //const product = await getProductDetails(id)
+    const product = await Products
+        .findById(id)
+        .populate('category_id')
+        .populate('brand_id')
+
+    if (!product) {
+        return res.status(404).json({
+            status: 404,
+            message: 'Product not found'
+        });
+    }
+    const images = await ProductImages.find({ product_id: id })
+        .sort({ sort_order: 1 })
+        .lean();
+
+    product.images = images;
+
+    const productSections = await ProductSections.find({ product_id: id })
+        .populate('section_id', '_id name')
+        .lean();
+
+    productSections.forEach(section => {
+        section.section = section.section_id;
+        section.section_id = section.section_id._id;
+    });
+    for (const section of productSections) {
+        const details = await ProductSectionDetails.find({ product_section_id: section._id }).lean();
+
+        delete section.__v;
+        section.details = details.map(detail => ({
+            _id: detail._id,
+            product_section_id: detail.product_section_id,
+            title: detail.title,
+            content: detail.content
+        }));
+    }
+
+    const availableProductTypes = await getAvailableProductTypes(id);
+
+    const formattedProduct = {
+        ...product.toObject(),
+        category_id: product.category_id._id,
+        brand_id: product.brand_id._id,
+        category: {
+            _id: product.category_id._id,
+            name: product.category_id.name,
+        },
+        brand: {
+            _id: product.brand_id._id,
+            name: product.brand_id.name,
+            description: product.brand_id.description,
+        },
+        product_types: availableProductTypes,
+        images: images,
+        sections: productSections,
+        create_at: product.created_at,
+        update_at: product.updated_at,
+    };
+    res.render("products/detail", {
+        product: formattedProduct
+    });
+});
 
 async function getProductStockQuantity(product_id) {
     try {

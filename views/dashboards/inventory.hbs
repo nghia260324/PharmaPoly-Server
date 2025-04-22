@@ -6,8 +6,8 @@
     <div class="card mb-4">
         <div class="card-body">
             <form id="filterForm" class="row g-3">
-                <div class="col-md-12 row g-3">
-                    <div class="col-md-4">
+                <div class="col-md-12 row g-2">
+                    <div class="col-md-3">
                         <label class="form-label">Sắp xếp theo</label>
                         <select class="form-select" name="sortBy">
                             <option value="highest_stock" {{#if (eq filters.sortBy "highest_stock" )}}selected{{/if}}>
@@ -37,56 +37,102 @@
                             </option>
                         </select>
                     </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Danh mục</label>
+                        <select class="form-select" name="category">
+                            {{#if filters.category}}
+                            <option value="">Tất cả</option>
+                            {{else}}
+                            <option value="" selected>Tất cả</option>
+                            {{/if}}
+
+                            {{#each categories}}
+                            <option value="{{this._id}}" {{#if (eqId ../filters.category this._id)}}selected{{/if}}>
+                                {{this.name}}
+                            </option>
+                            {{/each}}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Thương hiệu</label>
+                        <select class="form-select" name="brand">
+                            <option value="" {{#unless filters.brand}}selected{{/unless}}>Tất cả</option>
+                            {{#each brands}}
+                            <option value="{{this._id}}" {{#if (eqId ../filters.brand this._id)}}selected{{/if}}>
+                                {{this.name}}
+                            </option>
+                            {{/each}}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-12 row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label">Giá nhập từ</label>
+                        <input type="number" class="form-control" name="minPrice" value="{{filters.minPrice}}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Giá nhập đến</label>
+                        <input type="number" class="form-control" name="maxPrice" value="{{filters.maxPrice}}">
+                    </div>
+
+                </div>
+                <div class="col-md-12 row g-2">
+                    <div class="col-md-2">
+                        <label for="timePeriod" class="form-label">Khoảng thời gian</label>
+                        <select name="timePeriod" id="timePeriod" class="form-select">
+                            <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
+                            <option value="last_week" {{#if (eq filters.timePeriod "last_week" )}}selected{{/if}}>Tuần
+                                trước
+                            </option>
+                            <option value="last_month" {{#if (eq filters.timePeriod "last_month" )}}selected{{/if}}>
+                                Tháng
+                                trước</option>
+                            <option value="this_month" {{#if (eq filters.timePeriod "this_month" )}}selected{{/if}}>
+                                Tháng
+                                này</option>
+                            <option value="last_3_months" {{#if (eq filters.timePeriod "last_3_months"
+                                )}}selected{{/if}}>3
+                                tháng gần
+                                nhất</option>
+                            <option value="custom" {{#if (eq filters.timePeriod "custom" )}}selected{{/if}}>Tùy chỉnh
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Ngày bắt đầu -->
+                    <div class="col-md-2 custom-date-field" style="display: none;">
+                        <label class="form-label">Từ ngày</label>
+                        {{!-- <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}">
+                        --}}
+                        <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}">
+                    </div>
+
+                    <!-- Ngày kết thúc -->
+                    <div class="col-md-2 custom-date-field" style="display: none;">
+                        <label class="form-label">Đến ngày</label>
+                        {{!-- <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}"> --}}
+                        <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}">
+                    </div>
+
+                    <div class="col-md-1">
+                        <label class="form-label">Hiển thị</label>
+                        <select class="form-select" name="perPage">
+                            <option value="10" {{#if (eq perPage 10 )}}selected{{/if}}>10</option>
+                            <option value="20" {{#if (eq perPage 20 )}}selected{{/if}}>20</option>
+                            <option value="50" {{#if (eq perPage 50 )}}selected{{/if}}>50</option>
+
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel me-2"></i>Áp dụng
+                        </button>
+                    </div>
                 </div>
 
-
-                <div class="col-md-3">
-                    <label for="timePeriod" class="form-label">Khoảng thời gian</label>
-                    <select name="timePeriod" id="timePeriod" class="form-select">
-                        <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
-                        <option value="last_week" {{#if (eq filters.timePeriod "last_week" )}}selected{{/if}}>Tuần trước
-                        </option>
-                        <option value="last_month" {{#if (eq filters.timePeriod "last_month" )}}selected{{/if}}>Tháng
-                            trước</option>
-                        <option value="this_month" {{#if (eq filters.timePeriod "this_month" )}}selected{{/if}}>Tháng
-                            này</option>
-                        <option value="last_3_months" {{#if (eq filters.timePeriod "last_3_months" )}}selected{{/if}}>3
-                            tháng gần
-                            nhất</option>
-                        <option value="custom" {{#if (eq filters.timePeriod "custom" )}}selected{{/if}}>Tùy chỉnh
-                        </option>
-                    </select>
-                </div>
-
-                <!-- Ngày bắt đầu -->
-                <div class="col-md-2 custom-date-field" style="display: none;">
-                    <label class="form-label">Từ ngày</label>
-                    {{!-- <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}"> --}}
-                    <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}">
-                </div>
-
-                <!-- Ngày kết thúc -->
-                <div class="col-md-2 custom-date-field" style="display: none;">
-                    <label class="form-label">Đến ngày</label>
-                    {{!-- <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}"> --}}
-                    <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}">
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label">Hiển thị</label>
-                    <select class="form-select" name="perPage">
-                        <option value="10" {{#if (eq perPage 10 )}}selected{{/if}}>10</option>
-                        <option value="20" {{#if (eq perPage 20 )}}selected{{/if}}>20</option>
-                        <option value="50" {{#if (eq perPage 50 )}}selected{{/if}}>50</option>
-
-                    </select>
-                </div>
-
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-funnel me-2"></i>Áp dụng
-                    </button>
-                </div>
             </form>
         </div>
     </div>
@@ -200,21 +246,21 @@
     });
 </script>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const timeSelect = document.getElementById('timePeriod');
-    const customFields = document.querySelectorAll('.custom-date-field');
+    document.addEventListener('DOMContentLoaded', function () {
+        const timeSelect = document.getElementById('timePeriod');
+        const customFields = document.querySelectorAll('.custom-date-field');
 
-    function toggleCustomDates() {
-      const isCustom = timeSelect.value === 'custom';
-      customFields.forEach(el => {
-        el.style.display = isCustom ? 'block' : 'none';
-      });
-    }
+        function toggleCustomDates() {
+            const isCustom = timeSelect.value === 'custom';
+            customFields.forEach(el => {
+                el.style.display = isCustom ? 'block' : 'none';
+            });
+        }
 
-    // Initial check
-    toggleCustomDates();
+        // Initial check
+        toggleCustomDates();
 
-    // Update on change
-    timeSelect.addEventListener('change', toggleCustomDates);
-  });
+        // Update on change
+        timeSelect.addEventListener('change', toggleCustomDates);
+    });
 </script>

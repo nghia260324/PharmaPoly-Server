@@ -1,174 +1,18 @@
 const express = require('express');
 const router = express.Router();
+const { ObjectId } = require('mongoose').Types;
 const Orders = require('../models/orders');
 const Products = require('../models/products');
 const OrderItems = require('../models/orderItems');
 const StockEntries = require('../models/stockEntries');
 const ProductImages = require('../models/productImages');
+const Categories = require('../models/categories');
+const Brands = require('../models/brands');
 
 const { startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, parseISO } = require('date-fns');
 
 const { format } = require('date-fns');
 const viLocale = require('date-fns/locale/vi');
-
-// router.get('/revenue', async function (req, res, next) {
-//     const { timePeriod, orderStatus, startDate, endDate } = req.query;
-//     try {
-//         let dateFilter = {};
-//         const now = new Date();
-
-//         // Lọc theo thời gian
-//         if (timePeriod) {
-//             switch (timePeriod) {
-//                 case 'last_week':
-//                     dateFilter.created_at = {
-//                         $gte: startOfWeek(subWeeks(now, 1)),
-//                         $lte: endOfWeek(subWeeks(now, 1))
-//                     };
-//                     break;
-//                 case 'last_month':
-//                     dateFilter.created_at = {
-//                         $gte: startOfMonth(subMonths(now, 1)),
-//                         $lte: endOfMonth(subMonths(now, 1))
-//                     };
-//                     break;
-//                 case 'this_month':
-//                     dateFilter.created_at = {
-//                         $gte: startOfMonth(now),
-//                         $lte: endOfMonth(now)
-//                     };
-//                     break;
-//                 case 'last_3_months':
-//                     dateFilter.created_at = {
-//                         $gte: subMonths(startOfMonth(now), 3),
-//                         $lte: endOfMonth(now)
-//                     };
-//                     break;
-//                 case 'custom':
-//                     if (startDate && endDate) {
-//                         const start = new Date(`${startDate}T00:00:00`);
-//                         const end = new Date(`${endDate}T23:59:59`);
-//                         dateFilter.created_at = { $gte: start, $lte: end };
-//                     }
-//                     break;
-//             }
-//         }
-
-//         // Pipeline aggregation
-//         const revenuePipeline = [
-//             { $match: { ...dateFilter, ...(orderStatus && { status: "delivered" }) } },
-//             { $addFields: { date: { $dateToString: { format: "%Y-%m-%d", date: "$created_at" } } } },
-//             {
-//                 $lookup: {
-//                     from: "orderItems",
-//                     localField: "_id",
-//                     foreignField: "order_id",
-//                     as: "items"
-//                 }
-//             },
-//             { $unwind: "$items" },
-//             {
-//                 $lookup: {
-//                     from: "stockEntries",
-//                     let: {
-//                         ppid: "$items.product_product_type_id",
-//                         batch: "$items.batch_number"
-//                     },
-//                     pipeline: [
-//                         {
-//                             $match: {
-//                                 $expr: {
-//                                     $and: [
-//                                         { $eq: ["$product_product_type_id", "$$ppid"] },
-//                                         { $eq: ["$batch_number", "$$batch"] }
-//                                     ]
-//                                 }
-//                             }
-//                         },
-//                         { $limit: 1 }
-//                     ],
-//                     as: "stock_info"
-//                 }
-//             },
-//             {
-//                 $addFields: {
-//                     import_price: {
-//                         $ifNull: [{ $arrayElemAt: ["$stock_info.import_price", 0] }, 0]
-//                     }
-//                 }
-//             },
-//             {
-//                 $group: {
-//                     _id: "$_id",
-//                     date: { $first: "$date" },
-//                     status: { $first: "$status" },
-//                     total_price: { $first: "$total_price" },
-//                     total_cost: {
-//                         $sum: {
-//                             $multiply: ["$items.quantity", "$import_price"]
-//                         }
-//                     }
-//                 }
-//             },
-//             { $match: { status: "delivered" } },
-//             {
-//                 $group: {
-//                     _id: "$date",
-//                     totalRevenue: { $sum: "$total_price" },
-//                     totalCost: { $sum: "$total_cost" },
-//                     orderCount: { $sum: 1 }
-//                 }
-//             },
-//             { $sort: { _id: 1 } }
-//         ];
-
-//         const result = await Orders.aggregate(revenuePipeline);
-
-//         // Xử lý dữ liệu sau khi query xong
-//         const revenueLabels = result.map(r => format(new Date(r._id), 'dd/MM/yyyy', { locale: viLocale.vi }));
-//         const revenueData = result.map(r => r.totalRevenue);
-//         const orderData = result.map(r => r.orderCount);
-//         const totalRevenue = result.reduce((sum, r) => sum + r.totalRevenue, 0);
-//         const totalCost = result.reduce((sum, r) => sum + r.totalCost, 0);
-//         const totalOrders = result.reduce((sum, r) => sum + r.orderCount, 0);
-//         const totalProfit = totalRevenue - totalCost;
-
-//         const numberOfDays = result.length || 1;
-
-//         const averageRevenue = Math.round(totalRevenue / numberOfDays);
-//         const averageProfit = Math.round(totalProfit / numberOfDays);
-//         const averageOrders = Math.round(totalOrders / numberOfDays);
-
-//         console.log(revenueLabels);
-//         console.log(revenueData);
-//         console.log(orderData);
-
-//         res.render('dashboards/list', {
-//             totalOrders,
-//             totalRevenue,
-//             totalProfit,
-//             orders: orderData,
-//             averageRevenue,
-//             averageProfit,
-//             averageOrders,
-//             revenueLabels: JSON.stringify(revenueLabels),
-//             revenueData: JSON.stringify(revenueData),
-//             orderLabels: JSON.stringify(revenueLabels),
-//             orderData: JSON.stringify(orderData),
-//             orderStatusData: JSON.stringify([
-//                 { name: "delivered", count: totalOrders }
-//             ]),
-//             filters: { timePeriod, orderStatus, startDate, endDate }
-//         });
-//     } catch (err) {
-//         console.error(err);
-//         next(err);
-//     }
-// });
-
-
-
-
 
 router.get('/revenue', async function (req, res, next) {
     const { timePeriod, startDate, paymentMethod, endDate } = req.query;
@@ -351,215 +195,32 @@ router.get('/revenue', async function (req, res, next) {
 
 
 
-
-
-
-
-
-
-
-
-// router.get('/revenue', async function (req, res, next) {
-//     const { timePeriod, orderStatus, startDate, endDate } = req.query;
-//     try {
-//         let dateFilter = {};
-//         const now = new Date();
-
-//         if (timePeriod) {
-//             switch (timePeriod) {
-//                 case 'last_week':
-//                     dateFilter.created_at = {
-//                         $gte: startOfWeek(subWeeks(now, 1)),
-//                         $lte: endOfWeek(subWeeks(now, 1))
-//                     };
-//                     break;
-//                 case 'last_month':
-//                     dateFilter.created_at = {
-//                         $gte: startOfMonth(subMonths(now, 1)),
-//                         $lte: endOfMonth(subMonths(now, 1))
-//                     };
-//                     break;
-//                 case 'this_month':
-//                     dateFilter.created_at = {
-//                         $gte: startOfMonth(now),
-//                         $lte: endOfMonth(now)
-//                     };
-//                     break;
-//                 case 'last_3_months':
-//                     dateFilter.created_at = {
-//                         $gte: subMonths(startOfMonth(now), 3),
-//                         $lte: endOfMonth(now)
-//                     };
-//                     break;
-//                 case 'custom':
-//                     if (startDate && endDate) {
-//                         const start = new Date(`${startDate}T00:00:00`);
-//                         const end = new Date(`${endDate}T23:59:59`);
-
-//                         dateFilter.created_at = {
-//                             $gte: start,
-//                             $lte: end
-//                         };
-//                     }
-//                     break;
-//             }
-//         }
-//         const orders = await Orders.find({
-//             ...dateFilter,
-//             ...(orderStatus && { status: orderStatus })
-//         });
-
-//         const totalOrders = orders.length;
-
-//         const deliveredOrders = orders.filter(order => order.status === 'delivered');
-
-//         const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.total_price, 0);
-
-
-
-//         const deliveredOrderIds = deliveredOrders.map(order => order._id);
-//         const deliveredOrderItems = await OrderItems.find({ order_id: { $in: deliveredOrderIds } });
-//         const stockEntryMap = new Map();
-//         let totalCost = 0;
-//         for (const item of deliveredOrderItems) {
-//             const key = `${item.product_product_type_id}_${item.batch_number}`;
-
-//             let importPrice;
-
-//             if (stockEntryMap.has(key)) {
-//                 importPrice = stockEntryMap.get(key);
-//             } else {
-//                 const stockEntry = await StockEntries.findOne({
-//                     product_product_type_id: item.product_product_type_id,
-//                     batch_number: item.batch_number
-//                 });
-
-//                 importPrice = stockEntry?.import_price || 0;
-//                 stockEntryMap.set(key, importPrice);
-//             }
-
-//             totalCost += importPrice * item.quantity;
-//         }
-
-//         const totalProfit = totalRevenue - totalCost;
-
-
-
-
-
-//         const revenueMap = new Map();
-
-//         for (const order of deliveredOrders) {
-//             const date = format(new Date(order.created_at), 'yyyy-MM-dd');
-//             revenueMap.set(date, (revenueMap.get(date) || 0) + order.total_price);
-//         }
-
-//         const sortedDates = Array.from(revenueMap.keys()).sort((a, b) => new Date(a) - new Date(b));
-//         const revenueLabels = sortedDates.map(date =>
-//             format(new Date(date), 'dd/MM/yyyy', { locale: viLocale.vi })
-//         );
-//         const revenueData = sortedDates.map(date => revenueMap.get(date));
-
-
-//         const statusCounts = {
-//             delivered: 0,
-//             delivering: 0,
-//             pending: 0,
-//             canceled: 0
-//         };
-
-//         for (const order of orders) {
-//             const status = order.status;
-//             if (statusCounts.hasOwnProperty(status)) {
-//                 statusCounts[status]++;
-//             }
-//         }
-
-
-//         const orderCountMap = new Map();
-//         for (const order of orders) {
-//             const date = format(new Date(order.created_at), 'yyyy-MM-dd');
-//             orderCountMap.set(date, (orderCountMap.get(date) || 0) + 1);
-//         }
-
-//         const sortedOrderDates = Array.from(orderCountMap.keys()).sort((a, b) => new Date(a) - new Date(b));
-
-//         const orderLabels = sortedOrderDates.map(date =>
-//             format(new Date(date), 'dd/MM/yyyy', { locale: viLocale.vi })
-//         );
-//         const orderData = sortedOrderDates.map(date => orderCountMap.get(date));
-
-//         const numberOfDays = sortedDates.length || 1;
-
-//         const averageRevenue = Math.round(totalRevenue / numberOfDays);
-//         const averageProfit = Math.round(totalProfit / numberOfDays);
-//         const averageOrders = Math.round(totalOrders / numberOfDays);
-
-//         console.log(revenueLabels);
-//         console.log(revenueData);
-//         console.log(orderData);
-
-//         res.render('dashboards/list', {
-//             totalOrders,
-//             totalRevenue,
-//             totalProfit,
-//             orders,
-//             averageRevenue,
-//             averageProfit,
-//             averageOrders,
-//             revenueLabels: JSON.stringify(revenueLabels),
-//             revenueData: JSON.stringify(revenueData),
-//             orderLabels: JSON.stringify(orderLabels),
-//             orderData: JSON.stringify(orderData),
-//             orderStatusData: JSON.stringify([
-//                 statusCounts.delivered,
-//                 statusCounts.delivering,
-//                 statusCounts.pending,
-//                 statusCounts.canceled
-//             ]),
-//             filters: { timePeriod, orderStatus, startDate, endDate }
-//         });
-//     } catch (err) {
-//         console.error(err);
-//         next(err);
-//     }
-// });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 router.get('/products', async function (req, res, next) {
     try {
-        let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate } = req.query;
+        //let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate } = req.query;
+        let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice } = req.query;
 
         sortBy = sortBy || 'best_selling';
         status = status || 'all';
 
-        // Parse số nguyên
         page = parseInt(page);
         perPage = parseInt(perPage);
 
-        // Điều kiện lọc sản phẩm
         const matchProduct = {};
         if (status !== 'all') {
             matchProduct['product.status'] = status;
         }
-
+        if (category) {
+            matchProduct['product.category_id'] = new ObjectId(category);
+        }
+        if (brand) {
+            matchProduct['product.brand_id'] = new ObjectId(brand);
+        }
+        // if (minPrice || maxPrice) {
+        //     matchProduct['ppt.price'] = {};
+        //     if (minPrice) matchProduct['ppt.price'].$gte = parseFloat(minPrice);
+        //     if (maxPrice) matchProduct['ppt.price'].$lte = parseFloat(maxPrice);
+        // }
         // Bộ lọc ngày
         let dateFilter = {};
         const now = new Date();
@@ -640,6 +301,17 @@ router.get('/products', async function (req, res, next) {
             },
             { $unwind: '$ppt' },
             {
+                $match: {
+                    ...matchProduct,
+                    ...(minPrice || maxPrice) && {
+                        'ppt.price': {
+                            ...(minPrice && { $gte: parseFloat(minPrice) }),
+                            ...(maxPrice && { $lte: parseFloat(maxPrice) })
+                        }
+                    }
+                }
+            },
+            {
                 $lookup: {
                     from: 'productTypes',
                     localField: 'ppt.product_type_id',
@@ -654,7 +326,8 @@ router.get('/products', async function (req, res, next) {
                     sold_quantity: { $sum: '$quantity' },
                     total_revenue: { $sum: { $multiply: ['$quantity', '$price'] } },
                     earliest_order: { $min: '$created_at' },
-                    product_type_name: { $first: '$product_type.name' }
+                    product_type_name: { $first: '$product_type.name' },
+                    price: { $first: '$ppt.price' }
                 }
             },
             {
@@ -674,6 +347,7 @@ router.get('/products', async function (req, res, next) {
                     sold_quantity: 1,
                     total_revenue: 1,
                     product_type_name: 1,
+                    price: 1,
                     product: {
                         name: '$product.name',
                         status: '$product.status',
@@ -740,17 +414,31 @@ router.get('/products', async function (req, res, next) {
             sold_quantity: p.sold_quantity,
             total_revenue: p.total_revenue,
             product_type_name: p.product_type_name,
-            image: imageMap[p._id.toString()]
+            image: imageMap[p._id.toString()],
+            price: p.price
         }));
-
+        const categories = await Categories.find();
+        const brands = await Brands.find();
         res.render('dashboards/products', {
             products: finalProducts,
             currentPage: page,
             totalPages,
             perPage,
             total,
-            filters: { sortBy, status, timePeriod, startDate, endDate }
+            categories,
+            brands,
+            filters: { 
+                sortBy,
+                status,
+                timePeriod,
+                startDate,
+                endDate,
+                category,
+                brand,
+                minPrice,
+                maxPrice }
         });
+
     } catch (err) {
         console.error(err);
         res.status(500).render('error', { message: 'Lỗi máy chủ. Vui lòng thử lại sau.' });
@@ -760,7 +448,8 @@ router.get('/products', async function (req, res, next) {
 
 router.get('/inventory', async (req, res) => {
     try {
-        let { sortBy, status, timePeriod, startDate, endDate, page = 1, perPage = 10 } = req.query;
+        // let { sortBy, status, timePeriod, startDate, endDate, page = 1, perPage = 10 } = req.query;
+        let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice } = req.query;
         page = parseInt(page);
         perPage = parseInt(perPage);
 
@@ -812,7 +501,21 @@ router.get('/inventory', async (req, res) => {
         if (status) {
             filter.status = status;
         }
-
+        if (category) {
+            filter.category_id = new ObjectId(category);
+        }
+        if (brand) {
+            filter.brand_id = new ObjectId(brand);
+        }
+        if (minPrice || maxPrice) {
+            filter.import_price = {};
+            if (minPrice) {
+                filter.import_price.$gte = parseFloat(minPrice);
+            }
+            if (maxPrice) {
+                filter.import_price.$lte = parseFloat(maxPrice);
+            }
+        }
         const sortOptions = {};
         if (sortBy) {
             sortOptions[sortBy] = -1;
@@ -880,7 +583,17 @@ router.get('/inventory', async (req, res) => {
             totalPages,
             perPage,
             total: totalCount,
-            filters: { sortBy, status, timePeriod, startDate, endDate }
+            // filters: { sortBy, status, timePeriod, startDate, endDate }
+            filters: { 
+                sortBy,
+                status,
+                timePeriod,
+                startDate,
+                endDate,
+                category,
+                brand,
+                minPrice,
+                maxPrice }
         });
     } catch (err) {
         console.error(err);
