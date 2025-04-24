@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 
 const Sections = require('../models/sections');
-
+const { removeDiacritics } = require('../utils/textUtils');
 // router.get('/', async function (req, res, next) {
 //     const sections = await Sections.find();
 //     res.render('sections/list', {
@@ -10,29 +10,63 @@ const Sections = require('../models/sections');
 //     });
 // });
 
-router.get('/', async function (req, res, next) {
-    const { page = 1, limit = 10, search, sort } = req.query;
+// router.get('/', async function (req, res, next) {
+//     const { page = 1, limit = 10, search, sort } = req.query;
 
-    let query = {};
-    if (search) {
-        query.name = { $regex: search, $options: 'i' };
-    }
+//     let query = {};
+//     // if (search) {
+//     //     query.name = { $regex: search, $options: 'i' };
+//     // }
+
+//     let sortOption = { created_at: -1 };
+//     if (sort === 'name_asc') sortOption = { name: 1 };
+//     if (sort === 'name_desc') sortOption = { name: -1 };
+
+//     const sections = await Sections.find(query)
+//         .sort(sortOption)
+//         .skip((page - 1) * limit)
+//         .limit(parseInt(limit));
+
+//     const totalSections = await Sections.countDocuments(query);
+//     const totalPages = Math.ceil(totalSections / limit);
+
+//     res.render('sections/list', {
+//         sections,
+//         currentPage: parseInt(page),
+//         totalPages,
+//         limit: parseInt(limit),
+//         search,
+//         sort
+//     });
+// });
+router.get('/', async function (req, res, next) {
+    const { page = 1, limit = 10, search = '', sort } = req.query;
 
     let sortOption = { created_at: -1 };
     if (sort === 'name_asc') sortOption = { name: 1 };
     if (sort === 'name_desc') sortOption = { name: -1 };
 
-    const sections = await Sections.find(query)
-        .sort(sortOption)
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+    let sections = await Sections.find().sort(sortOption);
 
-    const totalSections = await Sections.countDocuments(query);
+    if (search) {
+        const keyword = removeDiacritics(search.toLowerCase());
+
+        sections = sections.filter(item => {
+            const nameNoDiacritics = removeDiacritics(item.name.toLowerCase())
+            const idMatch = item._id.toString().includes(keyword);
+            const nameMatch = nameNoDiacritics.includes(keyword);
+            return idMatch || nameMatch;
+        });
+    }
+
+    const totalSections = sections.length;
     const totalPages = Math.ceil(totalSections / limit);
+    const currentPage = parseInt(page);
+    const paginatedSections = sections.slice((currentPage - 1) * limit, currentPage * limit);
 
     res.render('sections/list', {
-        sections,
-        currentPage: parseInt(page),
+        sections: paginatedSections,
+        currentPage,
         totalPages,
         limit: parseInt(limit),
         search,
@@ -46,7 +80,12 @@ router.post('/add', async (req, res) => {
         const data = req.body;
 
         if (!data.name) {
-            return res.status(400).json({ status: 400, message: "Section name is required!" });
+            return res.status(400).json({ status: 400, message: "Tên mục nội dung là bắt buộc!" });
+        }
+
+        const existingType = await Sections.findOne({ name: { $regex: new RegExp(`^${data.name}$`, 'i') } });
+        if (existingType) {
+            return res.status(409).json({ status: 409, message: `Tên mục nội dung "${data.name}" đã tồn tại!` });
         }
 
         const newSection = new Sections({ name: data.name });
@@ -54,11 +93,11 @@ router.post('/add', async (req, res) => {
 
         res.json({
             status: 200,
-            message: `Section "${data.name}" added successfully!`,
+            message: `Đã thêm mục nội dung "${data.name}" thành công!`,
             data: result,
         });
     } catch (error) {
-        res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+        res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ!", error: error.message });
     }
 });
 
@@ -67,18 +106,18 @@ router.delete('/delete/:id', async (req, res) => {
         const { id } = req.params;
 
         if (!id) {
-            return res.status(400).json({ status: 400, message: "Section ID is required!" });
+            return res.status(400).json({ status: 400, message: "ID mục nội dung là bắt buộc!" });
         }
 
         const result = await Sections.findByIdAndDelete(id);
 
         if (result) {
-            return res.status(200).json({ status: 200, message: `Section "${result.name}" deleted successfully!` });
+            return res.status(200).json({ status: 200, message: `Đã xóa mục nội dung "${result.name}" thành công!` });
         } else {
-            return res.status(404).json({ status: 404, message: "Section not found!" });
+            return res.status(404).json({ status: 404, message: "Không tìm thấy mục nội dung!" });
         }
     } catch (error) {
-        return res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+        return res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ!", error: error.message });
     }
 });
 
@@ -89,7 +128,7 @@ router.put('/update/:id', async (req, res) => {
         const { name } = req.body;
 
         if (!name) {
-            return res.status(400).json({ status: 400, message: "Section name is required!" });
+            return res.status(400).json({ status: 400, message: "Tên mục nội dung là bắt buộc!" });
         }
 
         const updatedSection = await Sections.findByIdAndUpdate(id, { name }, { new: true });
@@ -97,14 +136,14 @@ router.put('/update/:id', async (req, res) => {
         if (updatedSection) {
             return res.status(200).json({
                 status: 200,
-                message: `Section "${updatedSection.name}" updated successfully!`,
+                message: `Đã cập nhật mục nội dung "${updatedSection.name}" thành công!`,
                 data: updatedSection
             });
         } else {
-            return res.status(404).json({ status: 404, message: "Section not found!" });
+            return res.status(404).json({ status: 404, message: "Không tìm thấy mục nội dung!" });
         }
     } catch (error) {
-        return res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+        return res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ!", error: error.message });
     }
 });
 

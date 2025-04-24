@@ -12,14 +12,24 @@ const GHN_API = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
 const TOKEN_GHN = process.env.GHN_TOKEN;
 const SHOP_ID = process.env.GHN_SHOP_ID;
 
+
 router.get("/", async (req, res) => {
-    const { page = 1, limit = 10, search, status, sort } = req.query;
+    // const { page = 1, limit = 10, search, status, sort } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const { search, status, sort } = req.query;
+
     let query = {};
+
+    let cleanedSearch = search;
+    if (cleanedSearch && cleanedSearch.startsWith("#")) {
+        cleanedSearch = cleanedSearch.substring(1);
+    }
 
     if (search) {
         query.$or = [
-            { order_code: { $regex: search, $options: "i" } },
-            { to_name: { $regex: search, $options: "i" } }
+            { order_code: { $regex: cleanedSearch, $options: "i" } },
+            { to_name: { $regex: cleanedSearch, $options: "i" } }
         ];
     }
 
@@ -32,7 +42,6 @@ router.get("/", async (req, res) => {
             query.status = status;
         }
     }
-
 
     let sortOption = { created_at: -1 };
     if (sort === "created_at_asc") sortOption = { created_at: 1 };
@@ -51,9 +60,14 @@ router.get("/", async (req, res) => {
         orders,
         currentPage: parseInt(page),
         totalPages,
-        filterStatus: status,
-        sort,
-        limit
+        // filterStatus: status,
+        // sort,
+        // limit,
+        filters: {
+            search,
+            status,
+            sort
+        }
     });
 });
 
@@ -126,11 +140,8 @@ router.put("/:order_id/confirm", async (req, res) => {
             });
 
         for (const item of orderItems) {
-            const productId = item.product_product_type_id.product_id;
-
             const stockEntry = await StockEntries.findOne({
                 product_product_type_id: item.product_product_type_id._id,
-                product_id: productId,
                 batch_number: item.batch_number,
                 status: "active"
             });
@@ -138,14 +149,14 @@ router.put("/:order_id/confirm", async (req, res) => {
             if (!stockEntry) {
                 return res.status(400).json({
                     status: 400,
-                    message: `Không tìm thấy lô hàng còn hoạt động cho sản phẩm ${productId}`
+                    message: `Không tìm thấy lô hàng còn hoạt động cho sản phẩm.`
                 });
             }
 
             if (stockEntry.remaining_quantity < item.quantity) {
                 return res.status(400).json({
                     status: 400,
-                    message: `Lô hàng ${stockEntry.batch_number} không đủ số lượng cho sản phẩm ${productId}`
+                    message: `Lô hàng ${stockEntry.batch_number} không đủ số lượng cho sản phẩm.`
                 });
             }
             stockEntry.remaining_quantity -= item.quantity;

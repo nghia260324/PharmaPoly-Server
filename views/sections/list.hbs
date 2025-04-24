@@ -1,3 +1,14 @@
+<div class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom"
+    style="background-color: #343a40;">
+    <form method="GET" class="d-flex" style="gap: 0.5rem;">
+        <input type="text" name="search" class="form-control" placeholder="Tìm theo ID hoặc tên" value="{{search}}"
+            style="min-width: 250px;">
+        <button type="submit" class="btn btn-light">
+            <i class="bi bi-search"></i>
+        </button>
+    </form>
+</div>
+
 <div class="p-4">
     <div id="sectionSection" class="section-section">
         <div class="card mb-4">
@@ -18,34 +29,12 @@
                 </form>
             </div>
         </div>
-
-        {{!-- <div id="sectionList">
-            {{#each sections}}
-            <div class="section-card p-2" data-id="{{this._id}}" data-name="{{this.name}}">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <small class="text-muted section-id">ID: {{this._id}}</small>
-                        <h5 class="section-name mb-0"><span data-lang="name">Name</span>: {{this.name}}</h5>
-                    </div>
-                    <div>
-                        <button class="btn btn-sm btn-warning me-2" onclick="editSection(this)">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteSection(this)">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            {{/each}}
-        </div> --}}
         <div class="card mb-4">
             <div class="card-body">
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            {{!-- <th>Tiêu đề nội dung</th> --}}
+                            <th style="width: 35%;">ID</th>
                             <th>
                                 Tiêu đề nội dung
                                 <a href="?sort={{#ifEquals sort 'name_asc'}}name_desc{{else}}name_asc{{/ifEquals}}{{#if search}}&search={{search}}{{/if}}"
@@ -84,6 +73,13 @@
                         {{/each}}
                     </tbody>
                 </table>
+                {{#unless sections.length}}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-search display-6 d-block mb-2"></i>
+                    <h5>Không tìm thấy mục nội dung nào</h5>
+                    <p>Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc.</p>
+                </div>
+                {{/unless}}
             </div>
 
             <nav>
@@ -171,11 +167,10 @@
         event.preventDefault();
 
         const nameInput = document.getElementById("sectionName");
-
         const sectionName = nameInput.value.trim();
 
         if (!sectionName) {
-            showToast("Section name is required!", "danger");
+            showToast("Tên mục nội dung không được để trống!", "danger");
             return;
         }
 
@@ -190,46 +185,18 @@
 
             const result = await response.json();
             if (result.status === 200) {
-                showToast(result.message, "success");
-
-                //addSectionToDOM(result.data);
+                showToast(result.message || "Thêm mục nội dung thành công!", "success");
 
                 nameInput.value = '';
                 setTimeout(() => {
                     location.reload();
                 }, 1000);
             } else {
-                showToast(result.message, "danger");
+                showToast(result.message || "Thêm mục nội dung thất bại!", "danger");
             }
         } catch (error) {
-            showToast("An error occurred!", "danger");
+            showToast("Đã xảy ra lỗi!", "danger");
         }
-    }
-
-    function addSectionToDOM(section) {
-        const sectionListContainer = document.getElementById("sectionList");
-        const sectionCard = document.createElement("div");
-        sectionCard.classList.add("section-card");
-        sectionCard.classList.add("p-2");
-        sectionCard.setAttribute("data-id", section._id);
-        sectionCard.setAttribute("data-name", section.name);
-        sectionCard.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <small class="text-muted section-id">ID: ${section._id}</small>
-                <h5 class="section-name mb-0">Name: ${section.name}</h5>
-            </div>
-            <div>
-                <button class="btn btn-sm btn-warning me-2" onclick="editSection(this)">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteSection(this)">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        </div>
-    `;
-        sectionListContainer.appendChild(sectionCard);
     }
 
     function deleteSection(button) {
@@ -237,7 +204,7 @@
         const sectionId = sectionCard.getAttribute("data-id");
 
         if (!sectionId) {
-            showToast("Section ID is required!", "danger");
+            showToast("ID mục nội dung không hợp lệ!", "danger");
             return;
         }
 
@@ -245,30 +212,27 @@
         modal.show();
 
         document.getElementById("confirmDeleteBtn").onclick = function () {
-
             fetch(`/sections/delete/${sectionId}`, {
                 method: "DELETE"
             })
                 .then(response => response.json())
                 .then(result => {
                     if (result.status === 200) {
-                        showToast(result.message, "success");
-                        //sectionCard.remove();
+                        showToast(result.message || "Xóa mục nội dung thành công!", "success");
                         modal.hide();
                         setTimeout(() => {
                             location.reload();
                         }, 1000);
                     } else {
-                        showToast(result.message, "danger");
+                        showToast(result.message || "Xóa mục nội dung thất bại!", "danger");
                     }
                 })
                 .catch(error => {
-                    showToast("An error occurred!", "danger");
+                    showToast("Đã xảy ra lỗi!", "danger");
                     modal.hide();
                 });
         };
     }
-
 
     function editSection(button) {
         const sectionCard = button.closest('.section-card');
@@ -289,7 +253,7 @@
         const sectionName = document.getElementById("editSectionName").value.trim();
 
         if (!sectionName) {
-            showToast("Section name is required!", "danger");
+            showToast("Tên mục nội dung không được để trống!", "danger");
             return;
         }
 
@@ -304,28 +268,19 @@
 
             const result = await response.json();
             if (result.status === 200) {
-                showToast(result.message, "success");
-                //updateSectionInDOM(result.data);
+                showToast(result.message || "Cập nhật mục nội dung thành công!", "success");
                 const modal = bootstrap.Modal.getInstance(document.getElementById('editSectionModal'));
                 modal.hide();
                 setTimeout(() => {
                     location.reload();
                 }, 1000);
             } else {
-                showToast(result.message, "danger");
+                showToast(result.message || "Cập nhật mục nội dung thất bại!", "danger");
             }
         } catch (error) {
-            showToast("An error occurred!", "danger");
+            showToast("Đã xảy ra lỗi!", "danger");
         }
     });
-
-    function updateSectionInDOM(section) {
-        const sectionCard = document.querySelector(`[data-id="${section._id}"]`);
-
-        sectionCard.querySelector(".section-name").textContent = `Name: ${section.name}`;
-        sectionCard.setAttribute("data-name", section.name);
-    }
-
 
     function showToast(message, type) {
         const toastEl = document.getElementById("toastMessage");

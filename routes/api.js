@@ -2469,17 +2469,41 @@ router.get('/search', authenticateToken, async (req, res) => {
         const normalizedKeyword = removeDiacritics(keyword.toLocaleLowerCase());
         const words = normalizedKeyword.trim().split(/\s+/);
 
-        let products = await Products.find()
-            .populate({ path: 'category_id', select: '_id name' })
-            .populate({ path: 'brand_id', select: '_id name description' })
-            .lean();
+        let query = {};
+        query.normalized_name = { $regex: normalizedKeyword };
+        const sortOrder = order === 'desc' ? -1 : 1;
+        let sortOption = { price: sortOrder };
+
+        // let products = await Products.find()
+        //     .populate({ path: 'category_id', select: '_id name' })
+        //     .populate({ path: 'brand_id', select: '_id name description' })
+        //     .lean();
+        const products = await Products.find(query)
+        .sort(sortOption)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
 
         let categories = await Categories.find().lean();
         let brands = await Brands.find().lean();
 
+        // let filteredProducts = products.filter(product => {
+        //     const normalizedName = removeDiacritics(product.name.toLowerCase());
+        //     return words.every(word => normalizedName.includes(word));
+        // });
+
+        // let filteredCategories = categories.filter(category => {
+        //     const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
+        //     return words.every(word => normalizedCategoryName.includes(word));
+        // });
+
+        // let filteredBrands = brands.filter(brand => {
+        //     const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
+        //     return words.every(word => normalizedBrandName.includes(word));
+        // });
         let filteredProducts = products.filter(product => {
-            const normalizedName = removeDiacritics(product.name.toLowerCase());
-            return words.every(word => normalizedName.includes(word));
+            const normalizedProductName = product.normalized_name.toLowerCase();
+            return words.every(word => normalizedProductName.includes(word));
         });
 
         let filteredCategories = categories.filter(category => {
@@ -2492,8 +2516,8 @@ router.get('/search', authenticateToken, async (req, res) => {
             return words.every(word => normalizedBrandName.includes(word));
         });
 
-        const sortOrder = order === 'desc' ? -1 : 1;
-        filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
+        // const sortOrder = order === 'desc' ? -1 : 1;
+        // filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
 
         const formattedProducts = await Promise.all(filteredProducts.map(p => getProductDetails(p._id)));
         return res.status(200).json({
@@ -2905,9 +2929,13 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         }
 
 
+
         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
         const total_price = totalItemPrice + shipping_fee;
+
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
         const newOrder = new Orders({
             user_id,
@@ -2929,7 +2957,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         const orderItems = [];
         for (const item of cartItems) {
             const stockEntry = await StockEntries.findOne({
-                product_id: item.product_product_type_id.product_id,
+                product_product_type_id: item.product_product_type_id._id,
                 status: 'active',
                 expiry_date: { $gte: new Date() }
             }).sort({ import_date: 1 });
@@ -2953,14 +2981,11 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         await OrderItems.insertMany(orderItems);
 
-        // for (const item of cartItems) {
-        //     await StockEntries.updateOne(
-        //         { product_id: item.product_product_type_id.product_id, status: "active", batch_number: item.batch_number },
-        //         { $inc: { remaining_quantity: -item.quantity } }
-        //     );
-        // }
-
         await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
+
+        await session.commitTransaction();
+        session.endSession();
+
         await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
 
         let qrCodeUrl = null;
@@ -2976,6 +3001,8 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         console.error("Error creating order:", error);
         return res.status(500).json({
             status: 500,
@@ -3798,7 +3825,8 @@ async function createFakeOrders() {
             const delivered_at = getRandomDateWithin6Months();
             const created_at = new Date(delivered_at);
             created_at.setDate(created_at.getDate() - (Math.floor(Math.random() * 2) + 3));
-            const payment_method = Math.random() > 0.5 ? 'COD' : 'ONLINE';
+            //const payment_method = Math.random() > 0.5 ? 'COD' : 'ONLINE';
+            const payment_method = 'COD';
 
             //const shipping_fee = await calculateShippingFee(address.district_id, address.ward_id);
 
@@ -3824,7 +3852,7 @@ async function createFakeOrders() {
             const selectedItems = [];
             const usedProductIds = new Set();
 
-            const numItems = Math.floor(Math.random() * 5) + 1; // 1–5 sản phẩm
+            const numItems = Math.floor(Math.random() * 5) + 1;
 
             while (selectedItems.length < numItems && usedProductIds.size < validProducts.length) {
                 const [productId, typesArray] = validProducts[Math.floor(Math.random() * validProducts.length)];
@@ -4047,18 +4075,80 @@ async function createFakeCanceledOrders() {
 // const userData = generateUsers(100);
 // console.log(JSON.stringify(userData, null, 2));
 
-
-async function deleteUserByPhoneNumber(phoneNumber) {
+function getRandomDate(start, end) {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+function addMonths(date, months) {
+    const d = new Date(date);
+    d.setMonth(d.getMonth() + months);
+    return d;
+}
+function getRandomExpiryDate(importDate) {
+    const minExpiry = addMonths(importDate, 6);
+    const maxExpiry = addMonths(importDate, 12);
+    return getRandomDate(minExpiry, maxExpiry);
+}
+async function randomizeImportDates() {
     try {
-        const result = await Users.findOneAndDelete({ phone_number: phoneNumber });
-        if (result) {
-            console.log(`✅ Đã xóa user có số điện thoại: ${phoneNumber}`);
-        } else {
-            console.log(`⚠️ Không tìm thấy user với số điện thoại: ${phoneNumber}`);
+        const startDate = new Date('2024-01-01T00:00:00Z');
+        const endDate = new Date('2025-01-01T00:00:00Z');
+        const stockEntries = await StockEntries.find({});
+
+        for (const entry of stockEntries) {
+            if (!entry.product_product_type_id) {
+                // Nếu không có product_product_type_id thì xóa luôn
+                await StockEntries.deleteOne({ _id: entry._id });
+                console.log(`Đã xóa entry thiếu product_product_type_id: ${entry._id}`);
+            } else {
+                const randomDate = getRandomDate(startDate, endDate);
+                entry.import_date = randomDate;
+                await entry.save();
+            }
         }
-    } catch (error) {
-        console.error('❌ Lỗi khi xóa user:', error.message);
+
+        console.log('✅ Đã hoàn tất cập nhật ngày nhập.');
+    } catch (err) {
+        console.error('❌ Lỗi khi cập nhật:', err);
+    } finally {
+        mongoose.connection.close();
     }
 }
+
+async function randomizeExpiryDates() {
+    try {
+        const stockEntries = await StockEntries.find({});
+
+        for (const entry of stockEntries) {
+            if (entry.import_date) {
+                const randomExpiry = getRandomExpiryDate(entry.import_date);
+                entry.expiry_date = randomExpiry;
+                await entry.save();
+            } else {
+                console.log(`❌ Bỏ qua vì thiếu import_date: ${entry._id}`);
+            }
+        }
+
+        console.log('✅ Đã hoàn tất random ngày hết hạn.');
+    } catch (err) {
+        console.error('❌ Lỗi khi cập nhật expiry_date:', err);
+    } finally {
+        mongoose.connection.close();
+    }
+}
+// randomizeExpiryDates();
+// randomizeImportDates();
+
+// async function deleteUserByPhoneNumber(phoneNumber) {
+//     try {
+//         const result = await Users.findOneAndDelete({ phone_number: phoneNumber });
+//         if (result) {
+//             console.log(`✅ Đã xóa user có số điện thoại: ${phoneNumber}`);
+//         } else {
+//             console.log(`⚠️ Không tìm thấy user với số điện thoại: ${phoneNumber}`);
+//         }
+//     } catch (error) {
+//         console.error('❌ Lỗi khi xóa user:', error.message);
+//     }
+// }
 
 module.exports = { router, getUserAddress, getShopInfo, getProductDetails, getAvailableProductTypes };

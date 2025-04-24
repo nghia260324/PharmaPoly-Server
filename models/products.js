@@ -3,6 +3,7 @@ const Schema = mongoose.Schema;
 
 const Products = new Schema({
     name: {type: String, required: true},
+    normalized_name: { type: String, required: true, index: true },
     category_id: {type: Schema.Types.ObjectId, ref: 'category', required: true},
     brand_id: {type: Schema.Types.ObjectId, ref: 'brand', required: true},
     short_description: {type: String, required: true},
@@ -25,4 +26,18 @@ const Products = new Schema({
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
+
+Products.pre('save', function(next) {
+    this.normalized_name = normalizeText(this.name);
+    next();
+});
+
+function normalizeText(text) {
+    return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+}
+
 module.exports = mongoose.model('product', Products, 'products');

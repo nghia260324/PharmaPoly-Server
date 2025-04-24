@@ -206,22 +206,20 @@ router.get('/products', async function (req, res, next) {
         page = parseInt(page);
         perPage = parseInt(perPage);
 
-        const matchProduct = {};
+        let statusMatch = {};
         if (status !== 'all') {
-            matchProduct['product.status'] = status;
+            statusMatch['product.status'] = status;
         }
+        const matchProduct = {};
+        // if (status !== 'all') {
+        //     matchProduct['product.status'] = status;
+        // }
         if (category) {
             matchProduct['product.category_id'] = new ObjectId(category);
         }
         if (brand) {
             matchProduct['product.brand_id'] = new ObjectId(brand);
         }
-        // if (minPrice || maxPrice) {
-        //     matchProduct['ppt.price'] = {};
-        //     if (minPrice) matchProduct['ppt.price'].$gte = parseFloat(minPrice);
-        //     if (maxPrice) matchProduct['ppt.price'].$lte = parseFloat(maxPrice);
-        // }
-        // Bộ lọc ngày
         let dateFilter = {};
         const now = new Date();
 
@@ -339,7 +337,8 @@ router.get('/products', async function (req, res, next) {
                 }
             },
             { $unwind: '$product' },
-            { $match: matchProduct },
+            // { $match: matchProduct },
+            { $match: { ...matchProduct, ...statusMatch } },
             { $sort: sortOptions[sortBy] || { 'product.created_at': -1 } },
             {
                 $project: {
@@ -427,7 +426,7 @@ router.get('/products', async function (req, res, next) {
             total,
             categories,
             brands,
-            filters: { 
+            filters: {
                 sortBy,
                 status,
                 timePeriod,
@@ -436,7 +435,8 @@ router.get('/products', async function (req, res, next) {
                 category,
                 brand,
                 minPrice,
-                maxPrice }
+                maxPrice
+            }
         });
 
     } catch (err) {
@@ -449,7 +449,7 @@ router.get('/products', async function (req, res, next) {
 router.get('/inventory', async (req, res) => {
     try {
         // let { sortBy, status, timePeriod, startDate, endDate, page = 1, perPage = 10 } = req.query;
-        let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice } = req.query;
+        let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice, expiryDate } = req.query;
         page = parseInt(page);
         perPage = parseInt(perPage);
 
@@ -492,6 +492,15 @@ router.get('/inventory', async (req, res) => {
                         };
                     }
                     break;
+                case 'expiring_soon':
+                    if (expiryDate) {
+                        const expiryLimit = new Date();
+                        expiryLimit.setDate(expiryLimit.getDate() + parseInt(expiryDate));
+                        dateFilter.expiry_date = {
+                            $lte: expiryLimit
+                        };
+                    }
+                    break;
             }
         }
 
@@ -500,12 +509,6 @@ router.get('/inventory', async (req, res) => {
         };
         if (status) {
             filter.status = status;
-        }
-        if (category) {
-            filter.category_id = new ObjectId(category);
-        }
-        if (brand) {
-            filter.brand_id = new ObjectId(brand);
         }
         if (minPrice || maxPrice) {
             filter.import_price = {};
@@ -516,11 +519,28 @@ router.get('/inventory', async (req, res) => {
                 filter.import_price.$lte = parseFloat(maxPrice);
             }
         }
+        // const sortOptions = {};
+        // if (sortBy) {
+        //     sortOptions[sortBy] = -1;
+        // } else {
+        //     sortOptions.remaining_quantity = -1;
+        // }
         const sortOptions = {};
-        if (sortBy) {
-            sortOptions[sortBy] = -1;
-        } else {
-            sortOptions.remaining_quantity = -1;
+        switch (sortBy) {
+            case 'highest_stock':
+                sortOptions.remaining_quantity = -1;
+                break;
+            case 'lowest_stock':
+                sortOptions.remaining_quantity = 1;
+                break;
+            case 'newest_stock':
+                sortOptions.import_date = -1;
+                break;
+            case 'oldest_stock':
+                sortOptions.import_date = 1;
+                break;
+            default:
+                sortOptions.remaining_quantity = -1;
         }
 
         const aggregatePipeline = [
@@ -553,6 +573,12 @@ router.get('/inventory', async (req, res) => {
             },
             { $unwind: '$productInfo' },
             {
+                $match: {
+                    ...(category ? { 'productInfo.category_id': new ObjectId(category) } : {}),
+                    ...(brand ? { 'productInfo.brand_id': new ObjectId(brand) } : {})
+                }
+            },
+            {
                 $project: {
                     batch_number: 1,
                     product_name: '$productInfo.name',
@@ -576,15 +602,18 @@ router.get('/inventory', async (req, res) => {
         ]);
 
         const totalPages = Math.ceil(totalCount / perPage);
-
+        const categories = await Categories.find();
+        const brands = await Brands.find();
         res.render('dashboards/inventory', {
             stocks: inventory,
             currentPage: page,
             totalPages,
             perPage,
             total: totalCount,
+            categories,
+            brands,
             // filters: { sortBy, status, timePeriod, startDate, endDate }
-            filters: { 
+            filters: {
                 sortBy,
                 status,
                 timePeriod,
@@ -593,7 +622,9 @@ router.get('/inventory', async (req, res) => {
                 category,
                 brand,
                 minPrice,
-                maxPrice }
+                maxPrice,
+                expiryDate
+            }
         });
     } catch (err) {
         console.error(err);

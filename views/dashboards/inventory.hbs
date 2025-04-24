@@ -1,9 +1,14 @@
 <!-- views/inventory/stats.hbs -->
 <div class="container-fluid">
-    <h1 class="h3 mb-4">Thống kê tồn kho</h1>
+    {{!-- <h1 class="h3 mb-4">Thống kê tồn kho</h1> --}}
 
-    <!-- Bộ lọc -->
-    <div class="card mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
+        <h1 class="h3">Thống kê tồn kho</h1>
+        <button class="btn btn-outline-secondary" id="toggleFilter">
+            <i class="bi bi-funnel"></i> Bộ lọc
+        </button>
+    </div> <!-- Bộ lọc -->
+    <div class="card mb-4" id="filterCard" style="display: none;">
         <div class="card-body">
             <form id="filterForm" class="row g-3">
                 <div class="col-md-12 row g-2">
@@ -14,8 +19,8 @@
                                 Tồn kho cao nhất</option>
                             <option value="lowest_stock" {{#if (eq filters.sortBy "lowest_stock" )}}selected{{/if}}>Tồn
                                 kho thấp nhất</option>
-                            <option value="nearest_expiry" {{#if (eq filters.sortBy "nearest_expiry" )}}selected{{/if}}>
-                                Hạn sử dụng gần nhất</option>
+                            <option value="newest_stock" {{#if (eq filters.sortBy "newest_stock" )}}selected{{/if}}>
+                                Hàng nhập mới nhất</option>
                             <option value="oldest_stock" {{#if (eq filters.sortBy "oldest_stock" )}}selected{{/if}}>Hàng
                                 nhập cũ nhất</option>
                         </select>
@@ -69,17 +74,19 @@
                 </div>
                 <div class="col-md-12 row g-2">
                     <div class="col-md-3">
-                        <label class="form-label">Giá nhập từ</label>
-                        <input type="number" class="form-control" name="minPrice" value="{{filters.minPrice}}">
+                        <label class="form-label">Giá tối thiểu: <span id="formattedMinPrice"></span></label>
+                        <input type="number" class="form-control" name="minPrice" id="minPriceInput"
+                            value="{{filters.minPrice}}" min="1">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Giá nhập đến</label>
-                        <input type="number" class="form-control" name="maxPrice" value="{{filters.maxPrice}}">
+                        <label class="form-label">Giá tối đa: <span id="formattedMaxPrice"></span></label>
+                        <input type="number" class="form-control" name="maxPrice" id="maxPriceInput"
+                            value="{{filters.maxPrice}}" min="1">
                     </div>
 
                 </div>
                 <div class="col-md-12 row g-2">
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="timePeriod" class="form-label">Khoảng thời gian</label>
                         <select name="timePeriod" id="timePeriod" class="form-select">
                             <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
@@ -98,7 +105,14 @@
                                 nhất</option>
                             <option value="custom" {{#if (eq filters.timePeriod "custom" )}}selected{{/if}}>Tùy chỉnh
                             </option>
+                            <option value="expiring_soon" {{#if (eq filters.timePeriod "expiring_soon"
+                                )}}selected{{/if}}>Hạn sử dụng sắp hết</option>
                         </select>
+                    </div>
+                    <div class="col-md-3" id="expiryDateField" style="display: none;">
+                        <label class="form-label">Hạn sử dụng còn lại</label>
+                        <input type="number" class="form-control" name="expiryDate" value="{{filters.expiryDate}}"
+                            placeholder="Nhập số ngày" min="1">
                     </div>
 
                     <!-- Ngày bắt đầu -->
@@ -146,7 +160,7 @@
                         <tr>
                             <th>Mã lô</th>
                             <th>Sản phẩm</th>
-                            <th>Giá nhập</th>
+                            <th style="width: 10%;">Giá nhập</th>
                             <th>Tổng SL</th>
                             <th>SL tồn</th>
                             <th>HSD</th>
@@ -164,7 +178,7 @@
                                     <small class="text-muted">({{this.product_type_name}})</small>
                                 </div>
                             </td>
-                            <td>{{formatPrice this.import_price}}</td>
+                            <td>{{formatPrice this.import_price}} VND</td>
                             <td>{{this.quantity}}</td>
                             <td class="{{#if (lt this.remaining_quantity 10)}}text-danger fw-bold{{/if}}">
                                 {{this.remaining_quantity}}
@@ -182,11 +196,10 @@
                 </table>
             </div>
 
-            <!-- Phân trang -->
             <nav class="d-flex justify-content-between">
                 <div class="form-text">Hiển thị {{stocks.length}}/{{total}} lô hàng</div>
                 <ul class="pagination">
-                    {{!-- Giữ nguyên phân trang --}}
+
                 </ul>
             </nav>
 
@@ -212,8 +225,21 @@
         </div>
     </div>
 </div>
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody">
+                <!-- Message will be inserted here -->
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
 
 <!-- Thêm helpers mới -->
+{{!--
 <script>
     // Helper định dạng ngày
     Handlebars.registerHelper('formatDate', function (date) {
@@ -244,9 +270,16 @@
         };
         return classes[status] || 'bg-secondary';
     });
-</script>
+</script> --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const toggleBtn = document.getElementById("toggleFilter");
+        const filterCard = document.getElementById("filterCard");
+
+        toggleBtn.addEventListener("click", function () {
+            filterCard.style.display =
+                filterCard.style.display === "none" ? "block" : "none";
+        });
         const timeSelect = document.getElementById('timePeriod');
         const customFields = document.querySelectorAll('.custom-date-field');
 
@@ -263,4 +296,85 @@
         // Update on change
         timeSelect.addEventListener('change', toggleCustomDates);
     });
+</script>
+<script>
+    function formatVND(number) {
+        if (!number) return "";
+        return Number(number).toLocaleString('vi-VN') + ' VND';
+    }
+
+    const minInput = document.getElementById('minPriceInput');
+    const maxInput = document.getElementById('maxPriceInput');
+    const formattedMin = document.getElementById('formattedMinPrice');
+    const formattedMax = document.getElementById('formattedMaxPrice');
+
+    function updateFormattedPrice(input, label) {
+        const value = input.value;
+        label.textContent = formatVND(value);
+    }
+
+    // Khởi tạo khi có sẵn value (ví dụ khi reload)
+    updateFormattedPrice(minInput, formattedMin);
+    updateFormattedPrice(maxInput, formattedMax);
+
+    // Lắng nghe sự kiện người dùng nhập
+    minInput.addEventListener('input', () => updateFormattedPrice(minInput, formattedMin));
+    maxInput.addEventListener('input', () => updateFormattedPrice(maxInput, formattedMax));
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("filterForm");
+        const minPriceInput = document.getElementById("minPriceInput");
+        const maxPriceInput = document.getElementById("maxPriceInput");
+        const startDateInput = document.querySelector('input[name="startDate"]');
+        const endDateInput = document.querySelector('input[name="endDate"]');
+
+        const timePeriodSelect = document.getElementById('timePeriod');
+        const expiryDateField = document.getElementById('expiryDateField');
+
+        // Kiểm tra giá trị chọn và hiển thị ô nhập ngày hết hạn nếu cần
+        timePeriodSelect.addEventListener('change', function () {
+            if (timePeriodSelect.value === 'expiring_soon') {
+                expiryDateField.style.display = 'block';
+            } else {
+                expiryDateField.style.display = 'none';
+            }
+        });
+
+        // Nếu đã có giá trị "expiring_soon" từ trước, hiển thị ô nhập ngày hết hạn
+        if (timePeriodSelect.value === 'expiring_soon') {
+            expiryDateField.style.display = 'block';
+        }
+
+        form.addEventListener("submit", function (e) {
+            const minPrice = minPriceInput.value.trim();
+            const maxPrice = maxPriceInput.value.trim();
+            const startDate = startDateInput?.value;
+            const endDate = endDateInput?.value;
+
+
+            if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
+                e.preventDefault();
+                showToast("Vui lòng nhập giá tối đa lớn hơn hoặc bằng giá tối thiểu.", "bg-danger");
+                return;
+            }
+            if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+                e.preventDefault();
+                showToast("Vui lòng chọn ngày kết thúc lớn hơn ngày bắt đầu.", "bg-danger");
+                return;
+            }
+        });
+        function showToast(message, bgClass = "bg-success") {
+            const toastElement = document.getElementById("toastMessage");
+            const toastBody = document.getElementById("toastBody");
+
+            toastBody.textContent = message;
+            toastElement.classList.remove("bg-success", "bg-danger");
+            toastElement.classList.add(bgClass);
+
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+        }
+    });
+
 </script>

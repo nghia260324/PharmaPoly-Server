@@ -7,30 +7,32 @@
     <div class="row g-2 align-items-center">
         <div class="col-md-4">
             <input type="text" id="searchOrder" class="form-control" placeholder="Tìm theo mã đơn hoặc tên khách hàng"
-                value="{{search}}">
+                value="{{filters.search}}">
         </div>
         <div class="col-md-4">
             <select id="filterStatus" class="form-select">
                 <option value="">Tất cả trạng thái</option>
-                <option value="pending" {{#ifCond filterStatus "pending" }}selected{{/ifCond}}>Chờ xác nhận</option>
-                <option value="confirmed" {{#ifCond filterStatus "confirmed" }}selected{{/ifCond}}>Đã xác nhận</option>
-                <option value="delivering" {{#ifCond filterStatus "delivering" }}selected{{/ifCond}}>Đang giao</option>
-                <option value="delivered" {{#ifCond filterStatus "delivered" }}selected{{/ifCond}}>Giao thành công
+                <option value="pending" {{#ifCond filters.status "pending" }}selected{{/ifCond}}>Chờ xác nhận</option>
+                <option value="confirmed" {{#ifCond filters.status "confirmed" }}selected{{/ifCond}}>Đã xác nhận</option>
+                <option value="delivering" {{#ifCond filters.status "delivering" }}selected{{/ifCond}}>Đang giao</option>
+                <option value="delivered" {{#ifCond filters.status "delivered" }}selected{{/ifCond}}>Giao thành công
                 </option>
-                <option value="canceled" {{#ifCond filterStatus "canceled" }}selected{{/ifCond}}>Đã hủy</option>
-                <option value="cancel_request" {{#ifCond filterStatus "cancel_request" }}selected{{/ifCond}}>Yêu cầu hủy
-                </option>
+                <option value="canceled" {{#ifCond filters.status "canceled" }}selected{{/ifCond}}>Đã hủy</option>
+                {{!-- <option value="cancel_request" {{#ifCondfilters. statusStatus "cancel_request" }}selected{{/ifCond}}>Yêu cầu hủy
+                </option> --}}
+                <option value="cancel_request" {{#ifCond filters.status "cancel_request" }}selected{{/ifCond}}>Yêu cầu hủy</option>
+
                 {{!-- <option value="return_request" {{#ifCond filterStatus "return_request" }}selected{{/ifCond}}>Yêu cầu trả
                     hàng</option> --}}
             </select>
         </div>
         <div class="col-md-2">
             <select id="sortOrders" class="form-select">
-                <option value="created_at_desc" {{#ifCond sort "created_at_desc" }}selected{{/ifCond}}>Mới nhất</option>
-                <option value="created_at_asc" {{#ifCond sort "created_at_asc" }}selected{{/ifCond}}>Cũ nhất</option>
-                <option value="total_price_desc" {{#ifCond sort "total_price_desc" }}selected{{/ifCond}}>Giá cao nhất
+                <option value="created_at_desc" {{#ifCond filters.sort "created_at_desc" }}selected{{/ifCond}}>Mới nhất</option>
+                <option value="created_at_asc" {{#ifCond filters.sort "created_at_asc" }}selected{{/ifCond}}>Cũ nhất</option>
+                <option value="total_price_desc" {{#ifCond filters.sort "total_price_desc" }}selected{{/ifCond}}>Giá cao nhất
                 </option>
-                <option value="total_price_asc" {{#ifCond sort "total_price_asc" }}selected{{/ifCond}}>Giá thấp nhất
+                <option value="total_price_asc" {{#ifCond filters.sort "total_price_asc" }}selected{{/ifCond}}>Giá thấp nhất
                 </option>
             </select>
         </div>

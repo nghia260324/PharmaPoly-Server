@@ -92,12 +92,12 @@
         </div>
         <div class="col-md-12 row g-2">
           <div class="col-md-3">
-            <label class="form-label">Giá từ</label>
-            <input type="number" class="form-control" name="minPrice" value="{{filters.minPrice}}">
+            <label class="form-label">Giá tối thiểu: <span id="formattedMinPrice"></span></label>
+            <input type="number" class="form-control" name="minPrice" id="minPriceInput" value="{{filters.minPrice}}">
           </div>
           <div class="col-md-3">
-            <label class="form-label">Giá đến</label>
-            <input type="number" class="form-control" name="maxPrice" value="{{filters.maxPrice}}">
+            <label class="form-label">Giá tối đa: <span id="formattedMaxPrice"></span></label>
+            <input type="number" class="form-control" name="maxPrice" id="maxPriceInput" value="{{filters.maxPrice}}">
           </div>
 
         </div>
@@ -280,4 +280,28 @@
     // Update on change
     timeSelect.addEventListener('change', toggleCustomDates);
   });
+</script>
+<script>
+  function formatVND(number) {
+    if (!number) return "";
+    return Number(number).toLocaleString('vi-VN') + ' VND';
+  }
+
+  const minInput = document.getElementById('minPriceInput');
+  const maxInput = document.getElementById('maxPriceInput');
+  const formattedMin = document.getElementById('formattedMinPrice');
+  const formattedMax = document.getElementById('formattedMaxPrice');
+
+  function updateFormattedPrice(input, label) {
+    const value = input.value;
+    label.textContent = formatVND(value);
+  }
+
+  // Khởi tạo khi có sẵn value (ví dụ khi reload)
+  updateFormattedPrice(minInput, formattedMin);
+  updateFormattedPrice(maxInput, formattedMax);
+
+  // Lắng nghe sự kiện người dùng nhập
+  minInput.addEventListener('input', () => updateFormattedPrice(minInput, formattedMin));
+  maxInput.addEventListener('input', () => updateFormattedPrice(maxInput, formattedMax));
 </script>

@@ -98,8 +98,7 @@ router.post('/api/login', async (req, res) => {
 });
 
 router.get("/keep-alive", (req, res) => {
-    res.sendStatus(200);
+    res.status(200).send('Server is up and running!');
 });
-
 
 module.exports = router;

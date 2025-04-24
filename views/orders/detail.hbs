@@ -1,6 +1,6 @@
 <div class="container mt-4">
-    <a href="/orders" class="btn btn-outline-secondary mb-3">
-        <i class="bi bi-arrow-left"></i> Quay lại
+    <a href="" class="btn btn-secondary mb-4" id="backBtn">
+        <i class="bi bi-arrow-left-circle"></i> Quay lại
     </a>
 
 
@@ -161,7 +161,11 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById('backBtn').addEventListener('click', function (e) {
+            e.preventDefault();
 
+            window.history.go(-1);
+        });
         const socket = io();
         socket.on("new_order", function (order) {
             showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");

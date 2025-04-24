@@ -68,7 +68,7 @@
 
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary sidebar-open app-loaded">
   <div class="app-wrapper">
-    <nav class="app-header navbar navbar-expand bg-body">{{> header}}</nav>
+    {{!-- <nav class="app-header navbar navbar-expand bg-body">{{> header}}</nav> --}}
     <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">{{> sidebar}}</aside>
     <main class="app-main">{{{body}}}</main>
     {{!-- <footer class="app-footer">{{> footer}}</footer> --}}
@@ -124,7 +124,7 @@
 
     document.addEventListener("DOMContentLoaded", function () {
       const languageLinks = document.querySelectorAll("#language-menu a");
-      const savedLang = localStorage.getItem("language") || "en";
+      const savedLang = localStorage.getItem("language") || "vi";
 
       languageLinks.forEach(link => {
         link.addEventListener("click", function (event) {

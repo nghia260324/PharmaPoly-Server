@@ -19,12 +19,35 @@ const StockEntries = require('../models/stockEntries');
 
 const { getProductDetails, getAvailableProductTypes } = require("./api");
 
+async function migrateNormalizedName() {
+    const products = await Products.find({});
+    for (const product of products) {
+        product.normalized_name = normalizeText(product.name);
+        await product.save();
+    }
+    console.log('Migration completed!');
+}
+
+// migrateNormalizedName();
+
+function normalizeText(text) {
+    return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+}
+
 router.get("/", async (req, res) => {
-    const { page = 1, limit = 10, search, sort } = req.query;
+    // const { page = 1, limit = 10, search, sort } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const { search, sort } = req.query;
     let query = {};
 
     if (search) {
-        query.name = { $regex: search, $options: "i" };
+        const normalizedSearch = normalizeText(search);
+        query.normalized_name = { $regex: normalizedSearch };
     }
 
     let sortOption = { created_at: -1 };

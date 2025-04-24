@@ -1,3 +1,13 @@
+<div class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom"
+    style="background-color: #343a40;">
+    <form method="GET" class="d-flex" style="gap: 0.5rem;">
+        <input type="text" name="search" class="form-control" placeholder="Tìm theo ID hoặc tên" value="{{search}}"
+            style="min-width: 250px;">
+        <button type="submit" class="btn btn-light">
+            <i class="bi bi-search"></i>
+        </button>
+    </form>
+</div>
 <div class="p-4">
     <div id="productTypeSection" class="product-type-section">
         <div class="card mb-4">
@@ -52,7 +62,7 @@
                         <td>
                             <div class="d-flex align-item-center justify-content-center">
 
-                                <button class="btn btn-sm btn-warning me-2" data onclick="editProductType(this)">
+                                <button class="btn btn-sm btn-warning me-2" onclick="editProductType(this)">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 {{!-- <button class="btn btn-sm btn-danger" onclick="deleteProductType(this)">
@@ -64,6 +74,13 @@
                     {{/each}}
                 </tbody>
             </table>
+            {{#unless productTypes.length}}
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-search display-6 d-block mb-2"></i>
+                <h5>Không tìm thấy loại sản phẩm nào</h5>
+                <p>Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc.</p>
+            </div>
+            {{/unless}}
         </div>
         <nav>
             <ul class="pagination justify-content-center">
@@ -132,7 +149,7 @@
     </div>
 </div>
 <!-- Popup Modal Confirmation for Delete -->
-{{!-- <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel"
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel"
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -149,7 +166,7 @@
             </div>
         </div>
     </div>
-</div> --}}
+</div>
 
 
 <script>
@@ -164,7 +181,7 @@
 
         const productTypeName = nameInput.value.trim();
         if (!productTypeName) {
-            showToast("Product type name is required!", "danger");
+            showToast("Vui lòng nhập tên loại sản phẩm!", "danger");
             return;
         }
 
@@ -181,8 +198,6 @@
             if (result.status === 200) {
                 showToast(result.message, "success");
 
-                //addProductTypeToDOM(result.data);
-
                 nameInput.value = '';
                 setTimeout(() => {
                     location.reload();
@@ -191,42 +206,16 @@
                 showToast(result.message, "danger");
             }
         } catch (error) {
-            showToast("An error occurred!", "danger");
+            showToast("Đã xảy ra lỗi, vui lòng thử lại!", "danger");
         }
-    }
-
-    function addProductTypeToDOM(productType) {
-        const productTypeListContainer = document.getElementById("productTypeList");
-        const productTypeCard = document.createElement("div");
-        productTypeCard.classList.add("product-type-card");
-        productTypeCard.classList.add("p-2");
-        productTypeCard.setAttribute("data-id", productType._id);
-        productTypeCard.setAttribute("data-name", productType.name);
-        productTypeCard.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <small class="text-muted product-type-id">ID: ${productType._id}</small>
-                <h5 class="product-type-name mb-0">Name: ${productType.name}</h5>
-            </div>
-            <div>
-                <button class="btn btn-sm btn-warning me-2" onclick="editProductType(this)">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteProductType(this)">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        </div>
-    `;
-        productTypeListContainer.appendChild(productTypeCard);
     }
 
     function deleteProductType(button) {
         const productTypeCard = button.closest('.product-type-card');
-        const productTypeId = productTypeCard.querySelector('.product-type-id').innerText.split(':')[1].trim();
+        const productTypeId = productTypeCard.getAttribute("data-id");
 
         if (!productTypeId) {
-            showToast("Product type ID is required!", "danger");
+            showToast("Không tìm thấy ID loại sản phẩm!", "danger");
             return;
         }
 
@@ -242,7 +231,6 @@
                 .then(result => {
                     if (result.status === 200) {
                         showToast(result.message, "success");
-                        //productTypeCard.remove();
                         modal.hide();
                         setTimeout(() => {
                             location.reload();
@@ -252,7 +240,7 @@
                     }
                 })
                 .catch(error => {
-                    showToast("An error occurred!", "danger");
+                    showToast("Đã xảy ra lỗi, vui lòng thử lại!", "danger");
                     modal.hide();
                 });
         };
@@ -278,7 +266,7 @@
         const productTypeName = document.getElementById("editProductTypeName").value.trim();
 
         if (!productTypeName) {
-            showToast("Product type name is required!", "danger");
+            showToast("Vui lòng nhập tên loại sản phẩm!", "danger");
             return;
         }
 
@@ -294,7 +282,6 @@
             const result = await response.json();
             if (result.status === 200) {
                 showToast(result.message, "success");
-                //updateProductTypeInDOM(result.data);
                 const modal = bootstrap.Modal.getInstance(document.getElementById('editProductTypeModal'));
                 modal.hide();
                 setTimeout(() => {
@@ -304,16 +291,9 @@
                 showToast(result.message, "danger");
             }
         } catch (error) {
-            showToast("An error occurred!", "danger");
+            showToast("Đã xảy ra lỗi, vui lòng thử lại!", "danger");
         }
     });
-
-    function updateProductTypeInDOM(productType) {
-        const productTypeCard = document.querySelector(`[data-id="${productType._id}"]`);
-
-        productTypeCard.querySelector(".product-type-name").textContent = `Name: ${productType.name}`;
-        productTypeCard.setAttribute("data-name", productType.name);
-    }
 
 
     function showToast(message, type) {
