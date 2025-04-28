@@ -319,69 +319,6 @@ router.put('/user/address/update', authenticateToken, async (req, res) => {
 });
 
 
-
-// Cập nhật thông tin cá nhân
-// router.put('/user/update-profile', authenticateToken, upload.single('avatar'), async (req, res) => {
-//     try {
-//         const { full_name, date_of_birth, gender, address } = req.body;
-//         const file = req.file;
-
-//         const user = await Users.findById(req.user_id);
-//         if (!user) {
-//             return res.status(404).json({ status: 404, message: "User not found!" });
-//         }
-
-//         let updateData = {};
-//         if (full_name !== undefined) updateData.full_name = full_name;
-//         if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth;
-//         if (gender !== undefined) updateData.gender = gender;
-//         if (address !== undefined) updateData.address = address;
-
-//         if (file) {
-//             if (user.avatar_url) {
-//                 const oldImagePath = path.join(__dirname, '../public', user.avatar_url);
-//                 fs.unlink(oldImagePath, (err) => {
-//                     if (err && err.code !== 'ENOENT') {
-//                         console.error('Error deleting old avatar:', err);
-//                     }
-//                 });
-//             }
-//             updateData.avatar_url = `/uploads/${file.filename}`;
-//         }
-
-//         const updatedUser = await Users.findByIdAndUpdate(
-//             { _id: req.user_id },
-//             { $set: updateData },
-//             { new: true }
-//         );
-
-//         const formattedUser = {
-//             ...updatedUser.toObject()
-//         };
-
-//         delete formattedUser.__v;
-//         delete formattedUser.password;
-
-//         res.status(200).json({
-//             status: 200,
-//             message: "Profile updated successfully!",
-//             data: formattedUser
-//         });
-
-//     } catch (error) {
-//         console.error("Error updating profile:", error);
-//         if (req.file) {
-//             fs.unlink(req.file.path, (err) => {
-//                 if (err) {
-//                     console.error('Error:', err);
-//                 }
-//             });
-//         }
-//         res.status(500).json({ status: 500, message: "Internal server error", error: error.message });
-//     }
-// });
-
-
 router.put('/user/update-profile', authenticateToken, upload.single('avatar'), async (req, res) => {
     try {
         const { full_name, date_of_birth, gender, shipping_phone_number } = req.body;
@@ -527,42 +464,6 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
 });
 
 
-// Làm mới token
-// router.post('/refresh-token', async (req, res) => {
-//     const { refreshToken } = req.body;
-
-//     if (!refreshToken) {
-//         return res.status(400).json({
-//             status: 400,
-//             message: 'Refresh token is required!'
-//         });
-//     }
-
-//     try {
-//         const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-//         const user = await Users.findById(decoded.uid);
-//         if (!user || user.refreshToken !== refreshToken) {
-//             return res.status(403).json({
-//                 status: 403,
-//                 message: 'Invalid refresh token!'
-//             });
-//         }
-
-//         const newAccessToken = jwt.sign(
-//             { uid: user._id, phone_number: user.phone_number },
-//             process.env.JWT_SECRET,
-//             { expiresIn: '1h' }
-//         );
-
-//         res.json({
-//             status: 200,
-//             message: 'Access token refreshed!',
-//             data: { newAccessToken }
-//         });
-//     } catch (err) {
-//         return res.status(403).json({ message: 'Invalid refresh token!' });
-//     }
-// });
 router.post('/refresh-token', async (req, res) => {
     const { refreshToken } = req.body;
 
@@ -621,10 +522,40 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
             .lean();
         const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
             const product = await getProductDetails(item.product_product_type_id.product_id);
+
             item.productType = item.product_product_type_id;
             item.product_product_type_id = item.product_product_type_id._id;
             item.productType.product = product;
             item.productType.productType = await ProductTypes.findById(item.productType.product_type_id);
+
+            const productStatus = product.status;
+            let itemStatus;
+
+            switch (productStatus) {
+                case 'discontinued':
+                    itemStatus = 'discontinued';
+                    break;
+                case 'paused':
+                    itemStatus = 'paused';
+                    break;
+                case 'out_of_stock':
+                    itemStatus = 'out_of_stock';
+                    break;
+                case 'active':
+                    const validStock = await StockEntries.find({
+                        product_product_type_id: item.product_product_type_id,
+                        status: 'active',
+                        remaining_quantity: { $gt: 0 },
+                        expiry_date: { $gt: new Date() }
+                    }).limit(1);
+                    itemStatus = validStock.length > 0 ? 'active' : 'out_of_stock';
+                    break;
+                default:
+                    itemStatus = productStatus;
+            }
+
+            item.status = itemStatus;
+
             return { ...item };
         }));
 
@@ -689,6 +620,87 @@ router.get('/product/top-rated', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 });
+
+router.get('/product/related', authenticateToken, async (req, res) => {
+    try {
+        let { product_id, limit = 10 } = req.query;
+
+        if (!product_id) {
+            return res.status(400).json({ status: 400, message: 'product_id is required' });
+        }
+
+        const limitNumber = Math.min(parseInt(limit) || 10, 20);
+
+        const currentProduct = await Products.findOne({ _id: product_id, status: 'active' })
+            .select('brand_id category_id')
+            .lean();
+
+        if (!currentProduct) {
+            return res.status(404).json({ status: 404, message: 'Product not found or inactive' });
+        }
+
+        const { brand_id, category_id } = currentProduct;
+
+        let relatedProducts = [];
+
+        relatedProducts = await Products.find({
+            _id: { $ne: product_id },
+            status: 'active',
+            brand_id,
+            category_id
+        })
+            .limit(limitNumber)
+            .lean();
+
+        if (relatedProducts.length < limitNumber) {
+            const brandProducts = await Products.find({
+                _id: { $ne: product_id },
+                status: 'active',
+                brand_id,
+                category_id: { $ne: category_id }
+            })
+                .limit(limitNumber - relatedProducts.length)
+                .lean();
+
+            relatedProducts = relatedProducts.concat(brandProducts);
+        }
+
+        if (relatedProducts.length < limitNumber) {
+            const categoryProducts = await Products.find({
+                _id: { $ne: product_id },
+                status: 'active',
+                brand_id: { $ne: brand_id },
+                category_id
+            })
+                .limit(limitNumber - relatedProducts.length)
+                .lean();
+
+            relatedProducts = relatedProducts.concat(categoryProducts);
+        }
+
+        if (relatedProducts.length < limitNumber) {
+            const randomProducts = await Products.aggregate([
+                { $match: { _id: { $ne: new mongoose.Types.ObjectId(product_id) }, status: 'active' } },
+                { $sample: { size: limitNumber - relatedProducts.length } }
+            ]);
+
+            relatedProducts = relatedProducts.concat(randomProducts);
+        }
+
+        const formattedProducts = await Promise.all(relatedProducts.map(p => getProductDetails(p._id)));
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Get Related Products Success!',
+            data: formattedProducts
+        });
+
+    } catch (error) {
+        console.error("Error fetching related products:", error);
+        return res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+});
+
 
 router.get('/product/random', authenticateToken, async (req, res) => {
     try {
@@ -865,8 +877,6 @@ router.get('/product/:id', authenticateToken, async function (req, res, next) {
 
         const formattedProduct = {
             ...product,
-            create_at: product.createdAt,
-            update_at: product.updatedAt,
             images: primaryImage ? [primaryImage] : [],
             category_id: product.category_id?._id,
             brand_id: product.brand_id?._id,
@@ -950,8 +960,8 @@ router.get('/product/:id/details', authenticateToken, async function (req, res, 
             product_types: availableProductTypes,
             images: images,
             sections: productSections,
-            create_at: product.created_at,
-            update_at: product.updated_at,
+            created_at: product.created_at,
+            updated_at: product.updated_at,
         };
 
         return res.status(200).json({
@@ -994,13 +1004,8 @@ router.get('/product/:id/sections', authenticateToken, async (req, res) => {
 
         const formattedProductSections = productSections.map(section => ({
             ...section,
-            //section: section.section_id,
-            //create_at: section.createdAt,
-            //update_at: section.updatedAt
         })).map(section => {
             delete section.__v;
-            delete section.createdAt;
-            delete section.updatedAt;
             return section;
         });
 
@@ -1047,8 +1052,6 @@ router.get('/product/:id/sections/details', authenticateToken, async (req, res) 
         })).map(section => {
             delete section.section_id;
             delete section.__v;
-            delete section.createdAt;
-            delete section.updatedAt;
             return section;
         });
 
@@ -1095,8 +1098,6 @@ router.get('/product/:id/images', authenticateToken, async (req, res) => {
             sort_order: image.sort_order
         })).map(image => {
             delete image.__v;
-            delete image.createdAt;
-            delete image.updatedAt;
             return image;
         });
 
@@ -1178,7 +1179,7 @@ router.get('/product/:id/reviews', authenticateToken, async (req, res) => {
         }
 
         const productReviews = await ProductReviews.find({ product_id: id })
-            .sort({ createdAt: -1 })
+            .sort({ created_at: -1 })
             .lean();
 
         if (productReviews.length === 0) {
@@ -1203,19 +1204,6 @@ router.get('/product/:id/reviews', authenticateToken, async (req, res) => {
             user: userMap.get(review.user_id.toString()) || null,
         }));
 
-        // const formattedReviews = productReviews.map(review => ({
-        //     _id: review._id,
-        //     user_id: review.user_id,
-        //     product_id: review.product_id,
-        //     rating: review.rating,
-        //     review: review.review,
-        //     created_at: review.createdAt,
-        // })).map(productReview => {
-        //     delete productReview.__v;
-        //     delete productReview.createdAt;
-        //     delete productReview.updatedAt;
-        //     return productReview;
-        // });
 
         return res.status(200).json({
             status: 200,
@@ -1244,7 +1232,7 @@ router.get('/product/:id/questions', authenticateToken, async (req, res) => {
         }
 
         const questions = await Questions.find({ product_id: id })
-            .sort({ createdAt: -1 })
+            .sort({ created_at: -1 })
             .lean();
 
         if (questions.length === 0) {
@@ -1285,7 +1273,6 @@ router.get('/product/:id/questions', authenticateToken, async (req, res) => {
                 user_id: question.user_id,
                 product_id: question.product_id,
                 content: question.content,
-                created_at: question.createdAt,
                 status: question.status,
                 user: userMap.get(question.user_id.toString()) || null,
                 answers: answersMap.get(question._id.toString()) || []
@@ -1316,15 +1303,11 @@ router.get('/categories', authenticateToken, async (req, res) => {
             const obj = category.toObject();
             return {
                 ...obj,
-                create_at: obj.createdAt,
-                update_at: obj.updatedAt,
             };
         });
 
         formattedCategories.forEach(category => {
             delete category.__v;
-            delete category.createdAt;
-            delete category.updatedAt;
         });
         return res.status(200).json({
             status: 200,
@@ -1353,12 +1336,8 @@ router.get('/category/:id', authenticateToken, async (req, res) => {
 
         const formattedCategory = {
             ...category,
-            create_at: category.createdAt,
-            update_at: category.updatedAt,
         };
         delete formattedCategory.__v;
-        delete formattedCategory.createdAt;
-        delete formattedCategory.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -1470,15 +1449,11 @@ router.get('/brands', authenticateToken, async (req, res) => {
             const obj = brand.toObject();
             return {
                 ...obj,
-                create_at: obj.createdAt,
-                update_at: obj.updatedAt,
             };
         });
 
         formattedBrands.forEach(brand => {
             delete brand.__v;
-            delete brand.createdAt;
-            delete brand.updatedAt;
         });
 
         return res.status(200).json({
@@ -1508,13 +1483,9 @@ router.get('/brand/:id', authenticateToken, async (req, res) => {
 
         const formattedBrand = {
             ...brand,
-            create_at: brand.createdAt,
-            update_at: brand.updatedAt,
         };
 
         delete formattedBrand.__v;
-        delete formattedBrand.createdAt;
-        delete formattedBrand.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -1529,77 +1500,6 @@ router.get('/brand/:id', authenticateToken, async (req, res) => {
         });
     }
 });
-
-
-// router.get('/brand/:id/products', authenticateToken, async (req, res) => {
-//     try {
-//         const { id } = req.params;
-//         let { page = 1, limit = 10 } = req.query;
-
-//         const pageNumber = parseInt(page);
-//         let limitNumber = parseInt(limit);
-
-//         if (limitNumber > 20) {
-//             limitNumber = 20;
-//         }
-
-//         const skip = (pageNumber - 1) * limitNumber;
-
-//         const products = await Products.find({ brand_id: id })
-//             .populate('category_id', '_id name')
-//             .populate('brand_id', '_id name description')
-//             .skip(skip)
-//             .limit(limitNumber)
-//             .lean();
-
-//         const totalProducts = await Products.countDocuments({ brand_id: id });
-//         const totalPages = Math.ceil(totalProducts / limitNumber);
-
-//         const productIds = products.map(p => p._id);
-//         const primaryImages = await ProductImages.find({
-//             product_id: { $in: productIds },
-//             is_primary: true
-//         }).lean();
-
-//         const imageMap = primaryImages.reduce((acc, img) => {
-//             acc[img.product_id] = img;
-//             return acc;
-//         }, {});
-
-//         const formattedProducts = products.map(product => ({
-//             _id: product._id,
-//             name: product.name,
-//             description: product.description,
-//             price: product.price,
-//             category_id: product.category_id._id,
-//             brand_id: product.brand_id._id,
-//             category: product.category_id,
-//             brand: product.brand_id,
-//             product_type: product.product_type,
-//             primary_image: imageMap[product._id] || null,
-//             create_at: product.createdAt,
-//             update_at: product.updatedAt
-//         }));
-
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Get Products by Brand Success!',
-//             data: {
-//                 currentPage: pageNumber,
-//                 totalPages,
-//                 totalProducts,
-//                 hasNextPage: pageNumber < totalPages,
-//                 hasPrevPage: pageNumber > 1,
-//                 data: formattedProducts
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error("Error fetching brand products:", error);
-//         return res.status(500).json({ status: 500, message: "Internal Server Error" });
-//     }
-// });
-
 
 
 // ----- Product Type Router ----- //
@@ -1653,15 +1553,11 @@ router.get('/product-types', authenticateToken, async (req, res) => {
             const obj = productType.toObject();
             return {
                 ...obj,
-                create_at: obj.createdAt,
-                update_at: obj.updatedAt,
             };
         });
 
         formattedProductTypes.forEach(productType => {
             delete productType.__v;
-            delete productType.createdAt;
-            delete productType.updatedAt;
         });
 
         return res.status(200).json({
@@ -1691,13 +1587,9 @@ router.get('/product-type/:id', authenticateToken, async (req, res) => {
 
         const formattedProductType = {
             ...productType,
-            create_at: productType.createdAt,
-            update_at: productType.updatedAt,
         };
 
         delete formattedProductType.__v;
-        delete formattedProductType.createdAt;
-        delete formattedProductType.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -1723,15 +1615,11 @@ router.get('/sections', authenticateToken, async (req, res) => {
             const obj = section.toObject();
             return {
                 ...obj,
-                create_at: obj.createdAt,
-                update_at: obj.updatedAt,
             };
         });
 
         formattedSections.forEach(section => {
             delete section.__v;
-            delete section.createdAt;
-            delete section.updatedAt;
         });
 
         return res.status(200).json({
@@ -1762,13 +1650,9 @@ router.get('/section/:id', authenticateToken, async (req, res) => {
 
         const formattedSection = {
             ...section,
-            create_at: section.createdAt,
-            update_at: section.updatedAt,
         };
 
         delete formattedSection.__v;
-        delete formattedSection.createdAt;
-        delete formattedSection.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -1798,8 +1682,6 @@ router.get('/product-section/:id', authenticateToken, async (req, res) => {
         }
 
         delete productSection.__v;
-        delete productSection.createdAt;
-        delete productSection.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -1835,8 +1717,6 @@ router.get('/product-section/:id/details', authenticateToken, async (req, res) =
 
         delete formattedProductSection.section_id;
         delete formattedProductSection.__v;
-        delete formattedProductSection.createdAt;
-        delete formattedProductSection.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -1867,12 +1747,9 @@ router.get('/product-review/get/:id', authenticateToken, async (req, res) => {
         }
         const formattedProductReview = {
             ...productReview,
-            create_at: productReview.createdAt,
         };
 
         delete formattedProductReview.__v;
-        delete formattedProductReview.createdAt;
-        delete formattedProductReview.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -1890,19 +1767,20 @@ router.get('/product-review/get/:id', authenticateToken, async (req, res) => {
 
 router.post('/product-review/create', authenticateToken, async (req, res) => {
     try {
-        const { user_id, product_id, rating, review } = req.body;
+        const { product_id, rating, review } = req.body;
+        const user_id = req.user_id;
 
         if (!user_id || !product_id || rating === undefined) {
             return res.status(400).json({
                 status: 400,
-                message: 'Missing required fields'
+                message: 'Thiếu thông tin bắt buộc'
             });
         }
 
         if (rating < 1 || rating > 5) {
             return res.status(400).json({
                 status: 401,
-                message: 'Rating must be between 1 and 5 stars'
+                message: 'Số sao phải nằm trong khoảng từ 1 đến 5'
             });
         }
 
@@ -1910,14 +1788,14 @@ router.post('/product-review/create', authenticateToken, async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 status: 402,
-                message: 'User not found'
+                message: 'Không tìm thấy người dùng'
             });
         }
         const product = await Products.findById(product_id);
         if (!product) {
             return res.status(404).json({
                 status: 403,
-                message: 'Product not found'
+                message: 'Không tìm thấy sản phẩm'
             });
         }
 
@@ -1940,14 +1818,14 @@ router.post('/product-review/create', authenticateToken, async (req, res) => {
 
         return res.status(200).json({
             status: 200,
-            message: 'Create Product Review Success!',
+            message: 'Tạo đánh giá sản phẩm thành công!',
             data: savedReview
         });
     } catch (error) {
         console.error("Error:", error);
         return res.status(500).json({
             status: 500,
-            message: 'Internal Server Error'
+            message: 'Lỗi server nội bộ'
         });
     }
 });
@@ -2010,7 +1888,7 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
         if (rating !== undefined && (rating < 1 || rating > 5)) {
             return res.status(400).json({
                 status: 400,
-                message: 'Rating must be between 1 and 5 stars'
+                message: 'Số sao đánh giá phải nằm trong khoảng từ 1 đến 5'
             });
         }
 
@@ -2018,7 +1896,13 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
         if (!existingReview) {
             return res.status(404).json({
                 status: 404,
-                message: 'Product Review not found'
+                message: 'Không tìm thấy đánh giá sản phẩm'
+            });
+        }
+        if (existingReview.user_id.toString() !== req.user_id) {
+            return res.status(403).json({
+                status: 403,
+                message: 'Bạn không có quyền chỉnh sửa đánh giá này'
             });
         }
 
@@ -2026,26 +1910,9 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
         if (!product) {
             return res.status(404).json({
                 status: 404,
-                message: 'Product not found for this review'
+                message: 'Không tìm thấy sản phẩm tương ứng với đánh giá này'
             });
         }
-
-        // if (rating !== undefined) {
-        //     const allReviews = await ProductReviews.find({ product_id: product._id, _id: { $ne: id } });
-        //     const totalRating = allReviews.reduce((sum, r) => sum + Number(r.rating), 0) + Number(rating);
-        //     const newAverageRating = totalRating / (allReviews.length + 1);
-        //     product.average_rating = parseFloat(newAverageRating.toFixed(2));
-        //     await product.save();
-        // }
-        if (rating !== undefined) {
-            const allReviews = await ProductReviews.find({ product_id: product._id, _id: { $ne: id } });
-            const totalRating = allReviews.reduce((sum, r) => sum + Number(r.rating), 0) + Number(rating);
-        
-            const newAverageRating = totalRating / (allReviews.length + 1);
-            product.average_rating = parseFloat(newAverageRating.toFixed(1));
-            await product.save();
-        }
-        
 
         if (review !== undefined) {
             existingReview.review = review;
@@ -2057,14 +1924,6 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
 
         await existingReview.save();
 
-        // const allReviews = await ProductReviews.find({ product_id: product._id });
-        // const totalRating = allReviews.reduce((sum, r) => sum + Number(r.rating), 0);
-        // const averageRating = totalRating / allReviews.length;
-
-        // product.review_count = allReviews.length;
-        // product.average_rating = parseFloat((Math.round(averageRating * 2) / 2).toFixed(2));
-        // await product.save();
-        
         const allReviews = await ProductReviews.find({ product_id: product._id });
         const totalRating = allReviews.reduce((sum, r) => sum + Number(r.rating), 0);
         const averageRating = totalRating / allReviews.length;
@@ -2075,14 +1934,14 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
 
         return res.status(200).json({
             status: 200,
-            message: 'Update Product Review Success!',
+            message: 'Cập nhật đánh giá sản phẩm thành công!',
             data: existingReview
         });
     } catch (error) {
         console.error("Error:", error);
         return res.status(500).json({
             status: 500,
-            message: 'Internal Server Error'
+            message: '	Lỗi máy chủ nội bộ'
         });
     }
 });
@@ -2152,11 +2011,9 @@ router.get('/question/get/:id', authenticateToken, async (req, res) => {
 
         const formattedQuestion = {
             ...question,
-            create_at: question.createdAt,
         };
 
         delete formattedQuestion.__v;
-        delete formattedQuestion.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -2197,12 +2054,10 @@ router.get('/question/get/:id/details', authenticateToken, async (req, res) => {
                 full_name: user.full_name,
                 avatar_url: user.avatar_url
             },
-            create_at: question.createdAt,
 
         };
 
         delete formattedQuestion.__v;
-        delete formattedQuestion.updatedAt;
 
         return res.status(200).json({
             status: 200,
@@ -2472,9 +2327,91 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
 
 
 
+// router.get('/search', authenticateToken, async (req, res) => {
+//     try {
+//         let { keyword, order = 'asc' } = req.query;
+
+//         if (!keyword) {
+//             return res.status(400).json({
+//                 status: 400,
+//                 message: 'Missing required field: keyword'
+//             });
+//         }
+
+//         const normalizedKeyword = removeDiacritics(keyword.toLocaleLowerCase());
+//         const words = normalizedKeyword.trim().split(/\s+/);
+
+//         let query = {};
+//         query.normalized_name = { $regex: normalizedKeyword };
+//         const sortOrder = order === 'desc' ? -1 : 1;
+//         let sortOption = { price: sortOrder };
+
+//         // let products = await Products.find()
+//         //     .populate({ path: 'category_id', select: '_id name' })
+//         //     .populate({ path: 'brand_id', select: '_id name description' })
+//         //     .lean();
+//         const products = await Products.find(query)
+//             .sort(sortOption)
+//             .skip((page - 1) * limit)
+//             .limit(limit)
+//             .lean();
+
+//         let categories = await Categories.find().lean();
+//         let brands = await Brands.find().lean();
+
+//         // let filteredProducts = products.filter(product => {
+//         //     const normalizedName = removeDiacritics(product.name.toLowerCase());
+//         //     return words.every(word => normalizedName.includes(word));
+//         // });
+
+//         // let filteredCategories = categories.filter(category => {
+//         //     const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
+//         //     return words.every(word => normalizedCategoryName.includes(word));
+//         // });
+
+//         // let filteredBrands = brands.filter(brand => {
+//         //     const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
+//         //     return words.every(word => normalizedBrandName.includes(word));
+//         // });
+//         let filteredProducts = products.filter(product => {
+//             const normalizedProductName = product.normalized_name.toLowerCase();
+//             return words.every(word => normalizedProductName.includes(word));
+//         });
+
+//         let filteredCategories = categories.filter(category => {
+//             const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
+//             return words.every(word => normalizedCategoryName.includes(word));
+//         });
+
+//         let filteredBrands = brands.filter(brand => {
+//             const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
+//             return words.every(word => normalizedBrandName.includes(word));
+//         });
+
+//         // const sortOrder = order === 'desc' ? -1 : 1;
+//         // filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
+
+//         const formattedProducts = await Promise.all(filteredProducts.map(p => getProductDetails(p._id)));
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'Search completed successfully!',
+//             data: {
+//                 products: formattedProducts,
+//                 categories: filteredCategories,
+//                 brands: filteredBrands
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Search error:", error);
+//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
+//     }
+// });
+
+
 router.get('/search', authenticateToken, async (req, res) => {
     try {
-        let { keyword, order = 'asc' } = req.query;
+        let { keyword, order = 'asc', page = 1, limit = 10 } = req.query;
 
         if (!keyword) {
             return res.status(400).json({
@@ -2483,64 +2420,71 @@ router.get('/search', authenticateToken, async (req, res) => {
             });
         }
 
+        const pageNumber = parseInt(page);
+        let limitNumber = parseInt(limit);
+        if (limitNumber > 20) limitNumber = 20;
+
+        const skip = (pageNumber - 1) * limitNumber;
+
         const normalizedKeyword = removeDiacritics(keyword.toLocaleLowerCase());
         const words = normalizedKeyword.trim().split(/\s+/);
 
-        let query = {};
-        query.normalized_name = { $regex: normalizedKeyword };
         const sortOrder = order === 'desc' ? -1 : 1;
-        let sortOption = { price: sortOrder };
+        const sortOption = { price: sortOrder };
 
-        // let products = await Products.find()
-        //     .populate({ path: 'category_id', select: '_id name' })
-        //     .populate({ path: 'brand_id', select: '_id name description' })
-        //     .lean();
-        const products = await Products.find(query)
+        // Lấy sản phẩm
+        const products = await Products.find({
+            $and: words.map(word => ({
+                normalized_name: { $regex: word, $options: 'i' }
+            }))
+        })
             .sort(sortOption)
-            .skip((page - 1) * limit)
-            .limit(limit)
+            .populate('category_id', '_id name')
+            .populate('brand_id', '_id name description')
             .lean();
 
-        let categories = await Categories.find().lean();
-        let brands = await Brands.find().lean();
 
-        // let filteredProducts = products.filter(product => {
-        //     const normalizedName = removeDiacritics(product.name.toLowerCase());
-        //     return words.every(word => normalizedName.includes(word));
-        // });
+        const totalProducts = products.length;
 
-        // let filteredCategories = categories.filter(category => {
-        //     const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
-        //     return words.every(word => normalizedCategoryName.includes(word));
-        // });
-
-        // let filteredBrands = brands.filter(brand => {
-        //     const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
-        //     return words.every(word => normalizedBrandName.includes(word));
-        // });
-        let filteredProducts = products.filter(product => {
+        // Lọc lại sản phẩm theo từng từ
+        const filteredProducts = products.filter(product => {
             const normalizedProductName = product.normalized_name.toLowerCase();
             return words.every(word => normalizedProductName.includes(word));
         });
 
-        let filteredCategories = categories.filter(category => {
+        const totalFiltered = filteredProducts.length;
+        const totalPages = Math.ceil(totalFiltered / limitNumber);
+
+        // Lấy trang hiện tại
+        const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
+
+        const formattedProducts = await Promise.all(
+            paginatedProducts.map(p => getProductDetails(p._id))
+        );
+
+        // Lấy thêm categories và brands
+        const categories = await Categories.find().lean();
+        const brands = await Brands.find().lean();
+
+        const filteredCategories = categories.filter(category => {
             const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
             return words.every(word => normalizedCategoryName.includes(word));
         });
 
-        let filteredBrands = brands.filter(brand => {
+        const filteredBrands = brands.filter(brand => {
             const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
             return words.every(word => normalizedBrandName.includes(word));
         });
 
-        // const sortOrder = order === 'desc' ? -1 : 1;
-        // filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
-
-        const formattedProducts = await Promise.all(filteredProducts.map(p => getProductDetails(p._id)));
         return res.status(200).json({
             status: 200,
             message: 'Search completed successfully!',
             data: {
+                currentPage: pageNumber,
+                totalPages,
+                totalProducts: totalFiltered,
+                hasNextPage: pageNumber < totalPages,
+                hasPrevPage: pageNumber > 1,
                 products: formattedProducts,
                 categories: filteredCategories,
                 brands: filteredBrands
@@ -3912,19 +3856,19 @@ function generateRandomCode(length = 6) {
 
 //             const stockEntry = stockEntries.find(se => se.product_product_type_id.equals(type._id)); // lấy kho của loại sản phẩm này
 //             const importDate = new Date(stockEntry.import_date); // ngày nhập hàng
-        
+
 //             // Tính ngày tạo đơn ngẫu nhiên trong khoảng 1 tháng sau đến 3 tháng sau ngày nhập hàng
 //             const created_at = new Date(importDate);
 //             const daysToAdd = Math.floor(Math.random() * (60 - 30)) + 30; // Random từ 30 đến 60 ngày (1 - 2 tháng)
 //             created_at.setDate(created_at.getDate() + daysToAdd);
-        
+
 //             // Tính ngày giao hàng ngẫu nhiên (2-3 ngày sau ngày tạo đơn)
 //             const delivered_at = new Date(created_at);
 //             const daysToAddForDelivery = Math.floor(Math.random() * 2) + 2; // Random từ 2 đến 3 ngày
 //             delivered_at.setDate(delivered_at.getDate() + daysToAddForDelivery);
-        
+
 //             const payment_method = 'COD';
-    
+
 
 //             const order = new Orders({
 //                 user_id: foundUser._id,

@@ -7,7 +7,7 @@ const StockEntries = new Schema({
     import_price: { type: Number, required: true },
     quantity: { type: Number, required: true },
     remaining_quantity: { type: Number, required: true },
-    expiry_date: { type: Date, required: true },
+    expiry_date: { type: Date, default: null },
     import_date: { type: Date, default: Date.now },
     status: {
         type: String,
@@ -25,47 +25,48 @@ const StockEntries = new Schema({
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-StockEntries.pre('save', function (next) {
-    if (this.remaining_quantity === 0) {
-        this.status = 'sold_out';
-    }
-    next();
-});
-
-StockEntries.pre('findOneAndUpdate', function (next) {
-    const update = this.getUpdate();
-
-    if (update.$set && update.$set.remaining_quantity !== undefined) {
-        if (update.$set.remaining_quantity === 0) {
-            update.$set.status = 'sold_out';
-        }
-    }
-
-    next();
-});
-
-StockEntries.pre('updateOne', function (next) {
-    const update = this.getUpdate();
-
-    if (update.$set && update.$set.remaining_quantity !== undefined) {
-        if (update.$set.remaining_quantity === 0) {
-            update.$set.status = 'sold_out';
-        }
-    }
-
-    next();
-});
-
-StockEntries.pre('updateMany', function (next) {
-    const update = this.getUpdate();
-
-    if (update.$set && update.$set.remaining_quantity !== undefined) {
-        if (update.$set.remaining_quantity === 0) {
-            update.$set.status = 'sold_out';
-        }
-    }
-
-    next();
-});
 
 module.exports = mongoose.model('stockEntry', StockEntries, 'stockEntries');
+
+// StockEntries.pre('save', function (next) {
+//     if (this.remaining_quantity === 0) {
+//         this.status = 'sold_out';
+//     }
+//     next();
+// });
+
+// StockEntries.pre('findOneAndUpdate', function (next) {
+//     const update = this.getUpdate();
+
+//     if (update.$set && update.$set.remaining_quantity !== undefined) {
+//         if (update.$set.remaining_quantity === 0) {
+//             update.$set.status = 'sold_out';
+//         }
+//     }
+
+//     next();
+// });
+
+// StockEntries.pre('updateOne', function (next) {
+//     const update = this.getUpdate();
+
+//     if (update.$set && update.$set.remaining_quantity !== undefined) {
+//         if (update.$set.remaining_quantity === 0) {
+//             update.$set.status = 'sold_out';
+//         }
+//     }
+
+//     next();
+// });
+
+// StockEntries.pre('updateMany', function (next) {
+//     const update = this.getUpdate();
+
+//     if (update.$set && update.$set.remaining_quantity !== undefined) {
+//         if (update.$set.remaining_quantity === 0) {
+//             update.$set.status = 'sold_out';
+//         }
+//     }
+
+//     next();
+// });

@@ -34,7 +34,6 @@
     }
 </style>
 
-
 <div class="container mt-3">
     <!-- Button quay lại -->
     <a href="" class="btn btn-secondary mb-4" id="backBtn">
@@ -96,7 +95,7 @@
 
         <div class="mb-3">
             <label for="expiry_date" class="form-label">Ngày Hết Hạn</label>
-            <input type="date" id="expiry_date" name="expiry_date" class="form-control" required>
+            <input type="date" id="expiry_date" name="expiry_date" class="form-control">
         </div>
 
         <button type="submit" class="btn btn-success">Lưu</button>
@@ -149,34 +148,34 @@
                     <select class="form-select status-select" data-id="{{this._id}}" {{#if (or (eq
                         this.status "sold_out" ) (eq this.status "expired" ))}}disabled{{/if}}>
                         {{#if (eq this.status "not_started")}}
-                        <option value="not_started" selected>🔵 Chưa Bán</option>
-                        <option value="active">🟢 Sẵn Sàng</option>
-                        <option value="paused">🟡 Tạm Ngừng</option>
-                        <option value="discontinued">🔴 Ngừng Bán</option>
+                        <option value="not_started" selected>Chưa Bán</option>
+                        <option value="active">Sẵn Sàng</option>
+                        <option value="paused">Tạm Ngừng</option>
+                        <option value="discontinued">Ngừng Bán</option>
                         {{/if}}
 
                         {{#if (eq this.status "active")}}
-                        <option value="active" selected>🟢 Sẵn Sàng</option>
-                        <option value="paused">🟡 Tạm Ngừng</option>
-                        <option value="discontinued">🔴 Ngừng Bán</option>
+                        <option value="active" selected>Sẵn Sàng</option>
+                        <option value="paused">Tạm Ngừng</option>
+                        <option value="discontinued">Ngừng Bán</option>
                         {{/if}}
 
                         {{#if (eq this.status "paused")}}
-                        <option value="paused" selected>🟡 Tạm Ngừng</option>
-                        <option value="active">🟢 Sẵn Sàng</option>
-                        <option value="discontinued">🔴 Ngừng Bán</option>
+                        <option value="paused" selected>Tạm Ngừng</option>
+                        <option value="active">Sẵn Sàng</option>
+                        <option value="discontinued">Ngừng Bán</option>
                         {{/if}}
 
                         {{#if (eq this.status "sold_out")}}
-                        <option value="sold_out" selected>⚫ Đã Bán Hết</option>
+                        <option value="sold_out" selected>Đã Bán Hết</option>
                         {{/if}}
 
                         {{#if (eq this.status "expired")}}
-                        <option value="expired" selected>⚠️ Hết Hạn</option>
+                        <option value="expired" selected>Hết Hạn</option>
                         {{/if}}
 
                         {{#if (eq this.status "discontinued")}}
-                        <option value="discontinued" selected>🔴 Ngừng Bán</option>
+                        <option value="discontinued" selected>Ngừng Bán</option>
                         {{/if}}
                     </select>
                 </td>
@@ -336,7 +335,7 @@
 
 
         const batchNumberInput = document.getElementById('batch_number');
-        //batchNumberInput.value = generateBatchNumber();
+        batchNumberInput.value = generateBatchNumber();
         document.getElementById("importStockForm")?.addEventListener("submit", async function (event) {
             event.preventDefault();
             loadingModal.show();

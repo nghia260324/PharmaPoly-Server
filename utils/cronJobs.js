@@ -36,6 +36,7 @@ cron.schedule("*/2 * * * *", async () => {
 cron.schedule("0 0 * * *", async () => {
     try {
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
         const expiredStock = await StockEntrys.updateMany(
             {
