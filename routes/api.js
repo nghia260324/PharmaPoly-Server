@@ -2572,6 +2572,7 @@ router.post("/calculate-shipping-fee", async (req, res) => {
 
 
 router.post("/orders/create", authenticateToken, async (req, res) => {
+    let session = null;
     try {
         const { payment_method, cart_item_ids } = req.body;
         const user_id = req.user_id;
@@ -2617,7 +2618,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
         const total_price = totalItemPrice + shipping_fee;
 
-        const session = await mongoose.startSession();
+        session = await mongoose.startSession();
         session.startTransaction();
 
         const newOrder = new Orders({
