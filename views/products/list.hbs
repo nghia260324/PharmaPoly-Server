@@ -45,7 +45,7 @@
     }
 </style>
 
-<div class="container mt-5">
+<div class="container mt-3">
     <div class="product-header mb-4 p-3 bg-light rounded">
         <div class="d-flex justify-content-between align-items-center">
             <span class="h5 mb-0"><span data-lang="product">Products</span></span>
@@ -68,8 +68,8 @@
             <select id="sortProducts" class="form-select">
                 <option value="name_asc" {{#ifCond sort "name_asc" }}selected{{/ifCond}}>Tên A-Z</option>
                 <option value="name_desc" {{#ifCond sort "name_desc" }}selected{{/ifCond}}>Tên Z-A</option>
-                <option value="price_asc" {{#ifCond sort "price_asc" }}selected{{/ifCond}}>Giá thấp đến cao</option>
-                <option value="price_desc" {{#ifCond sort "price_desc" }}selected{{/ifCond}}>Giá cao đến thấp</option>
+                {{!-- <option value="price_asc" {{#ifCond sort "price_asc" }}selected{{/ifCond}}>Giá thấp đến cao</option>
+                <option value="price_desc" {{#ifCond sort "price_desc" }}selected{{/ifCond}}>Giá cao đến thấp</option> --}}
             </select>
         </div>
         <div class="col-md-2">
@@ -181,7 +181,7 @@
                                                     </div>
 
                                                     <div class="d-flex justify-content-between align-items-center mt-1">
-                                                        <span class="text-muted">Giá bán:</span>
+                                                        <span class="text-muted">Giá bán: ({{formatPrice this.price}}VND)</span>
                                                         <input step="100" type="number"
                                                             class="form-control form-control-sm update-price"
                                                             data-product-id="{{../_id}}"

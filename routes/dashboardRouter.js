@@ -281,6 +281,15 @@ router.get('/products', async function (req, res, next) {
         const aggregatePipeline = [
             {
                 $lookup: {
+                    from: 'productProductTypes',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'ppts'
+                }
+            },
+            { $unwind: { path: '$ppts', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
                     from: 'orders',
                     localField: 'order_id',
                     foreignField: '_id',

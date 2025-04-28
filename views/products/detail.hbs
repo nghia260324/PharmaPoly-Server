@@ -58,8 +58,8 @@
 
                     <!-- Rating & Description -->
                     <div class="d-flex align-items-center gap-2 mb-4">
-                        <div class="rating-stars text-warning fs-5">
-                            {{{starRating product.average_rating}}}
+                        <div class="rating-stars">
+                            {{#stars product.average_rating}}{{/stars}}
                         </div>
                         <small class="text-muted">({{product.average_rating}}/5 từ {{product.review_count}} đánh
                             giá)</small>
@@ -159,10 +159,34 @@
                             </div>
                         </div>
                         {{/each}}
+
+                        <div class="reviews mt-3">
+                            <h5 class="text-primary">Đánh giá sản phẩm</h5>
+                            {{#each product.reviews}}
+                            <div class="review p-3 border rounded shadow-sm">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{this.user_id.avatar_url}}" alt="{{this.user_id.full_name}}"
+                                        class="rounded-circle" style="width: 50px; height: 50px;">
+                                    <div class="ms-3">
+                                        <strong>{{this.user_id.full_name}}</strong>
+                                        <div class="rating-stars d-flex align-items-center">
+                                            {{#stars this.rating}}{{/stars}} <!-- Hiển thị sao đánh giá -->
+                                            <span class="ms-2 text-muted">{{formatDate this.created_at}}</span>
+                                            <!-- Ngày đánh giá -->
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">{{this.review}}</div>
+                            </div>
+                            {{/each}}
+                        </div>
+
+
                     </div>
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 

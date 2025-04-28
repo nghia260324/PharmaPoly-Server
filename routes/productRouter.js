@@ -10,6 +10,7 @@ const Categories = require('../models/categories');
 const Sections = require('../models/sections');
 const Brands = require('../models/brands');
 const ProductTypes = require('../models/productTypes');
+const ProductReviews = require('../models/productReviews');
 const ProductProductTypes = require('../models/productProductTypes');
 const ProductImages = require('../models/productImages');
 const ProductSections = require('../models/productSections');
@@ -53,8 +54,8 @@ router.get("/", async (req, res) => {
     let sortOption = { created_at: -1 };
     if (sort === "name_asc") sortOption = { name: 1 };
     if (sort === "name_desc") sortOption = { name: -1 };
-    if (sort === "price_asc") sortOption = { price: 1 };
-    if (sort === "price_desc") sortOption = { price: -1 };
+    // if (sort === "price_asc") sortOption = { price: 1 };
+    // if (sort === "price_desc") sortOption = { price: -1 };
 
     const [categories, sections, brands, productTypes] = await Promise.all([
         Categories.find(),
@@ -178,6 +179,15 @@ router.get("/:id/detail", async (req, res) => {
 
     const availableProductTypes = await getAvailableProductTypes(id);
 
+    const reviews = await ProductReviews.find({ product_id: id })
+    .populate('user_id', 'full_name avatar_url')
+    .lean();
+    reviews.forEach(review => {
+        if (!review.user_id.avatar_url) {
+            review.user_id.avatar_url = '/images/default_avatar.png';
+        }
+    });
+
     const formattedProduct = {
         ...product.toObject(),
         category_id: product.category_id._id,
@@ -196,10 +206,11 @@ router.get("/:id/detail", async (req, res) => {
         sections: productSections,
         create_at: product.created_at,
         update_at: product.updated_at,
+        reviews: reviews,
     };
+
     res.render("products/detail", {
         product: formattedProduct,
-
     });
 });
 

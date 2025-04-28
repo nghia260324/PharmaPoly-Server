@@ -2030,13 +2030,22 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
             });
         }
 
+        // if (rating !== undefined) {
+        //     const allReviews = await ProductReviews.find({ product_id: product._id, _id: { $ne: id } });
+        //     const totalRating = allReviews.reduce((sum, r) => sum + Number(r.rating), 0) + Number(rating);
+        //     const newAverageRating = totalRating / (allReviews.length + 1);
+        //     product.average_rating = parseFloat(newAverageRating.toFixed(2));
+        //     await product.save();
+        // }
         if (rating !== undefined) {
             const allReviews = await ProductReviews.find({ product_id: product._id, _id: { $ne: id } });
             const totalRating = allReviews.reduce((sum, r) => sum + Number(r.rating), 0) + Number(rating);
+        
             const newAverageRating = totalRating / (allReviews.length + 1);
-            product.average_rating = parseFloat(newAverageRating.toFixed(2));
+            product.average_rating = parseFloat(newAverageRating.toFixed(1));
             await product.save();
         }
+        
 
         if (review !== undefined) {
             existingReview.review = review;
@@ -2048,13 +2057,21 @@ router.put('/product-review/update/:id', authenticateToken, async (req, res) => 
 
         await existingReview.save();
 
+        // const allReviews = await ProductReviews.find({ product_id: product._id });
+        // const totalRating = allReviews.reduce((sum, r) => sum + Number(r.rating), 0);
+        // const averageRating = totalRating / allReviews.length;
+
+        // product.review_count = allReviews.length;
+        // product.average_rating = parseFloat((Math.round(averageRating * 2) / 2).toFixed(2));
+        // await product.save();
+        
         const allReviews = await ProductReviews.find({ product_id: product._id });
         const totalRating = allReviews.reduce((sum, r) => sum + Number(r.rating), 0);
         const averageRating = totalRating / allReviews.length;
-
         product.review_count = allReviews.length;
-        product.average_rating = parseFloat((Math.round(averageRating * 2) / 2).toFixed(2));
+        product.average_rating = parseFloat(averageRating.toFixed(1));
         await product.save();
+
 
         return res.status(200).json({
             status: 200,
@@ -3482,8 +3499,92 @@ router.get("/wards", authenticateToken, async (req, res) => {
     }
 });
 
-const users = require('../public/users.json');
 
+
+
+
+
+
+
+function generateBatchNumber(importDate) {
+    const prefix = 'LOT';
+    const year = importDate.getFullYear();
+    const month = String(importDate.getMonth() + 1).padStart(2, '0');
+    const day = String(importDate.getDate()).padStart(2, '0');
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+
+    return `${prefix}-${year}${month}${day}-${randomNum}`;
+}
+
+function randomImportDate() {
+    const month = randomInt(1, 3); // Tháng 1 -> 3
+    const day = randomInt(1, 25); // Ngày 1 -> 25
+    return new Date(2025, month - 1, day); // JS month tính từ 0
+}
+
+function randomExpiryDate(importDate) {
+    const importMonth = importDate.getMonth() + 1; // lấy month chuẩn (1-12)
+    const importYear = importDate.getFullYear();
+
+    // Random cộng thêm từ 6 đến 12 tháng
+    const addMonths = randomInt(6, 12);
+    let expiryMonth = importMonth + addMonths;
+    let expiryYear = importYear;
+
+    if (expiryMonth > 12) {
+        expiryMonth = expiryMonth % 12;
+        expiryYear += 1;
+    }
+
+    return new Date(expiryYear, expiryMonth - 1, 1); // ngày 1
+}
+function randomQuantity(min, max, step) {
+    const steps = Math.floor((max - min) / step);
+    const randomStep = randomInt(0, steps);
+    return min + randomStep * step;
+}
+
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+async function createStockEntries() {
+    const productTypes = await ProductProductTypes.find({});
+
+    for (const productType of productTypes) {
+        const importDate = randomImportDate();
+        const expiryDate = randomExpiryDate(importDate);
+
+        const rawImportPrice = productType.price * 2 / 3;
+        const importPrice = Math.round(rawImportPrice / 1000) * 1000;
+        const quantity = randomQuantity(100, 200, 10);
+
+        const stockEntry = new StockEntries({
+            batch_number: generateBatchNumber(importDate), // Pass importDate vào
+            product_product_type_id: productType._id,
+            import_price: importPrice,
+            quantity: quantity,
+            remaining_quantity: quantity,
+            import_date: importDate,
+            expiry_date: expiryDate,
+            status: 'active'
+        });
+
+        await stockEntry.save();
+        console.log(`Created stock entry for productProductType ${productType._id}`);
+    }
+}
+
+// createStockEntries();
+
+
+
+
+
+
+
+
+
+const users = require('../public/users.json');
 
 
 
@@ -3749,55 +3850,212 @@ function generateRandomCode(length = 6) {
 }
 
 
-async function createFakeOrders() {
-    const productTypes = await ProductProductTypes.find(); // chứa product_id
+
+
+// async function createFakeOrders() {
+//     const excludedProductIds = [
+//         '67d5b1827cb752057ff5007b', // ví dụ product_id loại trừ
+//         '67d5b4647cb752057ff5011f',
+//         '67d5b3a67cb752057ff500fa',
+//         '67d5b24c7cb752057ff500a8',
+//         '67d5b2e97cb752057ff500cd',
+//         // thêm id khác nếu muốn
+//     ];
+//     const productTypes = await ProductProductTypes.find(); // chứa product_id
+//     const stockEntries = await StockEntries.find();
+
+//     // ✅ Nhóm các loại theo sản phẩm
+//     const typesByProduct = {};
+//     for (const type of productTypes) {
+//         if (excludedProductIds.includes(type.product_id.toString())) continue;
+//         // chỉ giữ loại có trong tồn kho
+//         const hasStock = stockEntries.find(se =>
+//             se.product_product_type_id &&
+//             se.product_product_type_id.equals(type._id)
+//         );
+//         if (!hasStock) continue;
+
+//         const productId = type.product_id.toString();
+//         if (!typesByProduct[productId]) typesByProduct[productId] = [];
+//         typesByProduct[productId].push({ type, stock: hasStock });
+//     }
+
+//     const validProducts = Object.entries(typesByProduct); // [ [productId, [{type, stock}, ...]], ... ]
+
+//     // let i = 0;
+//     for (const user of users) {
+//         // i++;
+//         // if (i === 3) break;
+
+//         const phone_number = "+84" + user.phone_number.substring(1);
+//         const foundUser = await Users.findOne({ phone_number });
+//         if (!foundUser) continue;
+
+
+//         const address = await UserAddress.findOne({ user_id: foundUser._id });
+//         if (!address) continue;
+
+//         const shipping_fee = await calculateShippingFee(address.district_id, address.ward_id);
+
+
+//         const numOrders = Math.floor(Math.random() * 3) + 3; // 3–5 đơn
+//         console.log(`\n👤 User: ${user.full_name} — ${numOrders} đơn hàng`);
+
+//         for (let o = 0; o < numOrders; o++) {
+//             // const delivered_at = getRandomDateWithin6Months();
+//             // const created_at = new Date(delivered_at);
+//             // created_at.setDate(created_at.getDate() - (Math.floor(Math.random() * 2) + 3));
+//             // //const payment_method = Math.random() > 0.5 ? 'COD' : 'ONLINE';
+//             // const payment_method = 'COD';
+
+//             //const shipping_fee = await calculateShippingFee(address.district_id, address.ward_id);
+
+//             const stockEntry = stockEntries.find(se => se.product_product_type_id.equals(type._id)); // lấy kho của loại sản phẩm này
+//             const importDate = new Date(stockEntry.import_date); // ngày nhập hàng
+        
+//             // Tính ngày tạo đơn ngẫu nhiên trong khoảng 1 tháng sau đến 3 tháng sau ngày nhập hàng
+//             const created_at = new Date(importDate);
+//             const daysToAdd = Math.floor(Math.random() * (60 - 30)) + 30; // Random từ 30 đến 60 ngày (1 - 2 tháng)
+//             created_at.setDate(created_at.getDate() + daysToAdd);
+        
+//             // Tính ngày giao hàng ngẫu nhiên (2-3 ngày sau ngày tạo đơn)
+//             const delivered_at = new Date(created_at);
+//             const daysToAddForDelivery = Math.floor(Math.random() * 2) + 2; // Random từ 2 đến 3 ngày
+//             delivered_at.setDate(delivered_at.getDate() + daysToAddForDelivery);
+        
+//             const payment_method = 'COD';
+    
+
+//             const order = new Orders({
+//                 user_id: foundUser._id,
+//                 order_code: generateRandomCode(),
+//                 to_name: user.full_name,
+//                 to_phone: phone_number,
+//                 to_address: address.street_address,
+//                 to_district_id: address.district_id,
+//                 to_ward_code: address.ward_id,
+//                 payment_method,
+//                 shipping_fee,
+//                 total_price: 0,
+//                 status: 'delivered',
+//                 payment_status: 'paid',
+//                 delivered_at,
+//                 created_at
+//             });
+
+
+//             const selectedItems = [];
+//             const usedProductIds = new Set();
+
+//             const numItems = Math.floor(Math.random() * 5) + 1;
+
+//             while (selectedItems.length < numItems && usedProductIds.size < validProducts.length) {
+//                 const [productId, typesArray] = validProducts[Math.floor(Math.random() * validProducts.length)];
+//                 if (usedProductIds.has(productId)) continue;
+//                 usedProductIds.add(productId);
+
+//                 // chọn ngẫu nhiên 1 loại của sản phẩm
+//                 const { type, stock } = typesArray[Math.floor(Math.random() * typesArray.length)];
+
+//                 const quantity = Math.floor(Math.random() * 3) + 1;
+
+//                 selectedItems.push({
+//                     product_product_type_id: type._id,
+//                     batch_number: stock.batch_number,
+//                     quantity,
+//                     price: type.price,
+//                     created_at
+//                 });
+//                 order.total_price += quantity * type.price;
+//                 stock.remaining_quantity -= quantity;
+//                 await stock.save();
+//             }
+
+//             if (selectedItems.length > 0) {
+//                 order.total_price += shipping_fee;
+
+//                 try {
+//                     await order.save();
+//                     for (const item of selectedItems) {
+//                         await OrderItems.create({ order_id: order._id, ...item });
+//                     }
+//                     console.log(`✅ Đã tạo đơn cho ${user.full_name}`);
+//                 } catch (err) {
+//                     console.error(`❌ Lỗi khi tạo đơn cho ${user.full_name}:`, err.message);
+//                 }
+
+//             }
+//         }
+//     }
+// }
+
+
+async function createFakeOrdersV2() {
+    const excludedProductIds = [
+        '67d5b1827cb752057ff5007b',
+        '67d5b4647cb752057ff5011f',
+        '67d5b3a67cb752057ff500fa',
+        '67d5b24c7cb752057ff500a8',
+        '67d5b2e97cb752057ff500cd',
+    ];
+
+    const productTypes = await ProductProductTypes.find();
     const stockEntries = await StockEntries.find();
 
-    // ✅ Nhóm các loại theo sản phẩm
     const typesByProduct = {};
+
     for (const type of productTypes) {
-        // chỉ giữ loại có trong tồn kho
-        const hasStock = stockEntries.find(se =>
+        const productId = type.product_id.toString();
+        if (excludedProductIds.includes(productId)) continue;
+
+        const stock = stockEntries.find(se =>
             se.product_product_type_id &&
             se.product_product_type_id.equals(type._id)
         );
-        if (!hasStock) continue;
+        if (!stock) continue;
 
-        const productId = type.product_id.toString();
         if (!typesByProduct[productId]) typesByProduct[productId] = [];
-        typesByProduct[productId].push({ type, stock: hasStock });
+        typesByProduct[productId].push({ type, stock });
     }
 
-    const validProducts = Object.entries(typesByProduct); // [ [productId, [{type, stock}, ...]], ... ]
+    const validProducts = Object.entries(typesByProduct); // [ [productId, [{type, stock}...]], ...]
 
-    // let i = 0;
     for (const user of users) {
-        // i++;
-        // if (i === 3) break;
-
         const phone_number = "+84" + user.phone_number.substring(1);
         const foundUser = await Users.findOne({ phone_number });
         if (!foundUser) continue;
-
 
         const address = await UserAddress.findOne({ user_id: foundUser._id });
         if (!address) continue;
 
         const shipping_fee = await calculateShippingFee(address.district_id, address.ward_id);
 
-
         const numOrders = Math.floor(Math.random() * 3) + 3; // 3–5 đơn
+
         console.log(`\n👤 User: ${user.full_name} — ${numOrders} đơn hàng`);
 
-        for (let o = 0; o < numOrders; o++) {
-            const delivered_at = getRandomDateWithin6Months();
-            const created_at = new Date(delivered_at);
-            created_at.setDate(created_at.getDate() - (Math.floor(Math.random() * 2) + 3));
-            //const payment_method = Math.random() > 0.5 ? 'COD' : 'ONLINE';
+        for (let i = 0; i < numOrders; i++) {
+            // Chọn random 1 stock entry để lấy ngày nhập làm mốc
+            const randomProduct = validProducts[Math.floor(Math.random() * validProducts.length)];
+            const randomTypeStock = randomProduct[1][Math.floor(Math.random() * randomProduct[1].length)];
+            const importDate = new Date(randomTypeStock.stock.import_date);
+
+            let created_at = new Date(importDate);
+            const now = new Date('2025-04-01');
+            const minCreatedDate = new Date(importDate);
+            minCreatedDate.setDate(minCreatedDate.getDate() + 7); // ít nhất 7 ngày sau ngày nhập
+            const maxCreatedDate = now;
+
+            if (minCreatedDate >= maxCreatedDate) continue; // Không hợp lệ
+
+            const diffDays = Math.floor((maxCreatedDate - minCreatedDate) / (1000 * 60 * 60 * 24));
+            const randomDays = Math.floor(Math.random() * diffDays);
+            created_at.setDate(minCreatedDate.getDate() + randomDays);
+
+            const delivered_at = new Date(created_at);
+            delivered_at.setDate(delivered_at.getDate() + (Math.floor(Math.random() * 2) + 2)); // +2~3 ngày
+
             const payment_method = 'COD';
-
-            //const shipping_fee = await calculateShippingFee(address.district_id, address.ward_id);
-
 
             const order = new Orders({
                 user_id: foundUser._id,
@@ -3816,43 +4074,38 @@ async function createFakeOrders() {
                 created_at
             });
 
-
             const selectedItems = [];
             const usedProductIds = new Set();
 
-            const numItems = Math.floor(Math.random() * 5) + 1;
+            const numItems = Math.floor(Math.random() * 2) + 1; // 1-2 sản phẩm
 
             while (selectedItems.length < numItems && usedProductIds.size < validProducts.length) {
                 const [productId, typesArray] = validProducts[Math.floor(Math.random() * validProducts.length)];
                 if (usedProductIds.has(productId)) continue;
                 usedProductIds.add(productId);
 
-                // chọn ngẫu nhiên 1 loại của sản phẩm
                 const { type, stock } = typesArray[Math.floor(Math.random() * typesArray.length)];
 
-                const quantity = Math.floor(Math.random() * 3) + 1;
+                const quantity = Math.floor(Math.random() * 3) + 1; // 1–3 cái
+
+                if (stock.remaining_quantity < quantity) continue; // Nếu không đủ tồn thì bỏ qua
 
                 selectedItems.push({
                     product_product_type_id: type._id,
                     batch_number: stock.batch_number,
                     quantity,
-                    price: type.price
+                    price: type.price,
+                    created_at
                 });
 
                 order.total_price += quantity * type.price;
+                stock.remaining_quantity -= quantity;
+                await stock.save();
             }
 
             if (selectedItems.length > 0) {
                 order.total_price += shipping_fee;
-                // console.log(`\n📦 Đơn hàng #${o + 1} của ${user.full_name}`);
-                // console.log(`Ngày: ${order.created_at}`);
-                // console.log(`Sản phẩm (${selectedItems.length}):`);
-                // selectedItems.forEach(item => {
-                //     console.log(`  - ID: ${item.product_product_type_id} | SL: ${item.quantity} | Giá: ${item.price}`);
-                // });
-                // console.log(`➡️ Tổng: ${order.total_price}đ (đã gồm phí ship: ${order.shipping_fee})`);
 
-                // ✅ Ghi DB
                 try {
                     await order.save();
                     for (const item of selectedItems) {
@@ -3862,11 +4115,141 @@ async function createFakeOrders() {
                 } catch (err) {
                     console.error(`❌ Lỗi khi tạo đơn cho ${user.full_name}:`, err.message);
                 }
-
             }
         }
     }
 }
+// createFakeOrdersV2();
+
+
+
+
+
+
+async function createProductReviews() {
+    const products = await Products.find();
+
+    const reviewMessages = [
+        "Sản phẩm tuyệt vời, tôi rất hài lòng!",
+        "Chất lượng vượt xa mong đợi, sẽ mua lại!",
+        "Dễ sử dụng và hiệu quả ngay từ lần đầu.",
+        "Tốt hơn tôi tưởng, đáng đồng tiền bát gạo.",
+        "Giao hàng nhanh chóng, sản phẩm đúng như mô tả.",
+        "Giá cả hợp lý, chất lượng tuyệt vời.",
+        "Đã sử dụng và rất hài lòng, chắc chắn sẽ giới thiệu cho bạn bè.",
+        "Sản phẩm đúng như mô tả, tôi hài lòng với lựa chọn này.",
+        "Mới dùng thử nhưng thấy khá ổn.",
+        "Đã sử dụng lâu dài, không có vấn đề gì, rất tốt!",
+        "Hơi thất vọng về chất lượng, mong nhà sản xuất cải thiện.",
+        "Tuyệt vời! Tôi sẽ tiếp tục mua sản phẩm này.",
+        "Đáng giá từng đồng, sẽ quay lại khi cần thêm.",
+        "Sản phẩm làm đúng như quảng cáo.",
+        "Được bạn bè giới thiệu, rất hài lòng.",
+        "Không có gì để phàn nàn, rất hài lòng với sản phẩm này.",
+        "Sản phẩm giúp tôi tiết kiệm thời gian rất nhiều.",
+        "Chất lượng ổn nhưng có một vài điểm cần cải thiện.",
+        "Sản phẩm như ý, sẽ mua thêm.",
+        "Rất ấn tượng với sản phẩm này, sẽ mua thêm khi hết.",
+        "Không có gì đặc biệt nhưng cũng không tệ.",
+        "Hàng xịn, chắc chắn sẽ giới thiệu cho người thân.",
+        "Sản phẩm quá tốt, đã sử dụng lâu dài mà vẫn chưa có vấn đề.",
+        "Dễ sử dụng, mang lại hiệu quả rõ rệt.",
+        "Tôi rất hài lòng với sản phẩm này, đáng để đầu tư.",
+        "Chất lượng sản phẩm rất tốt, giá lại hợp lý.",
+        "Sản phẩm ổn, không có gì đặc biệt nhưng cũng không có điểm trừ.",
+        "Mới dùng nhưng thấy rất hiệu quả.",
+        "Giá hơi cao nhưng xứng đáng với chất lượng.",
+        "Hài lòng với sự lựa chọn của mình, chắc chắn sẽ quay lại.",
+        "Chưa thấy hiệu quả ngay nhưng hy vọng sẽ tốt sau một thời gian.",
+        "Mua để thử, nhưng cảm thấy khá ưng ý.",
+        "Sản phẩm này rất tiện lợi, tôi sẽ tiếp tục sử dụng.",
+        "Giao hàng nhanh, sản phẩm đúng như miêu tả.",
+        "Sản phẩm rất bền, sẽ mua lại nếu cần.",
+        "Khá ổn nhưng vẫn có thể cải thiện thêm.",
+        "Rất thích, sẽ mua thêm khi có dịp.",
+        "Chất lượng sản phẩm không như kỳ vọng.",
+        "Dùng được, nhưng chưa thực sự ấn tượng.",
+        "Mới sử dụng vài lần nhưng thấy hiệu quả rất rõ rệt.",
+        "Chất lượng sản phẩm rất tốt, không có gì để chê.",
+        "Sản phẩm phù hợp với giá tiền.",
+        "Không thích lắm nhưng vẫn chấp nhận được.",
+        "Sản phẩm chất lượng tốt, dễ sử dụng.",
+        "Sản phẩm này rất tiện lợi, tôi thích nó!",
+        "Chất lượng tốt nhưng giá hơi cao.",
+        "Đã mua nhiều lần và luôn hài lòng.",
+        "Sản phẩm này tôi sử dụng liên tục, rất ổn.",
+        "Giá hợp lý, chất lượng tuyệt vời!",
+        "Rất đáng tiền, sản phẩm vượt ngoài mong đợi."
+    ];
+
+    for (const user of users) {
+        const phone_number = "+84" + user.phone_number.substring(1);
+        const foundUser = await Users.findOne({ phone_number });
+
+        console.log(`👤 User: ${foundUser.full_name} đang tạo đánh giá`);
+
+        // Chọn ngẫu nhiên 10 sản phẩm để đánh giá
+        const selectedProducts = [];
+        const usedProductIds = new Set();
+
+        while (selectedProducts.length < 10 && usedProductIds.size < products.length) {
+            const product = products[Math.floor(Math.random() * products.length)];
+            if (usedProductIds.has(product._id.toString())) continue;
+            usedProductIds.add(product._id.toString());
+
+            selectedProducts.push(product);
+        }
+
+        for (const product of selectedProducts) {
+            const rating = Math.floor(Math.random() * 3) + 3; // Random từ 3 đến 5 sao
+            const review = reviewMessages[Math.floor(Math.random() * reviewMessages.length)]; // Chọn ngẫu nhiên câu đánh giá
+
+            const productReview = new ProductReviews({
+                user_id: foundUser._id,
+                product_id: product._id,
+                rating: rating.toString(),
+                review
+            });
+
+            try {
+                await productReview.save();
+                await updateProductRating(product._id);
+                console.log(`✅ Đã tạo đánh giá cho sản phẩm ${product.name} của ${foundUser.full_name}`);
+            } catch (err) {
+                console.error(`❌ Lỗi khi tạo đánh giá cho sản phẩm ${product.name} của ${foundUser.full_name}:`, err.message);
+            }
+        }
+    }
+}
+
+async function updateProductRating(productId) {
+    const product = await Products.findById(productId);
+    const reviews = await ProductReviews.find({ product_id: productId });
+
+    const reviewCount = reviews.length;
+    const averageRating = reviews.reduce((sum, review) => sum + parseFloat(review.rating), 0) / reviewCount;
+
+    product.review_count = reviewCount;
+    product.average_rating = parseFloat(averageRating.toFixed(1)); // Làm tròn đến 1 chữ số thập phân
+
+    await product.save();
+    console.log(`✅ Đã cập nhật review_count và average_rating cho sản phẩm ${product.name}`);
+}
+
+
+// createProductReviews();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 async function createFakeCanceledOrders() {
@@ -3964,6 +4347,21 @@ async function createFakeCanceledOrders() {
 
 
 
+function normalizeText(text) {
+    return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+}
+async function migrateNormalizedName() {
+    const products = await Products.find({});
+    for (const product of products) {
+        product.normalized_name = normalizeText(product.name);
+        await product.save();
+    }
+    console.log('Migration completed!');
+}
 
 // createFakeCanceledOrders();
 
