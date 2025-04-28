@@ -8,7 +8,7 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
-cron.schedule("*/2 * * * *", async () => {
+cron.schedule("* * * * *", async () => {
     try {
         const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
@@ -24,7 +24,13 @@ cron.schedule("*/2 * * * *", async () => {
 
         await Orders.updateMany(
             { _id: { $in: orderIds } },
-            { status: "canceled", payment_status: "failed" }
+            {
+                $set: {
+                    status: "canceled",
+                    payment_status: "failed",
+                    updated_at: new Date()
+                }
+            }
         );
 
         console.log(`✅ Canceled ${orders.length} unpaid online orders.`);

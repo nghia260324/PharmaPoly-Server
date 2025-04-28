@@ -546,7 +546,7 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
                         product_product_type_id: item.product_product_type_id,
                         status: 'active',
                         remaining_quantity: { $gt: 0 },
-                        expiry_date: { $gt: new Date() }
+                        ...(product.expiry_date ? { expiry_date: { $gte: new Date() } } : {})
                     }).limit(1);
                     itemStatus = validStock.length > 0 ? 'active' : 'out_of_stock';
                     break;
@@ -2264,7 +2264,6 @@ router.post('/cart-item/update', authenticateToken, async (req, res) => {
         await cartItem.save();
 
 
-
         const cartItems = await CartItems.find({ cart_id: cart._id });
         cart.total_items = cartItems.length;
         await cart.save();
@@ -2323,92 +2322,6 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
     }
 });
 
-
-
-
-
-// router.get('/search', authenticateToken, async (req, res) => {
-//     try {
-//         let { keyword, order = 'asc' } = req.query;
-
-//         if (!keyword) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: 'Missing required field: keyword'
-//             });
-//         }
-
-//         const normalizedKeyword = removeDiacritics(keyword.toLocaleLowerCase());
-//         const words = normalizedKeyword.trim().split(/\s+/);
-
-//         let query = {};
-//         query.normalized_name = { $regex: normalizedKeyword };
-//         const sortOrder = order === 'desc' ? -1 : 1;
-//         let sortOption = { price: sortOrder };
-
-//         // let products = await Products.find()
-//         //     .populate({ path: 'category_id', select: '_id name' })
-//         //     .populate({ path: 'brand_id', select: '_id name description' })
-//         //     .lean();
-//         const products = await Products.find(query)
-//             .sort(sortOption)
-//             .skip((page - 1) * limit)
-//             .limit(limit)
-//             .lean();
-
-//         let categories = await Categories.find().lean();
-//         let brands = await Brands.find().lean();
-
-//         // let filteredProducts = products.filter(product => {
-//         //     const normalizedName = removeDiacritics(product.name.toLowerCase());
-//         //     return words.every(word => normalizedName.includes(word));
-//         // });
-
-//         // let filteredCategories = categories.filter(category => {
-//         //     const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
-//         //     return words.every(word => normalizedCategoryName.includes(word));
-//         // });
-
-//         // let filteredBrands = brands.filter(brand => {
-//         //     const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
-//         //     return words.every(word => normalizedBrandName.includes(word));
-//         // });
-//         let filteredProducts = products.filter(product => {
-//             const normalizedProductName = product.normalized_name.toLowerCase();
-//             return words.every(word => normalizedProductName.includes(word));
-//         });
-
-//         let filteredCategories = categories.filter(category => {
-//             const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
-//             return words.every(word => normalizedCategoryName.includes(word));
-//         });
-
-//         let filteredBrands = brands.filter(brand => {
-//             const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
-//             return words.every(word => normalizedBrandName.includes(word));
-//         });
-
-//         // const sortOrder = order === 'desc' ? -1 : 1;
-//         // filteredProducts.sort((a, b) => (a.price - b.price) * sortOrder);
-
-//         const formattedProducts = await Promise.all(filteredProducts.map(p => getProductDetails(p._id)));
-//         return res.status(200).json({
-//             status: 200,
-//             message: 'Search completed successfully!',
-//             data: {
-//                 products: formattedProducts,
-//                 categories: filteredCategories,
-//                 brands: filteredBrands
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error("Search error:", error);
-//         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-//     }
-// });
-
-
 router.get('/search', authenticateToken, async (req, res) => {
     try {
         let { keyword, order = 'asc', page = 1, limit = 10 } = req.query;
@@ -2432,7 +2345,6 @@ router.get('/search', authenticateToken, async (req, res) => {
         const sortOrder = order === 'desc' ? -1 : 1;
         const sortOption = { price: sortOrder };
 
-        // Lấy sản phẩm
         const products = await Products.find({
             $and: words.map(word => ({
                 normalized_name: { $regex: word, $options: 'i' }
@@ -2446,7 +2358,6 @@ router.get('/search', authenticateToken, async (req, res) => {
 
         const totalProducts = products.length;
 
-        // Lọc lại sản phẩm theo từng từ
         const filteredProducts = products.filter(product => {
             const normalizedProductName = product.normalized_name.toLowerCase();
             return words.every(word => normalizedProductName.includes(word));
@@ -2455,14 +2366,12 @@ router.get('/search', authenticateToken, async (req, res) => {
         const totalFiltered = filteredProducts.length;
         const totalPages = Math.ceil(totalFiltered / limitNumber);
 
-        // Lấy trang hiện tại
         const paginatedProducts = filteredProducts.slice(skip, skip + limitNumber);
 
         const formattedProducts = await Promise.all(
             paginatedProducts.map(p => getProductDetails(p._id))
         );
 
-        // Lấy thêm categories và brands
         const categories = await Categories.find().lean();
         const brands = await Brands.find().lean();
 
@@ -2494,187 +2403,6 @@ router.get('/search', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error("Search error:", error);
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
-    }
-});
-
-
-
-
-
-router.get("/products/discounted", async (req, res) => {
-    try {
-        let { page = 1, limit = 10 } = req.query;
-        const pageNumber = parseInt(page);
-        let limitNumber = parseInt(limit);
-        if (limitNumber > 20) limitNumber = 20;
-        const skip = (pageNumber - 1) * limitNumber;
-
-        const activeDiscounts = await DiscountCodes.find({
-            start_date: { $lte: new Date() },
-            end_date: { $gte: new Date() },
-            type: { $ne: "free_shipping" }
-        }).lean();
-
-        const productIds = new Set();
-        const categoryIds = new Set();
-        const brandIds = new Set();
-
-        activeDiscounts.forEach(discount => {
-            if (discount.applies_to === "product") {
-                discount.target_ids.forEach(id => productIds.add(id.toString()));
-            }
-            if (discount.applies_to === "category") {
-                discount.target_ids.forEach(id => categoryIds.add(id.toString()));
-            }
-            if (discount.applies_to === "brand") {
-                discount.target_ids.forEach(id => brandIds.add(id.toString()));
-            }
-            if (discount.applies_to === "all") {
-                productIds.clear();
-                categoryIds.clear();
-                brandIds.clear();
-            }
-        });
-
-        let productFilter = {};
-        if (productIds.size) {
-            productFilter._id = { $in: [...productIds] };
-        }
-        if (categoryIds.size) {
-            productFilter.category_id = { $in: [...categoryIds] };
-        }
-        if (brandIds.size) {
-            productFilter.brand_id = { $in: [...brandIds] };
-        }
-
-        const products = await Products.find(productFilter)
-            .sort({ updatedAt: -1 })
-            .skip(skip)
-            .limit(limitNumber)
-            .populate("category_id", "_id name")
-            .populate("brand_id", "_id name description")
-            .populate("product_type_id", "_id name")
-            .lean();
-
-        const totalProducts = await Products.countDocuments(productFilter);
-        const totalPages = Math.ceil(totalProducts / limitNumber);
-
-        const productIdsArray = products.map(p => p._id);
-        const primaryImages = await ProductImages.find({
-            product_id: { $in: productIdsArray },
-            is_primary: true
-        }).lean();
-
-        const imageMap = primaryImages.reduce((acc, img) => {
-            acc[img.product_id] = img;
-            return acc;
-        }, {});
-
-        const validProducts = [];
-        for (const product of products) {
-            const discount = activeDiscounts.find(d =>
-                d.applies_to === "all" ||
-                (d.applies_to === "product" && productIds.has(product._id.toString())) ||
-                (d.applies_to === "category" && categoryIds.has(product.category_id.toString())) ||
-                (d.applies_to === "brand" && brandIds.has(product.brand_id.toString()))
-            );
-
-            if (!discount) continue;
-
-            const conditions = await DiscountConditions.find({ discount_id: discount._id }).lean();
-            let isValid = true;
-
-            for (const condition of conditions) {
-                if (condition.condition_key === "excluded_products" && condition.value.includes(product._id.toString())) {
-                    isValid = false;
-                    break;
-                }
-                if (condition.condition_key === "excluded_categories" && condition.value.includes(product.category_id.toString())) {
-                    isValid = false;
-                    break;
-                }
-                if (condition.condition_key === "excluded_brands" && condition.value.includes(product.brand_id.toString())) {
-                    isValid = false;
-                    break;
-                }
-                if (condition.condition_key === "day_of_week") {
-                    const today = new Date().toLocaleString("en-US", { weekday: "long" }).toLowerCase();
-                    if (!condition.value.includes(today)) {
-                        isValid = false;
-                        break;
-                    }
-                }
-                if (condition.condition_key === "specific_hour_range") {
-                    const now = new Date();
-                    const currentHour = now.getHours();
-                    const fromHour = parseInt(condition.value.from.split(":")[0], 10);
-                    const toHour = parseInt(condition.value.to.split(":")[0], 10);
-                    if (currentHour < fromHour || currentHour >= toHour) {
-                        isValid = false;
-                        break;
-                    }
-                }
-            }
-
-            if (isValid) {
-
-                let discountedPrice = product.price;
-
-                if (discount && typeof product.price === "number") {
-                    if (discount.type === "percent" && typeof discount.value === "number") {
-                        discountedPrice = product.price * (1 - discount.value / 100);
-                    } else if (discount.type === "fixed" && typeof discount.value === "number") {
-                        discountedPrice = Math.max(0, product.price - discount.value);
-                    }
-                }
-
-
-                discountedPrice = Math.round(discountedPrice);
-
-                validProducts.push({
-                    _id: product._id,
-                    name: product.name,
-                    description: product.description,
-                    price: product.price,
-                    discounted_price: discountedPrice,
-                    discount_code: {
-                        _id: discount._id,
-                        code: discount.code,
-                        type: discount.type,
-                        value: discount.value,
-                        applies_to: discount.applies_to,
-                        start_date: discount.start_date,
-                        end_date: discount.end_date,
-                        usage_limit: discount.usage_limit || null,
-                    },
-                    average_rating: product.average_rating,
-                    category_id: product.category_id._id,
-                    brand_id: product.brand_id._id,
-                    product_type_id: product.product_type_id._id,
-                    category: product.category_id,
-                    brand: product.brand_id,
-                    product_type: product.product_type_id,
-                    images: imageMap[product._id] ? [imageMap[product._id]] : []
-                });
-            }
-        }
-
-        return res.status(200).json({
-            status: 200,
-            message: "Get Discounted Products Success!",
-            data: {
-                currentPage: pageNumber,
-                totalPages,
-                totalProducts: validProducts.length,
-                hasNextPage: pageNumber < totalPages,
-                hasPrevPage: pageNumber > 1,
-                data: validProducts
-            }
-        });
-
-    } catch (error) {
-        console.error("Error fetching discounted products:", error);
-        return res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 });
 
@@ -2885,8 +2613,6 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             return res.status(400).json({ status: 400, message: "Một số sản phẩm trong giỏ hàng không hợp lệ" });
         }
 
-
-
         const shipping_fee = await calculateShippingFee(to_district_id, to_ward_code);
         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
         const total_price = totalItemPrice + shipping_fee;
@@ -2913,12 +2639,16 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         const orderItems = [];
         for (const item of cartItems) {
-            const stockEntry = await StockEntries.findOne({
+            const stockEntryQuery = {
                 product_product_type_id: item.product_product_type_id._id,
                 status: 'active',
-                expiry_date: { $gte: new Date() }
-            }).sort({ import_date: 1 });
-
+            };
+        
+            if (item.productType.product.expiry_date) {
+                stockEntryQuery.expiry_date = { $gte: new Date() };
+            }
+        
+            const stockEntry = await StockEntries.findOne(stockEntryQuery).sort({ import_date: 1 });
 
             if (!stockEntry) {
                 return res.status(400).json({
