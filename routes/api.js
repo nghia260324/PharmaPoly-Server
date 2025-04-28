@@ -2479,10 +2479,10 @@ router.get('/search', authenticateToken, async (req, res) => {
         //     .populate({ path: 'brand_id', select: '_id name description' })
         //     .lean();
         const products = await Products.find(query)
-        .sort(sortOption)
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean();
+            .sort(sortOption)
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
 
         let categories = await Categories.find().lean();
         let brands = await Brands.find().lean();
@@ -2887,18 +2887,14 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         const { payment_method, cart_item_ids } = req.body;
         const user_id = req.user_id;
 
-        if (!user_id) {
-            return res.status(401).json({ status: 401, message: "Unauthorized" });
-        }
-
         const user = await Users.findById(user_id);
         if (!user) {
-            return res.status(404).json({ status: 404, message: "User not found" });
+            return res.status(404).json({ status: 404, message: "Không tìm thấy người dùng" });
         }
 
         const userAddress = await UserAddress.findOne({ user_id });
         if (!userAddress) {
-            return res.status(404).json({ status: 404, message: "User address not found" });
+            return res.status(404).json({ status: 404, message: "Không tìm thấy địa chỉ giao hàng" });
         }
 
         const to_name = user.full_name;
@@ -2909,12 +2905,12 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
 
         if (!to_name || !to_phone || !to_address || !to_district_id || !to_ward_code || !payment_method || !cart_item_ids || cart_item_ids.length === 0) {
-            return res.status(400).json({ status: 400, message: "Missing required fields" });
+            return res.status(400).json({ status: 400, message: "Thiếu thông tin cần thiết" });
         }
 
         const validPaymentMethods = ["COD", "ONLINE"];
         if (!validPaymentMethods.includes(payment_method)) {
-            return res.status(400).json({ status: 400, message: "Invalid payment method" });
+            return res.status(400).json({ status: 400, message: "Phương thức thanh toán không hợp lệ" });
         }
 
         const cartItems = await CartItems.find({ _id: { $in: cart_item_ids } })
@@ -2925,7 +2921,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             .lean();
 
         if (cartItems.length !== cart_item_ids.length) {
-            return res.status(400).json({ status: 400, message: "Some cart items are invalid" });
+            return res.status(400).json({ status: 400, message: "Một số sản phẩm trong giỏ hàng không hợp lệ" });
         }
 
 
@@ -2966,7 +2962,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             if (!stockEntry) {
                 return res.status(400).json({
                     status: 400,
-                    message: `No active stock available for product ${item.product_id}`
+                    message: `Không có tồn kho khả dụng cho sản phẩm ${item.product_id}`
                 });
             }
 
@@ -2996,17 +2992,20 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
 
         return res.status(200).json({
             status: 200,
-            message: "Order created successfully",
-            data: qrCodeUrl,
+            message: "Tạo đơn hàng thành công",
+            data: {
+                order_id: newOrder._id,
+                qr_code_url: qrCodeUrl
+            }
         });
 
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        console.error("Error creating order:", error);
+        console.error("Lỗi khi tạo đơn hàng:", error);
         return res.status(500).json({
             status: 500,
-            message: "Internal Server Error",
+            message: "Lỗi máy chủ, vui lòng thử lại sau",
             error: error.response?.data || error.message
         });
     }
@@ -3117,68 +3116,6 @@ router.get("/orders/get-payment-qrcode/:order_id", authenticateToken, async (req
         });
     }
 });
-
-
-// router.get("/test/qr", authenticateToken ,(req, res) => {
-//     const amount = req.query.amount; 
-//     const orderId = "67e3bc09f19d55474a9727b1";
-//     const userId = req.user_id;
-
-//     const qrCodeUrl = generateVietQRQuickLink(amount, orderId, userId);
-//     res.json({ status: 200, qr_code: qrCodeUrl });
-// });
-
-// router.post("/orders/payment", authenticateToken, async (req, res) => {
-//     try {
-//         const { payment_method, total_price } = req.body;
-//         const user_id = req.user_id;
-
-//         if (!user_id || !payment_method || !total_price) {
-//             return res.status(400).json({ status: 400, message: "Missing required fields" });
-//         }
-
-//         const paymentUrl = await createPaymentLink(user_id, total_price);
-
-//         res.status(200).json({ status: 200, message: "Payment link generated", data: { paymentUrl } });
-//     } catch (error) {
-//         console.error("Error processing payment:", error);
-//         res.status(500).json({ status: 500, message: "Internal Server Error" });
-//     }
-// });
-// router.post("/orders/payment/callback", async (req, res) => {
-//     try {
-//         const { user_id, payment_status, payment_method, total_price } = req.body;
-
-//         if (payment_status !== "success") {
-//             return res.status(400).json({ status: 400, message: "Payment failed or canceled" });
-//         }
-
-//         const user = await Users.findById(user_id);
-//         if (!user) return res.status(404).json({ status: 404, message: "User not found" });
-
-//         const userAddress = await UserAddress.findOne({ user_id });
-//         if (!userAddress) return res.status(404).json({ status: 404, message: "User address not found" });
-
-//         const order = new Orders({
-//             user_id,
-//             to_name: user.full_name,
-//             to_phone: user.shipping_phone_number,
-//             to_address: userAddress.street_address,
-//             to_district_id: userAddress.district_id,
-//             to_ward_code: userAddress.ward_id,
-//             payment_method,
-//             shipping_fee: await calculateShippingFee(userAddress.district_id, userAddress.ward_id),
-//             total_price
-//         });
-
-//         await order.save();
-//         res.status(200).json({ status: 200, message: "Order created successfully", data: order });
-
-//     } catch (error) {
-//         console.error("Error creating order after payment:", error);
-//         res.status(500).json({ status: 500, message: "Internal Server Error" });
-//     }
-// });
 
 
 router.get("/orders", authenticateToken, async (req, res) => {
@@ -3309,6 +3246,36 @@ router.get("/orders/:id/detail", authenticateToken, async (req, res) => {
     }
 });
 
+router.get('/orders/:id/status', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user_id;
+
+        const order = await Orders.findById(id);
+
+        if (!order) {
+            return res.status(404).json({ status: 404, message: 'Không tìm thấy đơn hàng' });
+        }
+
+        if (order.user_id.toString() !== userId.toString()) {
+            return res.status(403).json({ status: 403, message: 'Bạn không có quyền truy cập đơn hàng này' });
+        }
+
+        const status = order.payment_status;
+
+        return res.json({
+            status: 200,
+            data: {
+                order_id: order._id,
+                payment_status: status,
+            }
+        });
+
+    } catch (error) {
+        console.error("Lỗi khi lấy trạng thái đơn hàng:", error);
+        return res.status(500).json({ status: 500, message: 'Lỗi máy chủ, vui lòng thử lại sau' });
+    }
+});
 
 
 router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
@@ -3337,12 +3304,13 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
             });
         }
 
-        if (order.status === "pending") {
+        if (order.status === "pending" && order.payment_method == "COD") {
             order.status = "canceled";
         } else {
             order.cancel_request = true;
             await db.ref("cancel_requests").set({ _id: order._id.toString(), timestamp: Date.now() });
         }
+
         await order.save();
 
         res.status(200).json({

@@ -104,7 +104,7 @@ app.post('/webhook/ghn', async (req, res) => {
     if (!newStatus) {
       console.log(`GHN status ${data.Status} is not recognized.`);
       return res.status(200).send("Unknown GHN status, ignored");
-    }    
+    }
 
     const order = await Orders.findOne({ order_code: data.OrderCode });
 
@@ -163,9 +163,29 @@ app.post("/webhook/payment", async (req, res) => {
       return res.json({ status: 200, message: "Test transaction received successfully" });
     }
 
+    if (description.startsWith('REFUND')) {
+      const refundMatch = description.match(/REFUND([a-f0-9]{24})END/);
+      if (refundMatch) {
+        const orderId = refundMatch[1];
+        const order = await Orders.findById(orderId);
+        if (!order) {
+          console.log(`Order not found for refund: ${orderId}`);
+          return res.status(200).json({ status: 200, message: "Refund order not found, ignored" });
+        }
+
+        order.payment_status = 'refunded';
+        await order.save();
+
+        console.log(`Refund successful for order ${orderId}`);
+        return res.json({ status: 200, message: "Refund processed successfully" });
+      }
+
+      console.log("Refund pattern not matched");
+      return res.status(200).json({ status: 200, message: "Invalid refund format, ignored" });
+    }
+
     const match = description.match(/OID([a-f0-9]{24})END/);
     if (!match) {
-      console.log(`Invalid transaction format: ${description}`);
       return res.status(200).json({ status: 200, message: "Invalid transaction format, ignored" });
     }
 

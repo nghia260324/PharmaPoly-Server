@@ -12,6 +12,10 @@ const GHN_API = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
 const TOKEN_GHN = process.env.GHN_TOKEN;
 const SHOP_ID = process.env.GHN_SHOP_ID;
 
+const binMap = {
+    "01203001": "970436",
+};
+
 
 router.get("/", async (req, res) => {
     // const { page = 1, limit = 10, search, status, sort } = req.query;
@@ -105,8 +109,6 @@ router.get("/:id/detail", async function (req, res, next) {
             image_url: imageMap[item.product_product_type_id.product_id._id.toString()] || null
         }));
 
-        console.log(orderItemsWithImages);
-
         res.render("orders/detail", {
             order,
             orderItems: orderItemsWithImages,
@@ -116,6 +118,79 @@ router.get("/:id/detail", async function (req, res, next) {
         next(error);
     }
 });
+
+async function getTransactionInfo(transactionId) {
+    const url = `https://script.google.com/macros/s/AKfycbzvTz-hwBcrfK6dpRKu3slToY2gLr2ftlnoB0KuR3xLWJvkeCz4_BcXzDfRy_Qo-ywk/exec?transaction_id=${transactionId}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.error) {
+        throw new Error(data.message || "Failed to fetch transaction data");
+    }
+    getBankFromVietQR(data.data['Mã BIN ngân hàng đối ứng']);
+    return data;
+}
+
+async function getBankFromVietQR(bin) {
+    const mappedBin = binMap[bin] || bin;
+    const url = "https://api.vietqr.io/v2/banks";
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.data || data.data.length === 0) {
+        throw new Error("No banks found");
+    }
+
+    const bank = data.data.find(bank => bank.bin === mappedBin);
+    if (!bank) {
+        throw new Error("Bank not found for BIN: " + bin);
+    }
+
+    return bank;
+}
+function generateVietQRQuickLink(order, bankId, accountNo) {
+    const template = process.env.TEMPLATE || "compact";
+    const addInfo = `REFUND${order._id}END`;
+
+    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
+}
+
+router.get("/:order_id/refund-qr", async (req, res) => {
+    try {
+        const { order_id } = req.params;
+
+        const order = await Orders.findById(order_id);
+        if (!order) {
+            return res.status(404).json({ error: "Order not found" });
+        }
+
+        const transaction_id = order.transaction_id;
+        const amount = order.total_price;
+        if (!transaction_id || !amount) {
+            return res.status(400).json({ error: "Missing transaction info in order" });
+        }
+
+        const txData = await getTransactionInfo(transaction_id);
+        const bin = txData.data["Mã BIN ngân hàng đối ứng"];
+        const accountNo = txData.data["Số tài khoản đối ứng"];
+
+        if (!bin || !accountNo) {
+            return res.status(400).json({ error: "Missing BIN or account number in transaction data" });
+        }
+
+        const bank = await getBankFromVietQR(bin);
+        const qrLink = generateVietQRQuickLink(order, bank.code, accountNo, amount);
+
+        res.json({
+            qrLink
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message || "Internal Server Error" });
+    }
+});
+
 
 
 

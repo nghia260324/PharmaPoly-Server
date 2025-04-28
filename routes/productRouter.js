@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const path = require('path');
 const fs = require('fs');
-
+const mongoose = require("mongoose");
 const { bucket } = require("../firebase/firebaseAdmin");
 
 const Products = require('../models/products');
@@ -119,6 +119,23 @@ router.get("/", async (req, res) => {
 });
 
 
+router.get("/add", async (req, res) => {
+    const [categories, sections, brands, productTypes] = await Promise.all([
+        Categories.find(),
+        Sections.find(),
+        Brands.find(),
+        ProductTypes.find()
+    ]);
+
+    res.render("products/add", {
+        categories,
+        sections,
+        brands,
+        productTypes,
+    });
+});
+
+
 router.get("/:id/detail", async (req, res) => {
     const id = req.params.id;
     //const product = await getProductDetails(id)
@@ -181,7 +198,8 @@ router.get("/:id/detail", async (req, res) => {
         update_at: product.updated_at,
     };
     res.render("products/detail", {
-        product: formattedProduct
+        product: formattedProduct,
+
     });
 });
 
@@ -370,7 +388,6 @@ router.post('/:product_id/import-stock/add', async (req, res) => {
 router.post('/:product_id/import-stock/:id/update-info', async (req, res) => {
     const { product_id, id } = req.params;
     const { batch_number, quantity, import_price, expiry_date, product_product_type_id } = req.body;
-    console.log(req.body)
     if (!batch_number || !quantity || !import_price || !expiry_date || !product_product_type_id) {
         return res.status(400).json({
             status: 400,
@@ -580,8 +597,6 @@ router.put('/:product_id/import-stock/:id/update-status', async (req, res) => {
 });
 
 
-
-
 router.delete('/:product_id/import-stock/:id/delete', async (req, res) => {
     const { id } = req.params;
 
@@ -618,26 +633,177 @@ router.delete('/:product_id/import-stock/:id/delete', async (req, res) => {
 });
 
 
+// router.post('/add', Uploads.array('images', 10), async (req, res) => {
+//     try {
+//         const data = req.body;
+//         const files = req.files;
+//         if (!data.name ||
+//             !data.category_id ||
+//             !data.brand_id ||
+//             !data.short_description ||
+//             !data.specification ||
+//             !data.origin_country ||
+//             !data.manufacturer ||
+//             !data.product_product_types) {
+//             return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
+//         }
 
+//         const session = await mongoose.startSession();
+//         session.startTransaction();
 
+//         const newProduct = new Products({
+//             name: data.name,
+//             normalized_name: normalizeText(data.name),
+//             category_id: data.category_id,
+//             brand_id: data.brand_id,
+//             short_description: data.short_description,
+//             specification: data.specification,
+//             origin_country: data.origin_country,
+//             manufacturer: data.manufacturer,
+//         });
+//         const savedProduct = await newProduct.save();
+
+//         let imageDocs = [];
+//         if (files && files.length > 0) {
+//             for (let index = 0; index < files.length; index++) {
+//                 const file = files[index];
+
+//                 const fileName = `Product_Images/${Date.now()}-${file.originalname}`;
+//                 const fileUpload = bucket.file(fileName);
+
+//                 const stream = fileUpload.createWriteStream({
+//                     metadata: { contentType: file.mimetype }
+//                 });
+
+//                 stream.end(file.buffer);
+
+//                 await new Promise((resolve, reject) => {
+//                     stream.on("finish", resolve);
+//                     stream.on("error", reject);
+//                 });
+
+//                 await fileUpload.makePublic();
+//                 const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+//                 imageDocs.push({
+//                     product_id: savedProduct._id,
+//                     image_url: publicUrl,
+//                     is_primary: index === 0,
+//                     sort_order: index,
+//                 });
+//             }
+
+//             await ProductImages.insertMany(imageDocs);
+//         }
+
+//         let productTypeData = [];
+//         try {
+//             const productTypes = typeof data.product_product_types === "string"
+//                 ? JSON.parse(data.product_product_types)
+//                 : data.product_product_types;
+
+//             for (const type of productTypes) {
+//                 if (!type.type_id || !type.price) {
+//                     return res.status(400).json({ status: 400, message: "Dữ liệu loại sản phẩm không hợp lệ!" });
+//                 }
+
+//                 productTypeData.push({
+//                     product_id: savedProduct._id,
+//                     product_type_id: type.type_id,
+//                     price: type.price,
+//                 });
+//             }
+
+//             await ProductProductTypes.insertMany(productTypeData);
+//         } catch (parseError) {
+//             console.error("Lỗi khi parse product_product_types:", parseError);
+//             return res.status(400).json({ status: 400, message: "Định dạng product_product_types không hợp lệ!" });
+//         }
+
+//         let savedSections = [];
+//         if (data.sections) {
+//             try {
+//                 const sections = typeof data.sections === "string" ? JSON.parse(data.sections) : data.sections;
+
+//                 let uniqueSections = new Set();
+
+//                 for (const section of sections) {
+//                     if (uniqueSections.has(section.section_id)) {
+//                         return res.status(404).json({
+//                             status: 404,
+//                             message: `Section "${section.section_id}" đã tồn tại, vui lòng chọn section khác!`
+//                         });
+//                     }
+//                     uniqueSections.add(section.section_id);
+
+//                     const newProductSection = new ProductSections({
+//                         product_id: savedProduct._id,
+//                         section_id: section.section_id,
+//                     });
+
+//                     const savedSection = await newProductSection.save();
+//                     savedSections.push(savedSection);
+
+//                     if (section.details && section.details.length > 0) {
+//                         const sectionDetails = section.details.map(detail => ({
+//                             product_section_id: savedSection._id,
+//                             title: detail.title,
+//                             content: detail.content,
+//                         }));
+
+//                         await ProductSectionDetails.insertMany(sectionDetails);
+//                     }
+//                 }
+//             } catch (parseError) {
+//                 console.error("Error parsing sections:", parseError);
+//                 return res.status(400).json({ status: 400, message: "Invalid sections format!" });
+//             }
+//         }
+
+//         await session.commitTransaction();
+//         session.endSession();
+
+//         res.json({
+//             status: 200,
+//             message: `Product "${data.name}" has been added successfully!`,
+//             data: { product: savedProduct, images: imageDocs },
+//         });
+
+//     } catch (error) {
+//         console.error("Error adding product:", error);
+
+//         await session.abortTransaction();
+//         session.endSession();
+
+//         res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+//     }
+// });
 
 router.post('/add', Uploads.array('images', 10), async (req, res) => {
+    let session;
     try {
         const data = req.body;
         const files = req.files;
-        if (!data.name ||
-            !data.category_id ||
-            !data.brand_id ||
-            !data.short_description ||
-            !data.specification ||
-            !data.origin_country ||
-            !data.manufacturer ||
-            !data.product_product_types) {
-            return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
+
+        if (!data.name) return res.status(400).json({ status: 400, message: "Vui lòng nhập tên sản phẩm!" });
+        if (!data.category_id) return res.status(400).json({ status: 400, message: "Vui lòng chọn danh mục sản phẩm!" });
+        if (!data.brand_id) return res.status(400).json({ status: 400, message: "Vui lòng chọn thương hiệu sản phẩm!" });
+        if (!data.short_description) return res.status(400).json({ status: 400, message: "Vui lòng nhập mô tả ngắn!" });
+        if (!data.specification) return res.status(400).json({ status: 400, message: "Vui lòng nhập quy cách!" });
+        if (!data.origin_country) return res.status(400).json({ status: 400, message: "Vui lòng nhập nước xuất xứ!" });
+        if (!data.manufacturer) return res.status(400).json({ status: 400, message: "Vui lòng nhập nhà sản xuất!" });
+        if (!data.product_product_types) return res.status(400).json({ status: 400, message: "Vui lòng chọn loại sản phẩm!" });
+
+        if (!files || files.length === 0) {
+            return res.status(400).json({ status: 400, message: "Vui lòng tải lên ít nhất một ảnh!" });
         }
+
+        session = await mongoose.startSession();
+        session.startTransaction();
 
         const newProduct = new Products({
             name: data.name,
+            normalized_name: normalizeText(data.name),
             category_id: data.category_id,
             brand_id: data.brand_id,
             short_description: data.short_description,
@@ -645,132 +811,145 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
             origin_country: data.origin_country,
             manufacturer: data.manufacturer,
         });
-        const savedProduct = await newProduct.save();
+        const savedProduct = await newProduct.save({ session });
 
-        let imageDocs = [];
-        if (files && files.length > 0) {
-            for (let index = 0; index < files.length; index++) {
-                const file = files[index];
+        const imageDocs = await Promise.all(files.map(async (file, index) => {
+            const fileName = `Product_Images/${Date.now()}-${file.originalname}`;
+            const fileUpload = bucket.file(fileName);
 
-                const fileName = `Product_Images/${Date.now()}-${file.originalname}`;
-                const fileUpload = bucket.file(fileName);
-
-                const stream = fileUpload.createWriteStream({
+            await new Promise((resolve, reject) => {
+                fileUpload.createWriteStream({
                     metadata: { contentType: file.mimetype }
-                });
+                })
+                    .on('finish', resolve)
+                    .on('error', reject)
+                    .end(file.buffer);
+            });
 
-                stream.end(file.buffer);
+            await fileUpload.makePublic();
+            return {
+                product_id: savedProduct._id,
+                image_url: `https://storage.googleapis.com/${bucket.name}/${fileName}`,
+                is_primary: index === 0,
+                sort_order: index
+            };
+        }));
+        await ProductImages.insertMany(imageDocs, { session });
 
-                await new Promise((resolve, reject) => {
-                    stream.on("finish", resolve);
-                    stream.on("error", reject);
-                });
 
-                await fileUpload.makePublic();
-                const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-
-                imageDocs.push({
-                    product_id: savedProduct._id,
-                    image_url: publicUrl,
-                    is_primary: index === 0,
-                    sort_order: index,
-                });
-            }
-
-            await ProductImages.insertMany(imageDocs);
+        const productTypes = JSON.parse(data.product_product_types);
+        if (!Array.isArray(productTypes) || productTypes.length === 0) {
+            throw new Error("Định dạng loại sản phẩm không hợp lệ!");
         }
 
-        let productTypeData = [];
-        try {
-            const productTypes = typeof data.product_product_types === "string"
-                ? JSON.parse(data.product_product_types)
-                : data.product_product_types;
-
-            for (const type of productTypes) {
-                if (!type.type_id || !type.price) {
-                    return res.status(400).json({ status: 400, message: "Dữ liệu loại sản phẩm không hợp lệ!" });
-                }
-
-                productTypeData.push({
-                    product_id: savedProduct._id,
-                    product_type_id: type.type_id,
-                    price: type.price,
-                });
+        const productTypeData = productTypes.map(type => {
+            if (!type.type_id || !type.price || isNaN(type.price) || type.price <= 0) {
+                throw new Error("Thông tin loại sản phẩm không hợp lệ!");
             }
+            return {
+                product_id: savedProduct._id,
+                product_type_id: type.type_id,
+                price: Number(type.price)
+            };
+        });
+        await ProductProductTypes.insertMany(productTypeData, { session });
 
-            await ProductProductTypes.insertMany(productTypeData);
-        } catch (parseError) {
-            console.error("Lỗi khi parse product_product_types:", parseError);
-            return res.status(400).json({ status: 400, message: "Định dạng product_product_types không hợp lệ!" });
-        }
-
-        let savedSections = [];
         if (data.sections) {
-            try {
-                const sections = typeof data.sections === "string" ? JSON.parse(data.sections) : data.sections;
+            const sections = JSON.parse(data.sections);
+            const uniqueSections = new Set();
 
-                let uniqueSections = new Set();
-
-                for (const section of sections) {
-                    if (uniqueSections.has(section.section_id)) {
-                        return res.status(404).json({
-                            status: 404,
-                            message: `Section "${section.section_id}" đã tồn tại, vui lòng chọn section khác!`
-                        });
-                    }
-                    uniqueSections.add(section.section_id);
-
-                    const newProductSection = new ProductSections({
-                        product_id: savedProduct._id,
-                        section_id: section.section_id,
-                    });
-
-                    const savedSection = await newProductSection.save();
-                    savedSections.push(savedSection);
-
-                    if (section.details && section.details.length > 0) {
-                        const sectionDetails = section.details.map(detail => ({
-                            product_section_id: savedSection._id,
-                            title: detail.title,
-                            content: detail.content,
-                        }));
-
-                        await ProductSectionDetails.insertMany(sectionDetails);
-                    }
+            for (const section of sections) {
+                if (!section.section_id) throw new Error("Thiếu ID section!");
+                if (uniqueSections.has(section.section_id)) {
+                    throw new Error(`Section ${section.section_id} đã tồn tại!`);
                 }
-            } catch (parseError) {
-                console.error("Error parsing sections:", parseError);
-                return res.status(400).json({ status: 400, message: "Invalid sections format!" });
+                uniqueSections.add(section.section_id);
+
+                if (!section.details || !Array.isArray(section.details)) {
+                    throw new Error("Thông tin details không hợp lệ!");
+                }
+
+                const sectionDetails = section.details.map(detail => {
+                    const title = detail.title?.trim();
+                    const content = detail.content?.trim();
+                    if (!title || !content) {
+                        throw new Error("Tiêu đề và nội dung detail không được để trống!");
+                    }
+                    return { title, content };
+                });
+
+                const newSection = await ProductSections.create([{
+                    product_id: savedProduct._id,
+                    section_id: section.section_id
+                }], { session });
+
+                await ProductSectionDetails.insertMany(sectionDetails.map(detail => ({
+                    product_section_id: newSection[0]._id,
+                    ...detail
+                })), { session });
             }
         }
 
+        await session.commitTransaction();
         res.json({
             status: 200,
-            message: `Product "${data.name}" has been added successfully!`,
-            data: { product: savedProduct, images: imageDocs },
+            message: `Thêm sản phẩm "${data.name}" thành công!`,
+            data: { product: savedProduct, images: imageDocs }
         });
 
     } catch (error) {
-        console.error("Error adding product:", error);
-        res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+        if (session) {
+            await session.abortTransaction();
+            session.endSession();
+        }
+
+        console.error("Lỗi thêm sản phẩm:", error);
+        const statusCode = error instanceof SyntaxError ? 400 : 500;
+        res.status(statusCode).json({
+            status: statusCode,
+            message: error.message || "Lỗi server!"
+        });
     }
 });
+
+function normalizeText(text) {
+    return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+}
 
 router.delete('/delete/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const product = await Products.findById(id);
         if (!product) {
-            return res.status(404).json({ status: 404, message: "Product not found!" });
+            return res.status(404).json({ status: 404, message: "Sản phẩm không tồn tại!" });
         }
 
         if (product.status !== 'not_started') {
             return res.status(400).json({
                 status: 400,
-                message: "Cannot delete product in this status."
+                message: "Không thể xóa sản phẩm trong trạng thái này."
             });
         }
+
+        const productTypes = await ProductProductTypes.find({ product_id: id });
+        for (const productType of productTypes) {
+            const stockEntries = await StockEntries.find({ product_product_type_id: productType._id });
+            if (stockEntries.length > 0) {
+                return res.status(400).json({
+                    status: 400,
+                    message: "Không thể xóa sản phẩm vì nó có mục nhập kho."
+                });
+            }
+        }
+
         const images = await ProductImages.find({ product_id: id });
+
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
         for (const image of images) {
             await deleteFile(image.image_url);
@@ -788,15 +967,22 @@ router.delete('/delete/:id', async (req, res) => {
 
         await Products.findByIdAndDelete(id);
 
+        await session.commitTransaction();
+        session.endSession();
+
         res.json({
             status: 200,
-            message: `Product "${product.name}" and its images deleted successfully!`
+            message: `Sản phẩm "${product.name}" và các hình ảnh của nó đã được xóa thành công!`
         });
     } catch (error) {
-        console.error("❌ Error deleting product:", error);
-        res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+        console.error("❌ Lỗi khi xóa sản phẩm:", error);
+        await session.abortTransaction();
+        session.endSession();
+        res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ!", error: error.message });
     }
 });
+
+
 
 router.get('/all', async function (req, res, next) {
     try {
@@ -857,27 +1043,51 @@ router.get('/id/:id', async function (req, res, next) {
 });
 
 router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
+    let session;
     try {
         const productId = req.params.id;
         const data = req.body;
         const files = req.files;
 
-        if (!data.name ||
-            !data.category_id ||
-            !data.brand_id ||
-            !data.short_description ||
-            !data.specification ||
-            !data.origin_country ||
-            !data.manufacturer ||
-            !data.status ||
-            !data.product_product_types) {
-            return res.status(400).json({ status: 400, message: "Please provide all required product information!" });
-        }
+        if (!data.name) return res.status(400).json({ status: 400, message: "Vui lòng nhập tên sản phẩm!" });
+        if (!data.category_id) return res.status(400).json({ status: 400, message: "Vui lòng chọn danh mục sản phẩm!" });
+        if (!data.brand_id) return res.status(400).json({ status: 400, message: "Vui lòng chọn thương hiệu sản phẩm!" });
+        if (!data.short_description) return res.status(400).json({ status: 400, message: "Vui lòng nhập mô tả ngắn!" });
+        if (!data.specification) return res.status(400).json({ status: 400, message: "Vui lòng nhập quy cách!" });
+        if (!data.origin_country) return res.status(400).json({ status: 400, message: "Vui lòng nhập nước xuất xứ!" });
+        if (!data.manufacturer) return res.status(400).json({ status: 400, message: "Vui lòng nhập nhà sản xuất!" });
+        if (!data.product_product_types) return res.status(400).json({ status: 400, message: "Vui lòng chọn loại sản phẩm!" });
 
         const existingProduct = await Products.findById(productId);
         if (!existingProduct) {
-            return res.status(404).json({ status: 404, message: "Product not found!" });
+            return res.status(404).json({ status: 404, message: "Sản phẩm không tồn tại!" });
         }
+
+        if (!files || files.length === 0) {
+            const productImages = await ProductImages.find({ product_id: productId });
+
+            if (productImages.length === 0) {
+                return res.status(400).json({ status: 400, message: "Vui lòng tải lên ít nhất một ảnh!" });
+            }
+        }
+
+        if (data.deleted_images) {
+            const deletedImageIds = JSON.parse(data.deleted_images);
+            const deletedImages = await ProductImages.find({ _id: { $in: deletedImageIds }, product_id: productId });
+
+            const remainingImages = await ProductImages.find({ product_id: productId });
+            if (remainingImages.length === deletedImageIds.length && (!files || files.length === 0)) {
+                return res.status(400).json({ status: 400, message: "Vui lòng tải lên ít nhất một ảnh mới!" });
+            }
+
+            if (remainingImages.length > deletedImageIds.length) {
+                for (const img of deletedImages) {
+                    await deleteFile(img.image_url);
+                }
+                await ProductImages.deleteMany({ _id: { $in: deletedImageIds } });
+            }
+        }
+
 
         if (existingProduct.status === 'discontinued' && data.status !== 'discontinued') {
             return res.status(400).json({
@@ -889,9 +1099,13 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
         if (['active', 'paused', 'out_of_stock'].includes(existingProduct.status) && data.status === 'not_started') {
             return res.status(400).json({
                 status: 400,
-                message: "Cannot change status back to 'not_started' from 'active', 'paused', or 'out_of_stock'."
+                message: "Không thể thay đổi trạng thái về 'not_started' từ 'active', 'paused' hoặc 'out_of_stock'."
             });
         }
+
+
+        session = await mongoose.startSession();
+        session.startTransaction();
 
         const updatedProduct = await Products.findByIdAndUpdate(productId, {
             name: data.name,
@@ -905,12 +1119,11 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
         }, { new: true });
 
         if (!updatedProduct) {
-            return res.status(404).json({ status: 404, message: "Product not found!" });
+            return res.status(404).json({ status: 404, message: "Sản phẩm không tồn tại!" });
         }
 
 
         const newProductTypes = JSON.parse(data.product_product_types);
-        console.log(newProductTypes);
 
         const existingProductTypes = await ProductProductTypes.find({ product_id: productId });
 
@@ -999,15 +1212,20 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
                 }
             }
         }
-
+        await session.commitTransaction();
         res.json({
             status: 200,
-            message: `Product "${data.name}" has been updated successfully!`,
+            message: `Sản phẩm "${data.name}" đã được cập nhật thành công!`,
             data: { product: updatedProduct }
         });
+
     } catch (error) {
-        console.error("Error updating product:", error);
-        res.status(500).json({ status: 500, message: "Internal Server Error!", error: error.message });
+        console.error("Lỗi khi cập nhật sản phẩm:", error);
+        if (session) {
+            await session.abortTransaction();
+            session.endSession();
+        }
+        res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ!", error: error.message });        
     }
 });
 
@@ -1127,3 +1345,100 @@ async function uploadFileToFirebase(file) {
 }
 
 module.exports = router;
+
+
+
+
+
+
+
+
+async function checkInvalidProductImages() {
+    try {
+        const productImages = await ProductImages.find({});
+        console.log(`🔎 Đang kiểm tra ${productImages.length} product images...`);
+
+        for (const image of productImages) {
+            const product = await Products.findById(image.product_id);
+            if (!product) {
+                console.log(`❌ ProductImage ID ${image._id} liên kết tới product_id đã bị xóa: ${image.product_id}`);
+            }
+        }
+
+        console.log('✅ Kiểm tra hoàn tất!');
+    } catch (error) {
+        console.error('❌ Lỗi khi kiểm tra product images:', error);
+    }
+}
+// checkInvalidProductImages();
+
+async function fixBrokenProductImage() {
+    try {
+        const brokenImageId = '67ee9f0cf34feb2ba98f596d';
+
+        const image = await ProductImages.findById(brokenImageId);
+
+        if (!image) {
+            console.log(`❗ Không tìm thấy ProductImage ID ${brokenImageId}.`);
+            return;
+        }
+
+        console.log(`🚀 Đang xóa ảnh liên kết tới ProductImage ID ${brokenImageId}`);
+
+        // Xóa ảnh trên Firebase
+        await deleteFile(image.image_url);
+
+        // Xóa bản ghi trong MongoDB
+        await ProductImages.findByIdAndDelete(brokenImageId);
+
+        console.log(`✅ Đã xóa thành công ProductImage ID ${brokenImageId} và file ảnh.`);
+    } catch (error) {
+        console.error('❌ Lỗi khi fix broken product image:', error);
+    }
+}
+
+// Gọi hàm luôn
+// fixBrokenProductImage();
+
+
+// async function checkInvalidStockEntries() {
+//     try {
+//         const stockEntries = await StockEntries.find({});
+//         console.log(`🔎 Đang kiểm tra ${stockEntries.length} stock entries...`);
+
+//         for (const entry of stockEntries) {
+//             const productProductType = await ProductProductTypes.findById(entry.product_product_type_id);
+//             if (!productProductType) {
+//                 console.log(`⚠️ StockEntry ID ${entry._id} liên kết tới product_product_type_id không tồn tại: ${entry.product_product_type_id}`);
+//                 continue;
+//             }
+
+//             const product = await Products.findById(productProductType.product_id);
+//             if (!product) {
+//                 console.log(`❌ StockEntry ID ${entry._id} liên kết tới product_id đã bị xóa: ${productProductType.product_id}`);
+//             }
+//         }
+
+//         console.log('✅ Kiểm tra hoàn tất!');
+//     } catch (error) {
+//         console.error('❌ Lỗi khi kiểm tra stock entries:', error);
+//     }
+// }
+
+// async function checkInvalidProductProductTypes() {
+//     try {
+//         const productProductTypes = await ProductProductTypes.find({});
+//         console.log(`🔎 Đang kiểm tra ${productProductTypes.length} product product types...`);
+
+//         for (const ppt of productProductTypes) {
+//             const product = await Products.findById(ppt.product_id);
+//             if (!product) {
+//                 console.log(`❌ ProductProductType ID ${ppt._id} liên kết tới product_id đã bị xóa: ${ppt.product_id}`);
+//             }
+//         }
+
+//         console.log('✅ Kiểm tra hoàn tất!');
+//     } catch (error) {
+//         console.error('❌ Lỗi khi kiểm tra product product types:', error);
+//     }
+// }

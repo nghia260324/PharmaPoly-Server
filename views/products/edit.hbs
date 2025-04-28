@@ -15,7 +15,7 @@
         color: #333;
     }
 </style>
-<div class="modal-body container px-4">
+<div class="container mt-3">
     <a href="" class="btn btn-secondary mb-4" id="backBtn">
         <i class="bi bi-arrow-left-circle"></i> Quay lại
     </a>
@@ -65,21 +65,41 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="productTypes" class="form-label"><span data-lang="product_types">Product
-                                    Types</span></label>
-                            <select class="form-select" id="productTypes" multiple required>
-                                <option value="" disabled><span data-lang="select_product_types">Select Product
-                                        Types</span></option>
-                                {{#each productTypes}}
-                                <option value="{{this._id}}">{{this.name}}</option>
-                                {{/each}}
-                            </select>
+                            <label class="form-label"><span data-lang="product_types">Product Types</span></label>
+                            <div class="table-responsive" style="max-height: 400px;">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Chọn loại sản phẩm</th>
+                                            <th>Giá bán</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="productTypesTableBody">
+                                        {{#each productTypes}}
+                                        <tr>
+                                            <td>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="{{this._id}}"
+                                                        id="productType_{{this._id}}" data-name="{{this.name}}">
+                                                    <label class="form-check-label" for="productType_{{this._id}}">
+                                                        {{this.name}}
+                                                    </label>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div id="priceInput_{{this._id}}" class="d-none">
+                                                    <input type="number" class="form-control" id="price_{{this._id}}"
+                                                        name="price_{{this._id}}" placeholder="Nhập giá" min="1">
+                                                </div>
+                                            </td>
+
+                                        </tr>
+                                        {{/each}}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
-                        <!-- Price for each selected Product Type -->
-                        <div id="productTypePriceContainer" class="mb-3">
-                            <!-- Here we will dynamically generate price fields for each selected Product Type -->
-                        </div>
 
 
                         <!-- Short Description -->
@@ -113,19 +133,8 @@
                             <input type="text" class="form-control" id="editProductOriginCountry"
                                 placeholder="Enter the country of origin">
                         </div>
-                        <!-- Status -->
-                        {{!-- <div class="mb-3">
-                            <label for="editProductStatus" class="form-label">
-                                <span data-lang="product_status">Trạng thái sản phẩm</span>
-                            </label>
-                            <select class="form-select" id="editProductStatus" required>
-                                <option value="not_started" data-lang="not_started">Chưa bắt đầu bán</option>
-                                <option value="active" data-lang="active">Đang bán</option>
-                                <option value="paused" data-lang="paused">Tạm ngừng bán</option>
-                                <option value="out_of_stock" data-lang="out_of_stock">Hết hàng</option>
-                                <option value="discontinued" data-lang="discontinued">Ngừng bán vĩnh viễn</option>
-                            </select>
-                        </div> --}}
+
+
                         <div class="mb-3" id="editProductStatusWrapper">
                             <label for="editProductStatus" class="form-label">
                                 <span data-lang="product_status">Trạng thái sản phẩm</span>
@@ -257,66 +266,33 @@
 
         const product_id = JSON.parse(document.getElementById("product_id").textContent);
 
+        document.querySelectorAll('#productTypesTableBody .form-check-input').forEach(checkbox => {
+            checkbox.addEventListener('change', function (e) {
+                const productTypeId = e.target.value;
+                const priceInput = document.getElementById(`priceInput_${productTypeId}`);
 
-        document.getElementById('productTypes').addEventListener('change', function () {
-            const selectedTypes = Array.from(this.selectedOptions).map(option => ({
-                id: option.value,
-                name: option.text
-            }));
-
-            const priceContainer = document.getElementById('productTypePriceContainer');
-            priceContainer.innerHTML = '';
-
-            selectedTypes.forEach(type => {
-                const section = document.createElement('div');
-                section.classList.add('product-type-item');
-
-                const header = document.createElement('h5');
-                header.classList.add('product-type-header');
-                header.textContent = `Loại sản phẩm: ${type.name}`;
-
-                const div = document.createElement('div');
-                div.classList.add('mb-3');
-
-                const label = document.createElement('label');
-                label.setAttribute('for', `price_${type.id}`);
-                label.classList.add('form-label');
-                label.textContent = `Giá bán cho loại sản phẩm ${type.name}`;
-
-                const input = document.createElement('input');
-                input.type = 'number';
-                input.classList.add('form-control');
-                input.id = `price_${type.id}`;
-                input.placeholder = `Nhập giá cho loại sản phẩm ${type.name}`;
-                input.min = 1;
-                input.required = true;
-
-                div.appendChild(label);
-                div.appendChild(input);
-
-                section.appendChild(header);
-                section.appendChild(div);
-
-                priceContainer.appendChild(section);
+                if (e.target.checked) {
+                    priceInput.classList.remove('d-none'); // Hiển thị trường nhập giá
+                    const inputField = priceInput.querySelector('input');
+                    inputField.required = true;  // Đánh dấu là trường bắt buộc khi hiển thị
+                } else {
+                    priceInput.classList.add('d-none'); // Ẩn trường nhập giá
+                    const inputField = priceInput.querySelector('input');
+                    inputField.required = false;  // Hủy yêu cầu khi ẩn
+                }
             });
         });
 
 
 
 
+
         let uploadedFiles = [];
         const addProductModal = document.getElementById('addProductModal');
-        //const editProductModal = document.getElementById('editProductModal');
         const deleteConfirmationModal = document.getElementById('deleteConfirmationModal');
         const loadingModal = new bootstrap.Modal(document.getElementById("loadingModal"));
-        //const addImageBtn = addProductModal.querySelector('#addImageBtn');
         const productImagesInput = document.getElementById('productImages');
         const addImagePreview = document.getElementById('addImagePreview');
-        //addImageBtn.addEventListener('click', function () {
-        //productImagesInput.click();
-        //});
-
-        //handleImageUpload(productImagesInput, addImagePreview, addImageBtn);
 
         const editImageBtn = document.querySelector('#addImageBtn');
         const editProductImagesInput = document.getElementById('editProductImages');
@@ -420,7 +396,7 @@
 
                 const primaryBadge = document.createElement('span');
                 primaryBadge.classList.add('badge', 'bg-danger', 'position-absolute', 'top-0', 'start-0', 'm-1', 'primary-badge');
-                primaryBadge.innerText = 'Primary Image';
+                primaryBadge.innerText = 'Ảnh chính';
 
                 firstImage.appendChild(primaryBadge);
                 firstImage.querySelector('.preview-img').classList.add('border', 'border-danger', 'border-2');
@@ -487,60 +463,42 @@
                         }
                     }
 
+                    const productTypesTableBody = document.getElementById('productTypesTableBody');
 
+                    document.querySelectorAll('#productTypesTableBody .form-check-input').forEach(checkbox => {
+                        const productTypeId = checkbox.value;
+                        const priceInputDiv = document.getElementById(`priceInput_${productTypeId}`);
+                        const priceInput = priceInputDiv ? priceInputDiv.querySelector('input') : null;
 
+                        const selectedProductType = product.product_product_types.find(type => type.product_type_id._id === productTypeId);
 
-                    const productTypesSelect = document.getElementById('productTypes');
+                        if (selectedProductType) {
+                            checkbox.checked = true;
 
-                    const selectedTypes = product.product_product_types.map(pt => pt.product_type_id._id);
-
-                    const options = productTypesSelect.options;
-                    for (let i = 0; i < options.length; i++) {
-                        const option = options[i];
-                        if (selectedTypes.includes(option.value)) {
-                            option.selected = true;
+                            priceInputDiv.classList.remove('d-none');
+                            priceInput.value = selectedProductType.price;
+                            priceInput.required = true;
                         } else {
-                            option.selected = false;
+                            priceInputDiv.classList.add('d-none');
+                            checkbox.checked = false;
                         }
-                    }
+                    });
 
+                    document.querySelectorAll('#productTypesTableBody .form-check-input').forEach(checkbox => {
+                        checkbox.addEventListener('change', function (e) {
+                            const productTypeId = e.target.value;
+                            const priceInput = document.getElementById(`priceInput_${productTypeId}`);
 
-                    const priceContainer = document.getElementById('productTypePriceContainer');
-                    priceContainer.innerHTML = ''; // Xóa nội dung cũ
-
-                    // Tạo một thẻ div chứa các loại sản phẩm đã chọn
-                    product.product_product_types.forEach(type => {
-                        const section = document.createElement('div');
-                        section.classList.add('product-type-item'); // Thêm lớp cho nhóm các item
-
-                        const header = document.createElement('h5');
-                        header.classList.add('product-type-header'); // Tiêu đề của nhóm
-                        header.textContent = `Loại sản phẩm: ${type.product_type_id.name}`;
-
-                        const div = document.createElement('div');
-                        div.classList.add('mb-3');
-
-                        const label = document.createElement('label');
-                        label.setAttribute('for', `price_${type.product_type_id._id}`);
-                        label.classList.add('form-label');
-                        label.textContent = `Giá bán cho loại sản phẩm ${type.product_type_id.name}`;
-
-                        const input = document.createElement('input');
-                        input.type = 'number';
-                        input.classList.add('form-control');
-                        input.id = `price_${type.product_type_id._id}`;
-                        input.placeholder = `Nhập giá cho loại sản phẩm ${type.product_type_id.name}`;
-                        input.min = 1;
-                        input.value = type.price;
-                        input.required = true;
-
-                        div.appendChild(label);
-                        div.appendChild(input);
-
-                        section.appendChild(header);
-                        section.appendChild(div);
-
-                        priceContainer.appendChild(section);
+                            if (e.target.checked) {
+                                priceInput.classList.remove('d-none');
+                                const inputField = priceInput.querySelector('input');
+                                inputField.required = true;
+                            } else {
+                                priceInput.classList.add('d-none');
+                                const inputField = priceInput.querySelector('input');
+                                inputField.required = false;
+                            }
+                        });
                     });
 
 
@@ -555,12 +513,10 @@
                             const sectionContent = document.createElement("div");
                             sectionContent.classList.add("d-flex", "align-items-center", "mb-2");
 
-                            // Label
                             const label = document.createElement("span");
                             label.textContent = "Section:";
                             label.classList.add("me-2");
 
-                            // Select Dropdown
                             const select = document.createElement("select");
                             select.classList.add("form-select", "me-2", "d-inline-block", "section-select");
 
@@ -573,7 +529,6 @@
 
                             select.value = section.section_id;
 
-                            // Remove Section Button
                             const removeSectionBtn = document.createElement("button");
                             removeSectionBtn.classList.add("btn", "btn-danger", "btn-sm", "ms-2");
                             removeSectionBtn.innerHTML = '<i class="bi bi-trash"></i>';
@@ -582,32 +537,27 @@
                                 sectionItem.remove();
                             });
 
-                            // Container cho Items
                             const itemsContainer = document.createElement("div");
                             itemsContainer.classList.add("mt-3");
 
-                            // Thêm section details vào container
                             if (section.details && section.details.length > 0) {
                                 section.details.forEach(detail => {
                                     addItemSection(itemsContainer, detail.title, detail.content);
                                 });
                             }
 
-                            // Add Item Button
                             const addItemBtn = document.createElement("button");
                             addItemBtn.classList.add("btn", "btn-outline-primary", "btn-sm", "mt-2");
-                            addItemBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Add Item';
+                            addItemBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Thêm mục';
                             addItemBtn.addEventListener("click", function (event) {
                                 event.preventDefault();
                                 addItem(itemsContainer);
                             });
 
-                            // Gắn các phần tử vào Section Content
                             sectionContent.appendChild(label);
                             sectionContent.appendChild(select);
                             sectionContent.appendChild(removeSectionBtn);
 
-                            // Thêm vào Section
                             sectionItem.appendChild(sectionContent);
                             sectionItem.appendChild(itemsContainer);
                             sectionItem.appendChild(addItemBtn);
@@ -734,7 +684,7 @@
 
             const addItemBtn = document.createElement("button");
             addItemBtn.classList.add("btn", "btn-outline-primary", "btn-sm", "mt-2");
-            addItemBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Add Item';
+            addItemBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Thêm mục';
             addItemBtn.addEventListener("click", function (event) {
                 event.preventDefault();
                 addItem(itemsContainer);
@@ -762,13 +712,13 @@
             const titleInput = document.createElement("input");
             titleInput.type = "text";
             titleInput.classList.add("form-control", "mb-2", "item-title");
-            titleInput.placeholder = "Enter Title";
+            titleInput.placeholder = "Nhập tiêu đề";
             titleInput.value = title;
 
             const contentTextarea = document.createElement("textarea");
             contentTextarea.classList.add("form-control", "item-content");
             contentTextarea.rows = 2;
-            contentTextarea.placeholder = "Enter Content";
+            contentTextarea.placeholder = "Nhập nội dung";
             contentTextarea.value = content;
 
             const buttonCol = document.createElement("div");
@@ -863,9 +813,10 @@
             });
 
             if (imageData.length === 0 && newImages.length === 0) {
-                showToast('Please select at least one image!', 'danger');
+                showToast('Vui lòng chọn ít nhất một hình ảnh!', 'danger');
                 return;
             }
+
 
             formData.append('updateImages', JSON.stringify(imageData));
 
@@ -876,7 +827,6 @@
             });
 
             formData.append('new_images_sort_order', JSON.stringify(sortOrders));
-
 
             formData.append('deleted_images', JSON.stringify(deletedImageIds));
 
@@ -899,14 +849,19 @@
             formData.append("sections", JSON.stringify(sections));
 
             const productTypePrices = [];
-            document.querySelectorAll('#productTypePriceContainer .product-type-item').forEach(section => {
-                const input = section.querySelector('input');
-                if (input) {
-                    const typeId = input.id.replace('price_', '');
-                    const price = input.value.trim();
+            document.querySelectorAll('#productTypesTableBody tr').forEach(row => {
+                const checkbox = row.querySelector('input[type="checkbox"]');
+                const priceInput = row.querySelector('input[type="number"]');
+
+                if (checkbox && checkbox.checked && priceInput) {
+                    const typeId = checkbox.value;
+                    const price = priceInput.value.trim();
 
                     if (price) {
-                        productTypePrices.push({ product_type_id: typeId, price: Number(price) });
+                        productTypePrices.push({
+                            product_type_id: typeId,
+                            price: Number(price)
+                        });
                     }
                 }
             });

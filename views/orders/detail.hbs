@@ -1,5 +1,5 @@
-<div class="container mt-4">
-    <a href="" class="btn btn-secondary mb-4" id="backBtn">
+<div class="container">
+    <a href="" class="btn btn-secondary mb-4 mt-4" id="backBtn">
         <i class="bi bi-arrow-left-circle"></i> Quay lại
     </a>
 
@@ -74,7 +74,7 @@
     <!-- Danh sách sản phẩm -->
     <div class="card">
         <div class="card-body">
-            <h5 class="card-title">Danh Sách Sản Phẩm</h5>
+            <h5>Danh Sách Sản Phẩm</h5>
             <table class="table table-bordered mt-3">
                 <thead class="table-light">
                     <tr>
@@ -158,7 +158,33 @@
     </div>
 </div>
 <script src="/socket.io/socket.io.js"></script>
-
+<!-- Modal Hoàn Tiền -->
+<div class="modal fade" id="refundModal" tabindex="-1" aria-labelledby="refundModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="refundModalLabel">Quét QR để hoàn tiền</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="qrCodeContainer">
+                    <img id="qrCodeImage" src="" alt="QR Hoàn Tiền" class="img-fluid">
+                    {{!-- <p class="text-muted">Số tiền: {{formatPrice order.total_price}} VND</p> --}}
+                </div>
+                <div id="loadingQr" class="d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Đang tạo QR code...</p>
+                </div>
+            </div>
+            {{!-- <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" id="confirmRefund">Đã hoàn tiền</button>
+            </div> --}}
+        </div>
+    </div>
+</div>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         document.getElementById('backBtn').addEventListener('click', function (e) {
@@ -221,7 +247,6 @@
         openConfirmModal("Từ chối đơn hàng", () => sendRequest(`/orders/${orderId}/reject`, 'PUT'));
     }
 
-
     function confirmOrder(orderId) {
         openConfirmModal("Xác nhận đơn hàng", () => sendRequest(`/orders/${orderId}/confirm`, 'PUT'));
     }
@@ -230,12 +255,48 @@
         openConfirmModal("Sẵn sàng giao hàng", () => sendRequest(`/orders/${orderId}/send-to-ghn`, 'PUT'));
     }
 
+    //function approveCancel(orderId) {
+    //openConfirmModal("Đồng ý hủy đơn", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "accept" }));
+    //}
     function approveCancel(orderId) {
-        openConfirmModal("Đồng ý hủy đơn", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "accept" }));
+        const isOnlinePaid = "{{order.payment_method}}" === "ONLINE" && "{{order.payment_status}}" === "paid";
+
+        if (isOnlinePaid) {
+            showRefundModal(orderId);
+        } else {
+            openConfirmModal("Đồng ý hủy đơn", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "accept" }));
+        }
     }
+
 
     function rejectCancel(orderId) {
         openConfirmModal("Từ chối yêu cầu hủy", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "reject" }));
+    }
+
+    function showRefundModal(orderId) {
+        const modal = new bootstrap.Modal(document.getElementById('refundModal'));
+        const qrImage = document.getElementById('qrCodeImage');
+        const loading = document.getElementById('loadingQr');
+
+        loading.classList.remove('d-none');
+        qrImage.style.display = 'none';
+
+        fetch(`/orders/${orderId}/refund-qr`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.qrLink) {
+                    qrImage.src = data.qrLink;  // Đặt link QR code vào img src
+                    loading.classList.add('d-none');  // Ẩn loading spinner
+                    qrImage.style.display = 'block';  // Hiển thị QR code
+                }
+            })
+            .catch(error => {
+                console.error('Lỗi khi lấy QR code:', error);
+                showToast("Lỗi khi tạo QR hoàn tiền", "bg-danger");
+                modal.hide();  // Đóng modal nếu có lỗi
+            });
+
+        modal.show();
     }
 
     function startCountdown() {
