@@ -38,6 +38,7 @@ const UserAddress = require('../models/userAddress');
 const Orders = require('../models/orders');
 const OrderItems = require('../models/orderItems');
 const StockEntries = require('../models/stockEntries');
+const Notifications = require('../models/notifications');
 
 const upload = require('../config/common/upload');
 const { removeDiacritics } = require('../utils/textUtils');
@@ -56,6 +57,17 @@ const statusGroups = {
     //returning: ["waiting_to_return", "return", "returned", "return_fail"],
     canceled: ["canceled", "delivery_fail", "rejected"],
 };
+
+
+// const fcmTokens = {};
+// const saveFcmToken = (userId, token) => {
+//     fcmTokens[userId] = token;
+// };
+// const getFcmToken = (userId) => {
+//     return fcmTokens[userId];
+// };
+
+const { saveFcmToken, getFcmToken } = require('../utils/fcmTokenManager');
 
 function authenticateToken(req, res, next) {
     const token = req.headers['authorization']?.split(' ')[1];
@@ -200,7 +212,7 @@ router.post('/user/create-account', async (req, res) => {
 
 router.post('/user/login', async (req, res) => {
     try {
-        const { phone_number, password } = req.body;
+        const { phone_number, password, fcm_token } = req.body;
 
         if (!phone_number || !password) {
             return res.status(400).json({
@@ -236,6 +248,10 @@ router.post('/user/login', async (req, res) => {
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: '7d' }
         );
+        if (fcm_token) {
+            console.log(fcm_token);
+            saveFcmToken(user._id, fcm_token);
+        }
         const userObj = user.toObject();
         userObj.address = await getUserAddress(user._id);
         delete userObj.password;
@@ -465,7 +481,7 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
 
 
 router.post('/refresh-token', async (req, res) => {
-    const { refreshToken } = req.body;
+    const { refreshToken, fcm_token } = req.body;
 
     if (!refreshToken) {
         return res.status(400).json({
@@ -491,6 +507,11 @@ router.post('/refresh-token', async (req, res) => {
         const userObj = user.toObject();
         userObj.address = await getUserAddress(user._id);
         delete userObj.password;
+
+        if (fcm_token) {
+            console.log(fcm_token);
+            saveFcmToken(user._id, fcm_token);
+        }
 
         res.json({
             status: 200,
@@ -571,8 +592,108 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
     }
 });
 
+router.get('/user/notification', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user_id;
 
+        const notifications = await Notifications.find({ user_id: userId })
+            .sort({ created_at: -1 });
+        res.json({
+            status: 200,
+            message: 'Lấy danh sách thông báo thành công',
+            data: notifications
+        });
+    } catch (error) {
+        console.error('Lỗi lấy thông báo:', error);
+        res.status(500).json({
+            status: 500,
+            message: 'Đã xảy ra lỗi máy chủ'
+        });
+    }
+});
+router.get('/user/notification/read-all', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user_id;
 
+        const result = await Notifications.updateMany(
+            { user_id: userId, is_read: false },
+            { $set: { is_read: true } }
+        );
+
+        const notifications = await Notifications.find({ user_id: userId })
+        .sort({ created_at: -1 });
+
+        res.status(200).json({
+            status: 200,
+            message: 'Tất cả thông báo đã được đánh dấu là đã đọc',
+            data: notifications
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            status: 500,
+            message: 'Có lỗi xảy ra', 
+            error: error.message });
+    }
+});
+router.get('/user/notification/unread-count', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user_id;
+
+        const count = await Notifications.countDocuments({
+            user_id: userId,
+            is_read: false
+        });
+        console.log(count);
+        res.json({ 
+            status: 200,
+            message: "Lấy thành công số lượng thông báo chưa đọc",
+            data: count 
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi server', error: error.message });
+    }
+});
+router.put('/user/notification/read/:id', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user_id;
+        const notificationId = req.params.id;
+
+        const notification = await Notifications.findOne({
+            _id: notificationId,
+            user_id: userId
+        });
+
+        if (!notification) {
+            return res.status(404).json({
+                status: 404,
+                message: 'Không tìm thấy thông báo'
+            });
+        }
+
+        if (notification.is_read) {
+            return res.status(200).json({
+                status: 200,
+                message: 'Thông báo đã được đánh dấu là đã đọc trước đó',
+                data: notification
+            });
+        }
+
+        notification.is_read = true;
+        await notification.save();
+
+        res.status(200).json({
+            status: 200,
+            message: 'Đánh dấu đã đọc thành công',
+            data: notification
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            status: 500,
+            message: 'Lỗi server', 
+            error: error.message 
+        });
+    }
+});
 
 // ----- Product ----- //
 
@@ -2572,7 +2693,9 @@ router.post("/calculate-shipping-fee", async (req, res) => {
 
 
 router.post("/orders/create", authenticateToken, async (req, res) => {
-    let session = null;
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const { payment_method, cart_item_ids } = req.body;
         const user_id = req.user_id;
@@ -2618,9 +2741,6 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         const totalItemPrice = cartItems.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
         const total_price = totalItemPrice + shipping_fee;
 
-        session = await mongoose.startSession();
-        session.startTransaction();
-
         const newOrder = new Orders({
             user_id,
             to_name,
@@ -2636,45 +2756,55 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             status: "pending"
         });
 
-        await newOrder.save();
+        await newOrder.save({ session });
 
         const orderItems = [];
-        for (const item of cartItems) {
-            const stockEntryQuery = {
-                product_product_type_id: item.product_product_type_id._id,
-                status: 'active',
-            };
-        
-            if (item.productType.product.expiry_date) {
-                stockEntryQuery.expiry_date = { $gte: new Date() };
-            }
-        
-            const stockEntry = await StockEntries.findOne(stockEntryQuery).sort({ import_date: 1 });
 
-            if (!stockEntry) {
-                return res.status(400).json({
-                    status: 400,
-                    message: `Không có tồn kho khả dụng cho sản phẩm ${item.product_id}`
-                });
+        for (const item of cartItems) {
+            const productProductType = await ProductProductTypes
+                .findById(item.product_product_type_id)
+                .populate([
+                    { path: 'product_id' },
+                    { path: 'product_type_id' }
+                ])
+                .session(session);
+
+            if (!productProductType) {
+                throw new Error(`Không tìm thấy sản phẩm với ID: ${item.product_product_type_id}`);
             }
+
+            const productStatus = productProductType.product_id.status;
+            if (productStatus !== "active") {
+                throw new Error(`Sản phẩm ${productProductType.product_id.name} hiện không khả dụng để mua`);
+            }
+
+            // const stockEntry = await StockEntries.findOne({
+            //     product_product_type_id: item.product_product_type_id,
+            //     remaining_quantity: { $gte: item.quantity },
+            //     status: "active"
+            // }).sort({ import_date: 1 }).session(session);
+
+            // if (!stockEntry) {
+            //     throw new Error(`Không đủ tồn kho cho sản phẩm ${productProductType.product_id.name}`);
+            // }
 
             orderItems.push({
                 order_id: newOrder._id,
                 product_product_type_id: item.product_product_type_id,
-                batch_number: stockEntry.batch_number,
                 quantity: item.quantity,
-                price: item.original_price
+                price: item.original_price,
+                // batch_number: stockEntry.batch_number
             });
         }
 
-        await OrderItems.insertMany(orderItems);
+        await OrderItems.insertMany(orderItems, { session });
 
-        await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } });
+        await CartItems.deleteMany({ user_id, _id: { $in: cartItems.map(item => item._id) } }).session(session);
 
         await session.commitTransaction();
         session.endSession();
 
-        await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
+        // await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
 
         let qrCodeUrl = null;
         if (payment_method === "ONLINE") {
@@ -2703,18 +2833,48 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
     }
 });
 
+router.get('/orders/payment_status/:order_id', authenticateToken, (req, res) => {
+    const orderId = req.params.order_id;
 
-router.delete('/delete-payment-status/:userId', authenticateToken, async (req, res) => {
-    try {
-        const { userId } = req.user_id;
+    Orders.findById(orderId, (err, order) => {
+        if (err || !order) {
+            return res.status(404).json({
+                status: 404,
+                message: "Không tìm thấy đơn hàng"
+            });
+        }
 
-        await db.ref(`payment_status/${userId}`).remove();
+        const paymentStatus = order.payment_status;
 
-        res.json({ success: true, message: `Đã xóa payment_status của user ${userId}` });
-    } catch (error) {
-        res.status(500).json({ success: false, message: "Lỗi khi xóa payment_status", error: error.message });
-    }
+        if (paymentStatus === "paid") {
+            return res.status(200).json({
+                status: 200,
+                message: "Thanh toán thành công",
+            });
+        } else if (paymentStatus === "pending") {
+            return res.status(400).json({
+                status: 400,
+                message: "Đang chờ thanh toán",
+            });
+        } else if (paymentStatus === "failed") {
+            return res.status(400).json({
+                status: 400,
+                message: "Thanh toán thất bại",
+            });
+        } else if (paymentStatus === "refunded") {
+            return res.status(400).json({
+                status: 400,
+                message: "Đã hoàn tiền",
+            });
+        } else {
+            return res.status(400).json({
+                status: 400,
+                message: "Trạng thái thanh toán không xác định",
+            });
+        }
+    });
 });
+
 
 async function checkPaymentStatus(user_id, order_id, total_price) {
     let attempts = 0;
@@ -3181,6 +3341,30 @@ router.get("/wards", authenticateToken, async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function generateBatchNumber(importDate) {
     const prefix = 'LOT';
     const year = importDate.getFullYear();
@@ -3250,6 +3434,8 @@ async function createStockEntries() {
 }
 
 // createStockEntries();
+
+
 
 
 

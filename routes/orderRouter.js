@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require("mongoose");
 const Orders = require('../models/orders');
 const OrderItems = require('../models/orderItems');
 const ProductImages = require('../models/productImages');
@@ -7,6 +8,8 @@ const Products = require('../models/products');
 const StockEntries = require('../models/stockEntries');
 const { db } = require("../firebase/firebaseAdmin");
 const { getUserAddress, getShopInfo } = require("./api");
+const { sendNotification } = require('../utils/notification');
+
 const axios = require('axios');
 const GHN_API = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
 const TOKEN_GHN = process.env.GHN_TOKEN;
@@ -15,7 +18,6 @@ const SHOP_ID = process.env.GHN_SHOP_ID;
 const binMap = {
     "01203001": "970436",
 };
-
 
 router.get("/", async (req, res) => {
     // const { page = 1, limit = 10, search, status, sort } = req.query;
@@ -196,6 +198,8 @@ router.get("/:order_id/refund-qr", async (req, res) => {
 
 
 router.put("/:order_id/confirm", async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { order_id } = req.params;
 
@@ -212,41 +216,71 @@ router.put("/:order_id/confirm", async (req, res) => {
             .populate({
                 path: "product_product_type_id",
                 model: "productProductType",
+                populate: {
+                    path: "product_id",  // Populate thêm thông tin sản phẩm từ mô hình "product"
+                    model: "product",    // Mô hình sản phẩm là "product"
+                    select: "name"       // Chỉ lấy tên sản phẩm
+                }
             });
 
         for (const item of orderItems) {
+            const quantityNeeded = item.quantity;
+
             const stockEntry = await StockEntries.findOne({
                 product_product_type_id: item.product_product_type_id._id,
-                batch_number: item.batch_number,
+                remaining_quantity: { $gte: quantityNeeded },
                 status: "active"
-            });
+            }).sort({ import_date: 1 }).session(session);
 
             if (!stockEntry) {
+                await session.abortTransaction();
+                session.endSession();
                 return res.status(400).json({
                     status: 400,
-                    message: `Không tìm thấy lô hàng còn hoạt động cho sản phẩm.`
+                    message: `Không đủ tồn kho cho sản phẩm ${item.product_product_type_id._id}`
                 });
             }
 
-            if (stockEntry.remaining_quantity < item.quantity) {
-                return res.status(400).json({
-                    status: 400,
-                    message: `Lô hàng ${stockEntry.batch_number} không đủ số lượng cho sản phẩm.`
-                });
-            }
-            stockEntry.remaining_quantity -= item.quantity;
+            item.batch_number = stockEntry.batch_number;
+            await item.save({ session });
+
+            stockEntry.remaining_quantity -= quantityNeeded;
             if (stockEntry.remaining_quantity === 0) {
                 stockEntry.status = "sold_out";
             }
-
-            await stockEntry.save();
+            await stockEntry.save({ session });
         }
 
         order.status = "confirmed";
-        await order.save();
 
+        const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
+        const shortenName = (name, maxLength = 40) => {
+            return name.length > maxLength ? name.slice(0, maxLength).trim() + '…' : name;
+        };
+        
+        const shortName = shortenName(firstProductName);
+        const otherCount = orderItems.length - 1;
+        
+        const productSummary = otherCount > 0
+            ? `${shortName} và ${otherCount} sản phẩm khác`
+            : shortName;
+        
+        const message = `Đơn hàng của bạn (${productSummary}) đã được xác nhận và đang được chuẩn bị.`;
+        
+        await sendNotification({
+            user_id: order.user_id,
+            title: 'Đơn hàng đã được xác nhận',
+            message: message
+        });
+
+        await order.save();
+        await session.commitTransaction();
+
+        session.endSession();
         res.status(200).json({ status: 200, message: "Order confirmed", data: order });
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         console.error("Error confirming order:", error);
         return res.status(500).json({
             status: 500,
@@ -255,6 +289,9 @@ router.put("/:order_id/confirm", async (req, res) => {
         });
     }
 });
+
+
+
 
 router.put("/:order_id/reject", async (req, res) => {
     try {
