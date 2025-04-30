@@ -621,7 +621,7 @@ router.get('/user/notification/read-all', authenticateToken, async (req, res) =>
         );
 
         const notifications = await Notifications.find({ user_id: userId })
-        .sort({ created_at: -1 });
+            .sort({ created_at: -1 });
 
         res.status(200).json({
             status: 200,
@@ -629,10 +629,11 @@ router.get('/user/notification/read-all', authenticateToken, async (req, res) =>
             data: notifications
         });
     } catch (error) {
-        res.status(500).json({ 
+        res.status(500).json({
             status: 500,
-            message: 'Có lỗi xảy ra', 
-            error: error.message });
+            message: 'Có lỗi xảy ra',
+            error: error.message
+        });
     }
 });
 router.get('/user/notification/unread-count', authenticateToken, async (req, res) => {
@@ -644,10 +645,10 @@ router.get('/user/notification/unread-count', authenticateToken, async (req, res
             is_read: false
         });
         console.log(count);
-        res.json({ 
+        res.json({
             status: 200,
             message: "Lấy thành công số lượng thông báo chưa đọc",
-            data: count 
+            data: count
         });
     } catch (error) {
         res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -687,10 +688,10 @@ router.put('/user/notification/read/:id', authenticateToken, async (req, res) =>
             data: notification
         });
     } catch (error) {
-        res.status(500).json({ 
+        res.status(500).json({
             status: 500,
-            message: 'Lỗi server', 
-            error: error.message 
+            message: 'Lỗi server',
+            error: error.message
         });
     }
 });
@@ -2833,46 +2834,46 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
     }
 });
 
-router.get('/orders/payment_status/:order_id', authenticateToken, (req, res) => {
+router.get('/orders/payment_status/:order_id', authenticateToken,async (req, res) => {
     const orderId = req.params.order_id;
 
-    Orders.findById(orderId, (err, order) => {
-        if (err || !order) {
-            return res.status(404).json({
-                status: 404,
-                message: "Không tìm thấy đơn hàng"
-            });
-        }
+    const order = await Orders.findById(orderId);
 
-        const paymentStatus = order.payment_status;
+    if (!order) {
+        return res.status(404).json({
+            status: 404,
+            message: "Không tìm thấy đơn hàng"
+        });
+    }
 
-        if (paymentStatus === "paid") {
-            return res.status(200).json({
-                status: 200,
-                message: "Thanh toán thành công",
-            });
-        } else if (paymentStatus === "pending") {
-            return res.status(400).json({
-                status: 400,
-                message: "Đang chờ thanh toán",
-            });
-        } else if (paymentStatus === "failed") {
-            return res.status(400).json({
-                status: 400,
-                message: "Thanh toán thất bại",
-            });
-        } else if (paymentStatus === "refunded") {
-            return res.status(400).json({
-                status: 400,
-                message: "Đã hoàn tiền",
-            });
-        } else {
-            return res.status(400).json({
-                status: 400,
-                message: "Trạng thái thanh toán không xác định",
-            });
-        }
-    });
+    const paymentStatus = order.payment_status;
+
+    if (paymentStatus === "paid") {
+        return res.status(200).json({
+            status: 200,
+            message: "Thanh toán thành công",
+        });
+    } else if (paymentStatus === "pending") {
+        return res.status(400).json({
+            status: 400,
+            message: "Đang chờ thanh toán",
+        });
+    } else if (paymentStatus === "failed") {
+        return res.status(400).json({
+            status: 400,
+            message: "Thanh toán thất bại",
+        });
+    } else if (paymentStatus === "refunded") {
+        return res.status(400).json({
+            status: 400,
+            message: "Đã hoàn tiền",
+        });
+    } else {
+        return res.status(400).json({
+            status: 400,
+            message: "Trạng thái thanh toán không xác định",
+        });
+    }
 });
 
 
