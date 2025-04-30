@@ -232,6 +232,12 @@ const registerHelpers = () => {
     if (!a || !b) return false;
     return a.toString() === b.toString();
   });
+  hbs.registerHelper('isCancelableStatus', function(status) {
+    const allowedStatuses = [
+      "pending", "confirmed", "ready_to_pick"
+    ];
+    return allowedStatuses.includes(status);
+  });
 };
 
 module.exports = registerHelpers;

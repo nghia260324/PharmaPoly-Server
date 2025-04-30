@@ -28,6 +28,9 @@ const productImageRouter = require("./routes/productImageRouter");
 const orderRouter = require("./routes/orderRouter");
 const Orders = require('./models/orders');
 const chatRouter = require("./routes/chatRouter");
+const OrderItems = require("./models/orderItems");
+
+const { sendNotification } = require('./utils/notification');
 
 const registerHelpers = require('./utils/hbsHelpers');
 registerHelpers();
@@ -35,7 +38,9 @@ registerHelpers();
 const { authenticateToken, authorizeAdmin } = require("./middlewares/authenticateToken");
 
 var app = express();
-
+const binMap = {
+  "01203001": "970436",
+};
 
 
 const database = require('./config/db');
@@ -143,8 +148,117 @@ app.post('/webhook/ghn', async (req, res) => {
 });
 
 
-app.post("/webhook/payment", async (req, res) => {
+// app.post("/webhook/payment", async (req, res) => {
+//   try {
+//     const { error, data } = req.body;
+
+//     if (error !== 0 || !data) {
+//       console.log("Invalid Casso data received:", req.body);
+//       return res.status(200).json({ status: 200, message: "Invalid Casso data, ignored" });
+//     }
+
+//     const { reference, description, amount } = data;
+
+//     if (!reference || !description || !amount) {
+//       console.log("Missing required fields:", data);
+//       return res.status(200).json({ status: 200, message: "Missing required fields, ignored" });
+//     }
+
+//     if (reference === "MA_GIAO_DICH_THU_NGHIEM" || description === "giao dich thu nghiem") {
+//       return res.json({ status: 200, message: "Test transaction received successfully" });
+//     }
+
+//     if (description.startsWith('REFUND')) {
+//       const refundMatch = description.match(/REFUND([a-f0-9]{24})END/);
+//       if (refundMatch) {
+//         const orderId = refundMatch[1];
+//         const order = await Orders.findById(orderId);
+//         if (!order) {
+//           console.log(`Order not found for refund: ${orderId}`);
+//           return res.status(200).json({ status: 200, message: "Refund order not found, ignored" });
+//         }
+
+//         order.payment_status = 'refunded';
+//         order.status = 'canceled';
+//         await order.save();
+
+//         await sendRefundNotification(order);
+
+//         console.log(`Refund successful for order ${orderId}`);
+//         return res.json({ status: 200, message: "Refund processed successfully" });
+//       }
+
+//       console.log("Refund pattern not matched");
+//       return res.status(200).json({ status: 200, message: "Invalid refund format, ignored" });
+//     }
+
+//     const match = description.match(/OID([a-f0-9]{24})END/);
+//     if (!match) {
+//       return res.status(200).json({ status: 200, message: "Invalid transaction format, ignored" });
+//     }
+
+//     const orderId = match[1];
+
+//     const order = await Orders.findById(orderId);
+//     if (!order) {
+//       console.log(`Order not found: ${orderId}`);
+//       return res.status(200).json({ status: 200, message: "Order not found, ignored" });
+//     }
+
+//     if (order.payment_status === "paid") {
+//       return res.json({ status: 200, message: "Order already paid" });
+//     }
+
+//     const paidAmount = Number(amount);
+//     if (order.total_price !== paidAmount) {
+//       console.log(`Incorrect payment amount for order ${orderId}: Expected ${order.total_price}, received ${paidAmount}`);
+//       return res.status(200).json({ status: 200, message: "Incorrect payment amount, ignored" });
+//     }
+
+//     order.payment_status = "paid";
+//     order.transaction_id = reference;
+//     await order.save();
+
+//     await db.ref(`payment_status/${order.user_id}`).set("PAID");
+
+//     console.log(`Payment successful for order ${orderId}`);
+//     res.json({ status: 200, message: "Webhook received successfully" });
+
+//   } catch (error) {
+//     console.error("Webhook Error:", error);
+//     res.status(500).json({ status: 500, message: "Internal Server Error" });
+//   }
+// });
+
+
+app.post("/webhook/payment", express.json(), async (req, res) => {
   try {
+
+    const signatureHeader = req.headers['x-casso-signature'];
+
+    if (!signatureHeader) {
+      return res.status(401).json({ status: 401, message: "Missing signature header" });
+    }
+
+    const [timestampPart, signaturePart] = signatureHeader.split(',');
+    const timestamp = timestampPart.split('=')[1];
+    const signature = signaturePart.split('=')[1];
+
+    const rawBody = JSON.stringify(req.body);
+    const payload = `${timestamp}.${rawBody}`;
+
+    const secret = process.env.CASSO_SECRET_KEY;
+    const expectedSignature = crypto
+      .createHmac('sha512', secret)
+      .update(payload)
+      .digest('hex');
+
+    if (expectedSignature !== signature) {
+      console.log("Signature mismatch");
+      return res.status(401).json({ status: 401, message: "Invalid signature" });
+    }
+
+
     const { error, data } = req.body;
 
     if (error !== 0 || !data) {
@@ -174,7 +288,10 @@ app.post("/webhook/payment", async (req, res) => {
         }
 
         order.payment_status = 'refunded';
+        order.status = 'canceled';
         await order.save();
+
+        await sendRefundNotification(order);
 
         console.log(`Refund successful for order ${orderId}`);
         return res.json({ status: 200, message: "Refund processed successfully" });
@@ -221,6 +338,103 @@ app.post("/webhook/payment", async (req, res) => {
     res.status(500).json({ status: 500, message: "Internal Server Error" });
   }
 });
+
+
+const sendRefundNotification = async (order) => {
+  const orderItems = await OrderItems.find({ order_id: order._id })
+    .populate({
+      path: "product_product_type_id",
+      model: "productProductType",
+      populate: {
+        path: "product_id",  // Populate thêm thông tin sản phẩm từ mô hình "product"
+        model: "product",    // Mô hình sản phẩm là "product"
+        select: "name"       // Chỉ lấy tên sản phẩm
+      }
+    });
+  const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
+  const shortenName = (name, maxLength = 40) =>
+    name.length > maxLength ? name.slice(0, maxLength).trim() + '…' : name;
+  const shortName = shortenName(firstProductName);
+  const otherCount = orderItems.length - 1;
+
+  const productSummary =
+    otherCount > 0 ? `${shortName} và ${otherCount} sản phẩm khác` : shortName;
+
+  const title = 'Yêu cầu hủy đơn hàng đã được xác nhận và hoàn tiền';
+
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  const formattedTime = `vào lúc ${hours}:${minutes} ngày ${day}/${month}/${year}`;
+
+  const formattedPrice = order.total_price.toLocaleString('vi-VN') + ' VNĐ';
+
+  const transaction_data = await getTransactionInfo(order.transaction_id);
+  const bank = await getBankFromVietQR(transaction_data.data["Mã BIN ngân hàng đối ứng"]);
+
+  const stk = transaction_data.data["Số tài khoản đối ứng"];
+
+  const message = `- Yêu cầu hủy đơn hàng (${productSummary}) của bạn đã được xác nhận và hoàn tiền thành công.\n` +
+    `- Số tiền hoàn lại: ${formattedPrice}.\n` +
+    `- Tiền đã được hoàn về STK ${stk} tại ngân hàng ${bank.shortName}.\n` +
+    `- Thời gian hoàn tiền: ${formattedTime}.`;
+
+  await sendNotification({
+    user_id: order.user_id,
+    title,
+    message
+  });
+};
+
+async function getTransactionInfo(transactionId) {
+  const url = `https://script.google.com/macros/s/AKfycbzvTz-hwBcrfK6dpRKu3slToY2gLr2ftlnoB0KuR3xLWJvkeCz4_BcXzDfRy_Qo-ywk/exec?transaction_id=${transactionId}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.message || "Failed to fetch transaction data");
+  }
+  return data;
+}
+
+async function getBankFromVietQR(bin) {
+  const mappedBin = binMap[bin] || bin;
+  const url = "https://api.vietqr.io/v2/banks";
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (!data.data || data.data.length === 0) {
+    throw new Error("No banks found");
+  }
+
+  const bank = data.data.find(bank => bank.bin === mappedBin);
+  if (!bank) {
+    throw new Error("Bank not found for BIN: " + bin);
+  }
+
+  return bank;
+}
+
+
+// const testNotification = async () => {
+//   const order = await Orders.findById("68118923c42e43956614039d")
+//   sendRefundNotification(order);
+// };
+
+
+// testNotification();
+
+
+
+
+
+
+
+
+
+
 
 database.connect();
 app.use(function (req, res, next) {

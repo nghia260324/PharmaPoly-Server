@@ -39,7 +39,7 @@ const Orders = new Schema({
         enum: [
             "pending",
             "paid",
-            "failed",
+            // "failed",
             "refunded"
         ],
         default: "pending"

@@ -129,7 +129,6 @@ async function getTransactionInfo(transactionId) {
     if (data.error) {
         throw new Error(data.message || "Failed to fetch transaction data");
     }
-    getBankFromVietQR(data.data['Mã BIN ngân hàng đối ứng']);
     return data;
 }
 
@@ -289,9 +288,6 @@ router.put("/:order_id/confirm", async (req, res) => {
         });
     }
 });
-
-
-
 
 router.put("/:order_id/reject", async (req, res) => {
     try {
@@ -493,6 +489,48 @@ router.post("/:orderId/cancel", async (req, res) => {
     }
 });
 
+
+
+router.get('/payment_status/:order_id',async (req, res) => {
+    const orderId = req.params.order_id;
+
+    const order = await Orders.findById(orderId);
+
+    if (!order) {
+        return res.status(404).json({
+            status: 404,
+            message: "Không tìm thấy đơn hàng"
+        });
+    }
+    const paymentStatus = order.payment_status;
+
+    if (paymentStatus === "paid") {
+        return res.status(400).json({
+            status: 400,
+            message: "Thanh toán thành công",
+        });
+    } else if (paymentStatus === "pending") {
+        return res.status(400).json({
+            status: 400,
+            message: "Đang chờ thanh toán",
+        });
+    } else if (paymentStatus === "failed") {
+        return res.status(400).json({
+            status: 400,
+            message: "Thanh toán thất bại",
+        });
+    } else if (paymentStatus === "refunded") {
+        return res.status(200).json({
+            status: 200,
+            message: "Đã hoàn tiền",
+        });
+    } else {
+        return res.status(400).json({
+            status: 400,
+            message: "Trạng thái thanh toán không xác định",
+        });
+    }
+});
 
 // router.post("/:orderId/confirm-return", async (req, res) => {
 //     try {

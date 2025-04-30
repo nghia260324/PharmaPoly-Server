@@ -249,7 +249,6 @@ router.post('/user/login', async (req, res) => {
             { expiresIn: '7d' }
         );
         if (fcm_token) {
-            console.log(fcm_token);
             saveFcmToken(user._id, fcm_token);
         }
         const userObj = user.toObject();
@@ -275,7 +274,6 @@ router.post('/user/login', async (req, res) => {
 
 router.put('/user/address/update', authenticateToken, async (req, res) => {
     try {
-        //console.log(req.body);
         const { province_id, district_id, ward_id, street_address } = req.body;
         const user_id = req.user_id;
 
@@ -320,7 +318,6 @@ router.put('/user/address/update', authenticateToken, async (req, res) => {
         formattedAddress.ward = ward;
 
         delete formattedAddress.__v;
-        // console.log(formattedAddress);
         res.status(200).json({
             status: 200,
             message: "Address updated successfully!",
@@ -509,7 +506,6 @@ router.post('/refresh-token', async (req, res) => {
         delete userObj.password;
 
         if (fcm_token) {
-            console.log(fcm_token);
             saveFcmToken(user._id, fcm_token);
         }
 
@@ -644,7 +640,6 @@ router.get('/user/notification/unread-count', authenticateToken, async (req, res
             user_id: userId,
             is_read: false
         });
-        console.log(count);
         res.json({
             status: 200,
             message: "Lấy thành công số lượng thông báo chưa đọc",
@@ -2846,6 +2841,10 @@ router.get('/orders/payment_status/:order_id', authenticateToken,async (req, res
         });
     }
 
+    if (order.user_id.toString() !== userId.toString()) {
+        return res.status(403).json({ status: 403, message: 'Bạn không có quyền truy cập đơn hàng này' });
+    }
+
     const paymentStatus = order.payment_status;
 
     if (paymentStatus === "paid") {
@@ -2904,7 +2903,6 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
                 const order = await Orders.findOne({ _id: order_id });
 
                 if (order && order.payment_status === "paid") {
-                    console.log(`Order ${order_id} đã được thanh toán trước đó, dừng kiểm tra.`);
                     clearInterval(interval);
                     return;
                 }
@@ -3228,7 +3226,6 @@ router.post("/orders/:id/return", authenticateToken, async (req, res) => {
 const calculateShippingFee = async (to_district_id, to_ward_code) => {
     try {
         const from_district_id = await getShopDistrict();
-        //console.log(from_district_id)
 
         if (!from_district_id) throw new Error("Cannot retrieve shop address");
 
@@ -3239,7 +3236,6 @@ const calculateShippingFee = async (to_district_id, to_ward_code) => {
 
         const services = servicesResponse.data.data;
         if (!services || services.length === 0) throw new Error("No available shipping services");
-        //console.log(services)
 
         const service = services[0];
         const fixedWeight = 1;
@@ -3430,7 +3426,6 @@ async function createStockEntries() {
         });
 
         await stockEntry.save();
-        console.log(`Created stock entry for productProductType ${productType._id}`);
     }
 }
 

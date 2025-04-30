@@ -13,26 +13,35 @@
             <select id="filterStatus" class="form-select">
                 <option value="">Tất cả trạng thái</option>
                 <option value="pending" {{#ifCond filters.status "pending" }}selected{{/ifCond}}>Chờ xác nhận</option>
-                <option value="confirmed" {{#ifCond filters.status "confirmed" }}selected{{/ifCond}}>Đã xác nhận</option>
-                <option value="delivering" {{#ifCond filters.status "delivering" }}selected{{/ifCond}}>Đang giao</option>
+                <option value="confirmed" {{#ifCond filters.status "confirmed" }}selected{{/ifCond}}>Đã xác nhận
+                </option>
+                <option value="delivering" {{#ifCond filters.status "delivering" }}selected{{/ifCond}}>Đang giao
+                </option>
                 <option value="delivered" {{#ifCond filters.status "delivered" }}selected{{/ifCond}}>Giao thành công
                 </option>
                 <option value="canceled" {{#ifCond filters.status "canceled" }}selected{{/ifCond}}>Đã hủy</option>
-                {{!-- <option value="cancel_request" {{#ifCondfilters. statusStatus "cancel_request" }}selected{{/ifCond}}>Yêu cầu hủy
+                {{!-- <option value="cancel_request" {{#ifCondfilters. statusStatus "cancel_request"
+                    }}selected{{/ifCond}}>Yêu cầu hủy
                 </option> --}}
-                <option value="cancel_request" {{#ifCond filters.status "cancel_request" }}selected{{/ifCond}}>Yêu cầu hủy</option>
+                <option value="cancel_request" {{#ifCond filters.status "cancel_request" }}selected{{/ifCond}}>Yêu cầu
+                    hủy</option>
 
-                {{!-- <option value="return_request" {{#ifCond filterStatus "return_request" }}selected{{/ifCond}}>Yêu cầu trả
+                {{!-- <option value="return_request" {{#ifCond filterStatus "return_request" }}selected{{/ifCond}}>Yêu
+                    cầu trả
                     hàng</option> --}}
             </select>
         </div>
         <div class="col-md-2">
             <select id="sortOrders" class="form-select">
-                <option value="created_at_desc" {{#ifCond filters.sort "created_at_desc" }}selected{{/ifCond}}>Mới nhất</option>
-                <option value="created_at_asc" {{#ifCond filters.sort "created_at_asc" }}selected{{/ifCond}}>Cũ nhất</option>
-                <option value="total_price_desc" {{#ifCond filters.sort "total_price_desc" }}selected{{/ifCond}}>Giá cao nhất
+                <option value="created_at_desc" {{#ifCond filters.sort "created_at_desc" }}selected{{/ifCond}}>Mới nhất
                 </option>
-                <option value="total_price_asc" {{#ifCond filters.sort "total_price_asc" }}selected{{/ifCond}}>Giá thấp nhất
+                <option value="created_at_asc" {{#ifCond filters.sort "created_at_asc" }}selected{{/ifCond}}>Cũ nhất
+                </option>
+                <option value="total_price_desc" {{#ifCond filters.sort "total_price_desc" }}selected{{/ifCond}}>Giá cao
+                    nhất
+                </option>
+                <option value="total_price_asc" {{#ifCond filters.sort "total_price_asc" }}selected{{/ifCond}}>Giá thấp
+                    nhất
                 </option>
             </select>
         </div>
@@ -73,6 +82,16 @@
                 <td class="date-format" data-created-at="{{this.created_at}}">{{this.created_at}}</td>
                 <td>
                     <span class="badge {{getPaymentClass this.payment_method}}">{{this.payment_method}}</span>
+                    {{#if (eq this.payment_method "ONLINE")}}
+                    {{#if (eq this.payment_status "paid")}}
+                    <span class="badge bg-success ms-2">Đã thanh toán</span>
+                    {{else if (eq this.payment_status "refunded")}}
+                    {{!-- <span class="badge bg-warning text-dark mt-1">Đã hoàn tiền</span> --}}
+                    <span class="badge bg-info ms-2">Đã hoàn tiền</span>
+                    {{else}}
+                    <span class="badge bg-danger ms-2">Chưa thanh toán</span>
+                    {{/if}}
+                    {{/if}}
                 </td>
                 <td><a href="/orders/{{this._id}}/detail" class="btn btn-primary btn-sm">Chi tiết</a></td>
 

@@ -26,7 +26,7 @@
                 <strong>Phương thức thanh toán:</strong>
                 <span class="badge bg-primary">{{order.payment_method}}</span>
 
-                {{#if (eq order.payment_method "ONLINE")}}
+                {{!-- {{#if (eq order.payment_method "ONLINE")}}
                 {{#if (eq order.payment_status 'paid')}}
                 <span class="badge bg-success">Đã thanh toán</span>
                 {{else}}
@@ -35,16 +35,32 @@
                     <span id="countdown" class="fw-bold"></span>
                 </span>
                 {{/if}}
+                {{/if}} --}}
+
+                {{#if (or (eq order.payment_status "paid") (eq order.payment_status "refunded"))}}
+                <span class="badge bg-success">Đã thanh toán</span>
+                {{else}}
+                <span class="badge bg-danger">
+                    Chưa thanh toán
+                    <span id="countdown" class="fw-bold"></span>
+                </span>
+                {{/if}}
+
+            </p>
+
+            <p><strong>Tổng tiền:</strong> {{formatPrice order.total_price}} VND</p>
+            {{!-- <p><strong>Trạng thái:</strong>
+                <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
+            </p> --}}
+            <p><strong>Trạng thái:</strong>
+                <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
+
+                {{#if (eq order.payment_status "refunded")}}
+                <span class="badge bg-info ms-2">Đã hoàn tiền</span>
                 {{/if}}
             </p>
 
-
-            <p><strong>Tổng tiền:</strong> {{formatPrice order.total_price}} VND</p>
-            <p><strong>Trạng thái:</strong>
-                <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
-            </p>
-
-            <div class="mt-3">
+            {{!-- <div class="mt-3">
                 {{#if (eq order.status "pending")}}
                 <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
                 <button class="btn btn-danger" onclick="rejectOrder('{{order._id}}')">Từ chối đơn hàng</button>
@@ -66,7 +82,34 @@
                 <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
                 <button class="btn btn-secondary" onclick="rejectCancel('{{order._id}}')">Từ chối yêu cầu hủy</button>
                 {{/if}}
+            </div> --}}
+            <div class="mt-3">
+                {{#if (eq order.status "pending")}}
+                <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
+                <button class="btn btn-danger" onclick="rejectOrder('{{order._id}}')">Từ chối đơn hàng</button>
+                {{/if}}
+
+                {{#if (eq order.status "confirmed")}}
+                {{#if (eq order.payment_method "COD")}}
+                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
+                {{else}}
+                {{#if (eq order.payment_status "paid")}}
+                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
+                {{else}}
+                <p class="text-danger">⚠ Không thể chuyển trạng thái vì đơn hàng chưa được thanh toán.</p>
+                {{/if}}
+                {{/if}}
+                {{/if}}
+
+                {{#if (or
+                (and (or (eq order.status "confirmed") (eq order.status "ready_to_pick")) order.cancel_request)
+                (and (eq order.status "pending") (neq order.payment_method "COD") order.cancel_request)
+                )}}
+                <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
+                <button class="btn btn-secondary" onclick="rejectCancel('{{order._id}}')">Từ chối yêu cầu hủy</button>
+                {{/if}}
             </div>
+
 
         </div>
     </div>
@@ -268,7 +311,6 @@
         }
     }
 
-
     function rejectCancel(orderId) {
         openConfirmModal("Từ chối yêu cầu hủy", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "reject" }));
     }
@@ -288,6 +330,7 @@
                     qrImage.src = data.qrLink;  // Đặt link QR code vào img src
                     loading.classList.add('d-none');  // Ẩn loading spinner
                     qrImage.style.display = 'block';  // Hiển thị QR code
+                    checkOrderStatus(orderId);
                 }
             })
             .catch(error => {
@@ -341,6 +384,36 @@
             }
         });
     }
+    let statusIntervalId = null;
+
+    function checkOrderStatus(orderId) {
+        statusIntervalId = setInterval(() => {
+            fetch(`/orders/payment_status/${orderId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200) {
+                        clearInterval(statusIntervalId);
+                        closeQrModal();
+
+                        showToast("Hoàn tiền thành công! Đơn hàng đã được hủy.", "bg-success");
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error("Lỗi khi gọi API:", error);
+                });
+        }, 10000);
+    }
+
+    function closeQrModal() {
+        const refundModal = bootstrap.Modal.getInstance(document.getElementById("refundModal"));
+        if (refundModal) {
+            refundModal.hide();
+        }
+    }
+
     function showToast(message, bgClass = "bg-success") {
         const toastElement = document.getElementById("toastMessage");
         const toastBody = document.getElementById("toastBody");
