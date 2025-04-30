@@ -25,11 +25,6 @@
           <div class="col-md-3">
             <label class="form-label">Sắp xếp theo</label>
             <select class="form-select" name="sortBy">
-              {{!-- <option value="best_selling">Bán chạy nhất</option>
-              <option value="worst_selling">Bán chậm nhất</option>
-              <option value="highest_revenue">Doanh thu cao nhất</option>
-              <option value="lowest_revenue">Doanh thu thấp nhất</option>
-              <option value="highest_rating">Đánh giá cao nhất</option> --}}
               <option value="best_selling" {{#if (eq filters.sortBy "best_selling" )}}selected{{/if}}>Bán chạy nhất
               </option>
               <option value="worst_selling" {{#if (eq filters.sortBy "worst_selling" )}}selected{{/if}}>Bán chậm nhất
@@ -41,7 +36,7 @@
                 nhất</option>
               <option value="highest_rating" {{#if (eq filters.sortBy "highest_rating" )}}selected{{/if}}>Đánh giá cao
                 nhất</option>
-
+              <option value="unsold" {{#if (eq filters.sortBy "unsold")}}selected{{/if}}>Chưa có lượt bán</option>
             </select>
           </div>
           <div class="col-md-3">

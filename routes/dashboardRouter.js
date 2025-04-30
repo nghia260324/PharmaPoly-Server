@@ -5,6 +5,7 @@ const Orders = require('../models/orders');
 const Products = require('../models/products');
 const OrderItems = require('../models/orderItems');
 const StockEntries = require('../models/stockEntries');
+const ProductProductTypes = require('../models/productProductTypes');
 const ProductImages = require('../models/productImages');
 const Categories = require('../models/categories');
 const Brands = require('../models/brands');
@@ -113,22 +114,47 @@ router.get('/revenue', async function (req, res, next) {
                     }
                 }
             },
+            // {
+            //     $group: {
+            //         _id: { orderId: "$_id", date: "$date", status: "$status", total_price: "$total_price" },
+            //         total_cost: {
+            //             $sum: { $multiply: ["$items.quantity", "$import_price"] }
+            //         }
+            //     }
+            // },
             {
                 $group: {
-                    _id: { orderId: "$_id", date: "$date", status: "$status", total_price: "$total_price" },
+                    _id: {
+                        orderId: "$_id",
+                        date: "$date",
+                        status: "$status",
+                        total_price: "$total_price",
+                        shipping_fee: "$shipping_fee"
+                    },
                     total_cost: {
                         $sum: { $multiply: ["$items.quantity", "$import_price"] }
                     }
                 }
             },
+            // {
+            //     $group: {
+            //         _id: "$_id.date",
+            //         totalRevenue: { $sum: "$_id.total_price" },
+            //         totalCost: { $sum: "$total_cost" },
+            //         orderCount: { $sum: 1 }
+            //     }
+            // },
             {
                 $group: {
                     _id: "$_id.date",
-                    totalRevenue: { $sum: "$_id.total_price" },
+                    totalRevenue: {
+                        $sum: { $subtract: ["$_id.total_price", { $ifNull: ["$_id.shipping_fee", 0] }] }
+                    },
                     totalCost: { $sum: "$total_cost" },
                     orderCount: { $sum: 1 }
                 }
             },
+
             { $sort: { _id: 1 } }
         ]);
 
@@ -195,58 +221,338 @@ router.get('/revenue', async function (req, res, next) {
 
 
 
+// router.get('/products', async function (req, res, next) {
+//     try {
+//         //let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate } = req.query;
+//         let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice } = req.query;
+
+//         sortBy = sortBy || 'best_selling';
+//         status = status || 'all';
+
+//         page = parseInt(page);
+//         perPage = parseInt(perPage);
+
+//         let statusMatch = {};
+//         if (status !== 'all') {
+//             statusMatch['product.status'] = status;
+//         }
+//         const matchProduct = {};
+//         // if (status !== 'all') {
+//         //     matchProduct['product.status'] = status;
+//         // }
+//         if (category) {
+//             matchProduct['product.category_id'] = new ObjectId(category);
+//         }
+//         if (brand) {
+//             matchProduct['product.brand_id'] = new ObjectId(brand);
+//         }
+//         let dateFilter = {};
+//         const now = new Date();
+
+//         if (timePeriod) {
+//             switch (timePeriod) {
+//                 case 'last_week':
+//                     dateFilter.created_at = {
+//                         $gte: startOfWeek(subWeeks(now, 1)),
+//                         $lte: endOfWeek(subWeeks(now, 1))
+//                     };
+//                     break;
+//                 case 'last_month':
+//                     dateFilter.created_at = {
+//                         $gte: startOfMonth(subMonths(now, 1)),
+//                         $lte: endOfMonth(subMonths(now, 1))
+//                     };
+//                     break;
+//                 case 'this_month':
+//                     dateFilter.created_at = {
+//                         $gte: startOfMonth(now),
+//                         $lte: endOfMonth(now)
+//                     };
+//                     break;
+//                 case 'last_3_months':
+//                     dateFilter.created_at = {
+//                         $gte: subMonths(startOfMonth(now), 3),
+//                         $lte: endOfMonth(now)
+//                     };
+//                     break;
+//                 case 'custom':
+//                     if (startDate && endDate) {
+//                         const start = new Date(`${startDate}T00:00:00`);
+//                         const end = new Date(`${endDate}T23:59:59`);
+//                         dateFilter.created_at = {
+//                             $gte: start,
+//                             $lte: end
+//                         };
+//                     }
+//                     break;
+//             }
+//         }
+
+//         const matchOrder = {
+//             'order.status': { $in: ['delivered'] },
+//             ...(dateFilter.created_at && {
+//                 'order.created_at': dateFilter.created_at
+//             })
+//         };
+
+//         // Các tùy chọn sắp xếp
+//         const sortOptions = {
+//             best_selling: { sold_quantity: -1 },
+//             worst_selling: { sold_quantity: 1 },
+//             highest_revenue: { total_revenue: -1 },
+//             lowest_revenue: { total_revenue: 1 },
+//             highest_rating: { 'product.average_rating': -1 }
+//         };
+
+//         const aggregatePipeline = [
+//             {
+//                 $lookup: {
+//                     from: 'orders',
+//                     localField: 'order_id',
+//                     foreignField: '_id',
+//                     as: 'order'
+//                 }
+//             },
+//             { $unwind: '$order' },
+//             { $match: matchOrder },
+//             {
+//                 $lookup: {
+//                     from: 'productProductTypes',
+//                     localField: 'product_product_type_id',
+//                     foreignField: '_id',
+//                     as: 'ppt'
+//                 }
+//             },
+//             { $unwind: '$ppt' },
+//             {
+//                 $match: {
+//                     ...matchProduct,
+//                     ...(minPrice || maxPrice) && {
+//                         'ppt.price': {
+//                             ...(minPrice && { $gte: parseFloat(minPrice) }),
+//                             ...(maxPrice && { $lte: parseFloat(maxPrice) })
+//                         }
+//                     }
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'productTypes',
+//                     localField: 'ppt.product_type_id',
+//                     foreignField: '_id',
+//                     as: 'product_type'
+//                 }
+//             },
+//             { $unwind: '$product_type' },
+//             {
+//                 $group: {
+//                     _id: '$ppt._id', // mỗi loại sản phẩm
+//                     sold_quantity: { $sum: '$quantity' },
+//                     total_revenue: { $sum: { $multiply: ['$quantity', '$price'] } },
+//                     product_id: { $first: '$ppt.product_id' },
+//                     product_type_name: { $first: '$product_type.name' },
+//                     price: { $first: '$ppt.price' },
+//                     earliest_order: { $min: '$created_at' }
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'products',
+//                     localField: 'product_id',
+//                     foreignField: '_id',
+//                     as: 'product'
+//                 }
+//             },
+//             // { $unwind: '$product' },
+//             // { $match: { ...matchProduct, ...statusMatch } },
+//             // { $sort: sortOptions[sortBy] || { 'product.created_at': -1 } },
+//             { $unwind: '$product' },
+
+//             // Lọc theo category, brand, status
+//             ...(Object.keys(matchProduct).length
+//               ? [{ $match: Object.entries(matchProduct).reduce((acc, [k, v]) => {
+//                   acc[`product.${k}`] = v;
+//                   return acc;
+//                 }, {}) }]
+//               : []),
+
+//             // Sắp xếp
+//             {
+//               $sort: sortOptions[sortBy] || { 'product.created_at': -1 },
+//             },          
+//             {
+//                 $project: {
+//                     _id: 1,
+//                     sold_quantity: 1,
+//                     total_revenue: 1,
+//                     product_type_name: 1,
+//                     price: 1,
+//                     product: {
+//                         _id: '$product._id',
+//                         name: '$product.name',
+//                         status: '$product.status',
+//                         average_rating: '$product.average_rating',
+//                         review_count: '$product.review_count',
+//                         short_description: '$product.short_description',
+//                         created_at: '$product.created_at'
+//                     }
+//                 }
+//             },
+//             { $skip: (page - 1) * perPage },
+//             { $limit: perPage }
+//         ];
+
+//         // Lấy dữ liệu + tổng số loại sản phẩm
+//         const [products, totalCount] = await Promise.all([
+//             OrderItems.aggregate(aggregatePipeline),
+//             OrderItems.aggregate([
+//                 {
+//                     $lookup: {
+//                         from: 'orders',
+//                         localField: 'order_id',
+//                         foreignField: '_id',
+//                         as: 'order'
+//                     }
+//                 },
+//                 { $unwind: '$order' },
+//                 { $match: matchOrder },
+//                 {
+//                     $lookup: {
+//                         from: 'productProductTypes',
+//                         localField: 'product_product_type_id',
+//                         foreignField: '_id',
+//                         as: 'ppt'
+//                     }
+//                 },
+//                 { $unwind: '$ppt' },
+//                 {
+//                     $match: {
+//                         ...matchProduct,
+//                         ...(minPrice || maxPrice) && {
+//                             'ppt.price': {
+//                                 ...(minPrice && { $gte: parseFloat(minPrice) }),
+//                                 ...(maxPrice && { $lte: parseFloat(maxPrice) })
+//                             }
+//                         }
+//                     }
+//                 },
+//                 {
+//                     $group: {
+//                         _id: '$ppt._id'
+//                     }
+//                 },
+//                 { $count: 'total' }
+//             ])
+//         ]);
+
+//         const total = totalCount[0]?.total || 0;
+//         const totalPages = Math.ceil(total / perPage);
+
+//         const productIds = products.map(p => p.product._id.toString());
+//         const images = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true
+//         }).lean();
+
+//         const imageMap = Object.fromEntries(
+//             images.map(img => [img.product_id.toString(), img.image_url])
+//         );
+//         const finalProducts = products.map(p => ({
+//             ...p.product,
+//             _id: p._id,
+//             sold_quantity: p.sold_quantity,
+//             total_revenue: p.total_revenue,
+//             product_type_name: p.product_type_name,
+//             image: imageMap[p.product._id.toString()],
+//             price: p.price
+//         }));
+//         const categories = await Categories.find();
+//         const brands = await Brands.find();
+//         res.render('dashboards/products', {
+//             products: finalProducts,
+//             currentPage: page,
+//             totalPages,
+//             perPage,
+//             total,
+//             categories,
+//             brands,
+//             filters: {
+//                 sortBy,
+//                 status,
+//                 timePeriod,
+//                 startDate,
+//                 endDate,
+//                 category,
+//                 brand,
+//                 minPrice,
+//                 maxPrice
+//             }
+//         });
+
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).render('error', { message: 'Lỗi máy chủ. Vui lòng thử lại sau.' });
+//     }
+// });
+
+
+
+
+
+
+
+
+
+
+
 router.get('/products', async function (req, res, next) {
     try {
-        //let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate } = req.query;
-        let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice } = req.query;
+        let {
+            sortBy,
+            status,
+            perPage = 10,
+            page = 1,
+            timePeriod,
+            startDate,
+            endDate,
+            category,
+            brand,
+            minPrice,
+            maxPrice,
+        } = req.query;
 
         sortBy = sortBy || 'best_selling';
-        status = status || 'all';
-
         page = parseInt(page);
         perPage = parseInt(perPage);
 
-        let statusMatch = {};
-        if (status !== 'all') {
-            statusMatch['product.status'] = status;
-        }
-        const matchProduct = {};
-        // if (status !== 'all') {
-        //     matchProduct['product.status'] = status;
-        // }
-        if (category) {
-            matchProduct['product.category_id'] = new ObjectId(category);
-        }
-        if (brand) {
-            matchProduct['product.brand_id'] = new ObjectId(brand);
-        }
-        let dateFilter = {};
         const now = new Date();
+        let dateFilter = {};
 
+        // Điều kiện lọc theo thời gian
         if (timePeriod) {
             switch (timePeriod) {
                 case 'last_week':
                     dateFilter.created_at = {
                         $gte: startOfWeek(subWeeks(now, 1)),
-                        $lte: endOfWeek(subWeeks(now, 1))
+                        $lte: endOfWeek(subWeeks(now, 1)),
                     };
                     break;
                 case 'last_month':
                     dateFilter.created_at = {
                         $gte: startOfMonth(subMonths(now, 1)),
-                        $lte: endOfMonth(subMonths(now, 1))
+                        $lte: endOfMonth(subMonths(now, 1)),
                     };
                     break;
                 case 'this_month':
                     dateFilter.created_at = {
                         $gte: startOfMonth(now),
-                        $lte: endOfMonth(now)
+                        $lte: endOfMonth(now),
                     };
                     break;
                 case 'last_3_months':
                     dateFilter.created_at = {
                         $gte: subMonths(startOfMonth(now), 3),
-                        $lte: endOfMonth(now)
+                        $lte: endOfMonth(now),
                     };
                     break;
                 case 'custom':
@@ -255,7 +561,7 @@ router.get('/products', async function (req, res, next) {
                         const end = new Date(`${endDate}T23:59:59`);
                         dateFilter.created_at = {
                             $gte: start,
-                            $lte: end
+                            $lte: end,
                         };
                     }
                     break;
@@ -265,36 +571,150 @@ router.get('/products', async function (req, res, next) {
         const matchOrder = {
             'order.status': { $in: ['delivered'] },
             ...(dateFilter.created_at && {
-                'order.created_at': dateFilter.created_at
-            })
+                'order.created_at': dateFilter.created_at,
+            }),
         };
 
-        // Các tùy chọn sắp xếp
         const sortOptions = {
             best_selling: { sold_quantity: -1 },
             worst_selling: { sold_quantity: 1 },
             highest_revenue: { total_revenue: -1 },
             lowest_revenue: { total_revenue: 1 },
-            highest_rating: { 'product.average_rating': -1 }
+            highest_rating: { 'product.average_rating': -1 },
         };
 
+
+        if (sortBy === 'unsold') {
+            if (sortBy === 'unsold') {
+                // Lấy danh sách product_id đã từng bán
+                const soldProductIdsResult = await OrderItems.aggregate([
+                    {
+                        $lookup: {
+                            from: 'orders',
+                            localField: 'order_id',
+                            foreignField: '_id',
+                            as: 'order',
+                        },
+                    },
+                    { $unwind: '$order' },
+                    {
+                        $match: {
+                            'order.status': { $in: ['delivered'] },
+                            ...(timePeriod && dateFilter.created_at && {
+                                'order.created_at': dateFilter.created_at,
+                            }),
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: 'productProductTypes',
+                            localField: 'product_product_type_id',
+                            foreignField: '_id',
+                            as: 'ppt',
+                        },
+                    },
+                    { $unwind: '$ppt' },
+                    {
+                        $group: {
+                            _id: null,
+                            productIds: { $addToSet: '$ppt.product_id' },
+                        },
+                    },
+                ]);
+            
+                const soldProductIds = soldProductIdsResult[0]?.productIds || [];
+            
+                const productFilter = {
+                    _id: { $nin: soldProductIds },
+                    ...(status && status !== 'all' ? { status } : {}),
+                    ...(category ? { category_id: new ObjectId(category) } : {}),
+                    ...(brand ? { brand_id: new ObjectId(brand) } : {}),
+                };
+            
+                const [products, total] = await Promise.all([
+                    Products.find(productFilter)
+                        .sort({ created_at: -1 })
+                        .skip((page - 1) * perPage)
+                        .limit(perPage)
+                        .lean(),
+                    Products.countDocuments(productFilter),
+                ]);
+            
+                const productIds = products.map(p => p._id.toString());
+            
+                const productTypes = await ProductProductTypes.find({
+                    product_id: { $in: productIds },
+                    ...(minPrice || maxPrice
+                        ? {
+                            price: {
+                                ...(minPrice && { $gte: parseFloat(minPrice) }),
+                                ...(maxPrice && { $lte: parseFloat(maxPrice) }),
+                            },
+                        }
+                        : {}),
+                })
+                    .populate('product_type_id')
+                    .lean();
+            
+                const productTypeMap = Object.fromEntries(
+                    productTypes.map(ppt => [ppt.product_id.toString(), ppt])
+                );
+            
+                const images = await ProductImages.find({
+                    product_id: { $in: productIds },
+                    is_primary: true,
+                }).lean();
+            
+                const imageMap = Object.fromEntries(
+                    images.map(img => [img.product_id.toString(), img.image_url])
+                );
+            
+                const finalProducts = products.map(p => {
+                    const ppt = productTypeMap[p._id.toString()];
+                    return {
+                        ...p,
+                        _id: ppt?._id,
+                        sold_quantity: 0,
+                        total_revenue: 0,
+                        product_type_name: ppt?.product_type_id?.name || '',
+                        image: imageMap[p._id.toString()],
+                        price: ppt?.price || 0,
+                    };
+                });
+            
+                const categories = await Categories.find();
+                const brands = await Brands.find();
+            
+                return res.render('dashboards/products', {
+                    products: finalProducts,
+                    currentPage: page,
+                    totalPages: Math.ceil(total / perPage),
+                    perPage,
+                    total,
+                    categories,
+                    brands,
+                    filters: {
+                        sortBy,
+                        status,
+                        timePeriod,
+                        startDate,
+                        endDate,
+                        category,
+                        brand,
+                        minPrice,
+                        maxPrice,
+                    },
+                });
+            }            
+        }
         const aggregatePipeline = [
-            {
-                $lookup: {
-                    from: 'productProductTypes',
-                    localField: '_id',
-                    foreignField: 'product_id',
-                    as: 'ppts'
-                }
-            },
-            { $unwind: { path: '$ppts', preserveNullAndEmptyArrays: true } },
             {
                 $lookup: {
                     from: 'orders',
                     localField: 'order_id',
                     foreignField: '_id',
-                    as: 'order'
-                }
+                    as: 'order',
+                },
             },
             { $unwind: '$order' },
             { $match: matchOrder },
@@ -303,51 +723,86 @@ router.get('/products', async function (req, res, next) {
                     from: 'productProductTypes',
                     localField: 'product_product_type_id',
                     foreignField: '_id',
-                    as: 'ppt'
-                }
+                    as: 'ppt',
+                },
             },
             { $unwind: '$ppt' },
-            {
-                $match: {
-                    ...matchProduct,
-                    ...(minPrice || maxPrice) && {
-                        'ppt.price': {
-                            ...(minPrice && { $gte: parseFloat(minPrice) }),
-                            ...(maxPrice && { $lte: parseFloat(maxPrice) })
-                        }
-                    }
-                }
-            },
+
+            // Lọc giá
+            ...(minPrice || maxPrice
+                ? [
+                    {
+                        $match: {
+                            'ppt.price': {
+                                ...(minPrice && { $gte: parseFloat(minPrice) }),
+                                ...(maxPrice && { $lte: parseFloat(maxPrice) }),
+                            },
+                        },
+                    },
+                ]
+                : []),
+
             {
                 $lookup: {
                     from: 'productTypes',
                     localField: 'ppt.product_type_id',
                     foreignField: '_id',
-                    as: 'product_type'
-                }
+                    as: 'product_type',
+                },
             },
             { $unwind: '$product_type' },
             {
                 $group: {
-                    _id: '$ppt.product_id',
+                    _id: '$ppt._id',
                     sold_quantity: { $sum: '$quantity' },
-                    total_revenue: { $sum: { $multiply: ['$quantity', '$price'] } },
-                    earliest_order: { $min: '$created_at' },
+                    total_revenue: {
+                        $sum: { $multiply: ['$quantity', '$price'] },
+                    },
+                    product_id: { $first: '$ppt.product_id' },
                     product_type_name: { $first: '$product_type.name' },
-                    price: { $first: '$ppt.price' }
-                }
+                    price: { $first: '$ppt.price' },
+                    earliest_order: { $min: '$created_at' },
+                },
             },
             {
                 $lookup: {
                     from: 'products',
-                    localField: '_id',
+                    localField: 'product_id',
                     foreignField: '_id',
-                    as: 'product'
-                }
+                    as: 'product',
+                },
             },
             { $unwind: '$product' },
-            // { $match: matchProduct },
-            { $match: { ...matchProduct, ...statusMatch } },
+            ...(status && status !== 'all'
+                ? [
+                    {
+                        $match: {
+                            'product.status': status,
+                        },
+                    },
+                ]
+                : []),
+
+
+            ...(category
+                ? [
+                    {
+                        $match: {
+                            'product.category_id': new ObjectId(category),
+                        },
+                    },
+                ]
+                : []),
+            ...(brand
+                ? [
+                    {
+                        $match: {
+                            'product.brand_id': new ObjectId(brand),
+                        },
+                    },
+                ]
+                : []),
+
             { $sort: sortOptions[sortBy] || { 'product.created_at': -1 } },
             {
                 $project: {
@@ -357,20 +812,21 @@ router.get('/products', async function (req, res, next) {
                     product_type_name: 1,
                     price: 1,
                     product: {
+                        _id: '$product._id',
                         name: '$product.name',
                         status: '$product.status',
                         average_rating: '$product.average_rating',
                         review_count: '$product.review_count',
                         short_description: '$product.short_description',
-                        created_at: '$product.created_at'
-                    }
-                }
+                        created_at: '$product.created_at',
+                    },
+                },
             },
+
             { $skip: (page - 1) * perPage },
-            { $limit: perPage }
+            { $limit: perPage },
         ];
 
-        // Lấy dữ liệu + tổng số
         const [products, totalCount] = await Promise.all([
             OrderItems.aggregate(aggregatePipeline),
             OrderItems.aggregate([
@@ -379,8 +835,8 @@ router.get('/products', async function (req, res, next) {
                         from: 'orders',
                         localField: 'order_id',
                         foreignField: '_id',
-                        as: 'order'
-                    }
+                        as: 'order',
+                    },
                 },
                 { $unwind: '$order' },
                 { $match: matchOrder },
@@ -389,44 +845,113 @@ router.get('/products', async function (req, res, next) {
                         from: 'productProductTypes',
                         localField: 'product_product_type_id',
                         foreignField: '_id',
-                        as: 'ppt'
-                    }
+                        as: 'ppt',
+                    },
                 },
                 { $unwind: '$ppt' },
+
+                // Lọc giá
+                ...(minPrice || maxPrice
+                    ? [
+                        {
+                            $match: {
+                                'ppt.price': {
+                                    ...(minPrice && { $gte: parseFloat(minPrice) }),
+                                    ...(maxPrice && { $lte: parseFloat(maxPrice) }),
+                                },
+                            },
+                        },
+                    ]
+                    : []),
+
+                {
+                    $lookup: {
+                        from: 'productTypes',
+                        localField: 'ppt.product_type_id',
+                        foreignField: '_id',
+                        as: 'product_type',
+                    },
+                },
+                { $unwind: '$product_type' },
                 {
                     $group: {
-                        _id: '$ppt.product_id'
-                    }
+                        _id: '$ppt._id',
+                        // sold_quantity: { $sum: '$quantity' },
+                        // total_revenue: {
+                        //     $sum: { $multiply: ['$quantity', '$price'] },
+                        // },
+                        product_id: { $first: '$ppt.product_id' },
+                        // product_type_name: { $first: '$product_type.name' },
+                        // price: { $first: '$ppt.price' },
+                        // earliest_order: { $min: '$created_at' },
+                    },
                 },
-                { $count: 'total' }
-            ])
+                {
+                    $lookup: {
+                        from: 'products',
+                        localField: 'product_id',
+                        foreignField: '_id',
+                        as: 'product',
+                    },
+                },
+                { $unwind: '$product' },
+                ...(status && status !== 'all'
+                    ? [
+                        {
+                            $match: {
+                                'product.status': status,
+                            },
+                        },
+                    ]
+                    : []),
+                ...(category
+                    ? [
+                        {
+                            $match: {
+                                'product.category_id': new ObjectId(category),
+                            },
+                        },
+                    ]
+                    : []),
+                ...(brand
+                    ? [
+                        {
+                            $match: {
+                                'product.brand_id': new ObjectId(brand),
+                            },
+                        },
+                    ]
+                    : []),
+                    { $count: 'total' }
+            ]),
         ]);
 
         const total = totalCount[0]?.total || 0;
         const totalPages = Math.ceil(total / perPage);
 
-        // Lấy ảnh
-        const productIds = products.map(p => p._id);
+        const productIds = products.map((p) => p.product._id.toString());
         const images = await ProductImages.find({
             product_id: { $in: productIds },
-            is_primary: true
+            is_primary: true,
         }).lean();
 
         const imageMap = Object.fromEntries(
-            images.map(img => [img.product_id.toString(), img.image_url])
+            images.map((img) => [img.product_id.toString(), img.image_url])
         );
 
-        const finalProducts = products.map(p => ({
+        const finalProducts = products.map((p) => ({
             ...p.product,
             _id: p._id,
             sold_quantity: p.sold_quantity,
             total_revenue: p.total_revenue,
             product_type_name: p.product_type_name,
-            image: imageMap[p._id.toString()],
-            price: p.price
+            image: imageMap[p.product._id.toString()],
+            price: p.price,
         }));
+
         const categories = await Categories.find();
         const brands = await Brands.find();
+
         res.render('dashboards/products', {
             products: finalProducts,
             currentPage: page,
@@ -444,15 +969,413 @@ router.get('/products', async function (req, res, next) {
                 category,
                 brand,
                 minPrice,
-                maxPrice
-            }
+                maxPrice,
+            },
         });
-
     } catch (err) {
         console.error(err);
         res.status(500).render('error', { message: 'Lỗi máy chủ. Vui lòng thử lại sau.' });
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// router.get('/products', async function (req, res, next) {
+//     try {
+//         let {
+//             sortBy,
+//             status,
+//             perPage = 10,
+//             page = 1,
+//             timePeriod,
+//             startDate,
+//             endDate,
+//             category,
+//             brand,
+//             minPrice,
+//             maxPrice,
+//         } = req.query;
+
+//         sortBy = sortBy || 'best_selling';
+//         page = parseInt(page);
+//         perPage = parseInt(perPage);
+
+//         const now = new Date();
+//         let dateFilter = {};
+
+//         // Điều kiện lọc theo thời gian
+//         if (timePeriod) {
+//             switch (timePeriod) {
+//                 case 'last_week':
+//                     dateFilter.created_at = {
+//                         $gte: startOfWeek(subWeeks(now, 1)),
+//                         $lte: endOfWeek(subWeeks(now, 1)),
+//                     };
+//                     break;
+//                 case 'last_month':
+//                     dateFilter.created_at = {
+//                         $gte: startOfMonth(subMonths(now, 1)),
+//                         $lte: endOfMonth(subMonths(now, 1)),
+//                     };
+//                     break;
+//                 case 'this_month':
+//                     dateFilter.created_at = {
+//                         $gte: startOfMonth(now),
+//                         $lte: endOfMonth(now),
+//                     };
+//                     break;
+//                 case 'last_3_months':
+//                     dateFilter.created_at = {
+//                         $gte: subMonths(startOfMonth(now), 3),
+//                         $lte: endOfMonth(now),
+//                     };
+//                     break;
+//                 case 'custom':
+//                     if (startDate && endDate) {
+//                         const start = new Date(`${startDate}T00:00:00`);
+//                         const end = new Date(`${endDate}T23:59:59`);
+//                         dateFilter.created_at = {
+//                             $gte: start,
+//                             $lte: end,
+//                         };
+//                     }
+//                     break;
+//             }
+//         }
+
+//         const matchOrder = {
+//             'order.status': { $in: ['delivered'] },
+//             ...(dateFilter.created_at && {
+//                 'order.created_at': dateFilter.created_at,
+//             }),
+//         };
+
+//         const sortOptions = {
+//             best_selling: { sold_quantity: -1 },
+//             worst_selling: { sold_quantity: 1 },
+//             highest_revenue: { total_revenue: -1 },
+//             lowest_revenue: { total_revenue: 1 },
+//             highest_rating: { 'product.average_rating': -1 },
+//         };
+
+//         const aggregatePipeline = [
+//             {
+//                 $lookup: {
+//                     from: 'orders',
+//                     localField: 'order_id',
+//                     foreignField: '_id',
+//                     as: 'order',
+//                 },
+//             },
+//             { $unwind: '$order' },
+//             { $match: matchOrder },
+//             {
+//                 $lookup: {
+//                     from: 'productProductTypes',
+//                     localField: 'product_product_type_id',
+//                     foreignField: '_id',
+//                     as: 'ppt',
+//                 },
+//             },
+//             { $unwind: '$ppt' },
+
+//             // Lọc giá
+//             ...(minPrice || maxPrice
+//                 ? [
+//                     {
+//                         $match: {
+//                             'ppt.price': {
+//                                 ...(minPrice && { $gte: parseFloat(minPrice) }),
+//                                 ...(maxPrice && { $lte: parseFloat(maxPrice) }),
+//                             },
+//                         },
+//                     },
+//                 ]
+//                 : []),
+
+//             {
+//                 $lookup: {
+//                     from: 'productTypes',
+//                     localField: 'ppt.product_type_id',
+//                     foreignField: '_id',
+//                     as: 'product_type',
+//                 },
+//             },
+//             { $unwind: '$product_type' },
+//             {
+//                 $group: {
+//                     _id: '$ppt._id',
+//                     sold_quantity: { $sum: '$quantity' },
+//                     total_revenue: {
+//                         $sum: { $multiply: ['$quantity', '$price'] },
+//                     },
+//                     product_id: { $first: '$ppt.product_id' },
+//                     product_type_name: { $first: '$product_type.name' },
+//                     price: { $first: '$ppt.price' },
+//                     earliest_order: { $min: '$created_at' },
+//                 },
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'products',
+//                     localField: 'product_id',
+//                     foreignField: '_id',
+//                     as: 'product',
+//                 },
+//             },
+//             { $unwind: '$product' },
+//             ...(status && status !== 'all'
+//                 ? [
+//                     {
+//                         $match: {
+//                             'product.status': status,
+//                         },
+//                     },
+//                 ]
+//                 : []),
+
+
+//             ...(category
+//                 ? [
+//                     {
+//                         $match: {
+//                             'product.category_id': new ObjectId(category),
+//                         },
+//                     },
+//                 ]
+//                 : []),
+//             ...(brand
+//                 ? [
+//                     {
+//                         $match: {
+//                             'product.brand_id': new ObjectId(brand),
+//                         },
+//                     },
+//                 ]
+//                 : []),
+
+//             { $sort: sortOptions[sortBy] || { 'product.created_at': -1 } },
+//             {
+//                 $project: {
+//                     _id: 1,
+//                     sold_quantity: 1,
+//                     total_revenue: 1,
+//                     product_type_name: 1,
+//                     price: 1,
+//                     product: {
+//                         _id: '$product._id',
+//                         name: '$product.name',
+//                         status: '$product.status',
+//                         average_rating: '$product.average_rating',
+//                         review_count: '$product.review_count',
+//                         short_description: '$product.short_description',
+//                         created_at: '$product.created_at',
+//                     },
+//                 },
+//             },
+
+//             { $skip: (page - 1) * perPage },
+//             { $limit: perPage },
+//         ];
+
+//         const [products, totalCount] = await Promise.all([
+//             OrderItems.aggregate(aggregatePipeline),
+//             OrderItems.aggregate([
+//                 {
+//                     $lookup: {
+//                         from: 'orders',
+//                         localField: 'order_id',
+//                         foreignField: '_id',
+//                         as: 'order',
+//                     },
+//                 },
+//                 { $unwind: '$order' },
+//                 { $match: matchOrder },
+//                 {
+//                     $lookup: {
+//                         from: 'productProductTypes',
+//                         localField: 'product_product_type_id',
+//                         foreignField: '_id',
+//                         as: 'ppt',
+//                     },
+//                 },
+//                 { $unwind: '$ppt' },
+
+//                 // Lọc giá
+//                 ...(minPrice || maxPrice
+//                     ? [
+//                         {
+//                             $match: {
+//                                 'ppt.price': {
+//                                     ...(minPrice && { $gte: parseFloat(minPrice) }),
+//                                     ...(maxPrice && { $lte: parseFloat(maxPrice) }),
+//                                 },
+//                             },
+//                         },
+//                     ]
+//                     : []),
+
+//                 {
+//                     $lookup: {
+//                         from: 'productTypes',
+//                         localField: 'ppt.product_type_id',
+//                         foreignField: '_id',
+//                         as: 'product_type',
+//                     },
+//                 },
+//                 { $unwind: '$product_type' },
+//                 {
+//                     $group: {
+//                         _id: '$ppt._id',
+//                         // sold_quantity: { $sum: '$quantity' },
+//                         // total_revenue: {
+//                         //     $sum: { $multiply: ['$quantity', '$price'] },
+//                         // },
+//                         product_id: { $first: '$ppt.product_id' },
+//                         // product_type_name: { $first: '$product_type.name' },
+//                         // price: { $first: '$ppt.price' },
+//                         // earliest_order: { $min: '$created_at' },
+//                     },
+//                 },
+//                 {
+//                     $lookup: {
+//                         from: 'products',
+//                         localField: 'product_id',
+//                         foreignField: '_id',
+//                         as: 'product',
+//                     },
+//                 },
+//                 { $unwind: '$product' },
+//                 ...(status && status !== 'all'
+//                     ? [
+//                         {
+//                             $match: {
+//                                 'product.status': status,
+//                             },
+//                         },
+//                     ]
+//                     : []),
+//                 ...(category
+//                     ? [
+//                         {
+//                             $match: {
+//                                 'product.category_id': new ObjectId(category),
+//                             },
+//                         },
+//                     ]
+//                     : []),
+//                 ...(brand
+//                     ? [
+//                         {
+//                             $match: {
+//                                 'product.brand_id': new ObjectId(brand),
+//                             },
+//                         },
+//                     ]
+//                     : []),
+//                     { $count: 'total' }
+//             ]),
+//         ]);
+
+//         const total = totalCount[0]?.total || 0;
+//         const totalPages = Math.ceil(total / perPage);
+
+//         const productIds = products.map((p) => p.product._id.toString());
+//         const images = await ProductImages.find({
+//             product_id: { $in: productIds },
+//             is_primary: true,
+//         }).lean();
+
+//         const imageMap = Object.fromEntries(
+//             images.map((img) => [img.product_id.toString(), img.image_url])
+//         );
+
+//         const finalProducts = products.map((p) => ({
+//             ...p.product,
+//             _id: p._id,
+//             sold_quantity: p.sold_quantity,
+//             total_revenue: p.total_revenue,
+//             product_type_name: p.product_type_name,
+//             image: imageMap[p.product._id.toString()],
+//             price: p.price,
+//         }));
+
+//         const categories = await Categories.find();
+//         const brands = await Brands.find();
+
+//         res.render('dashboards/products', {
+//             products: finalProducts,
+//             currentPage: page,
+//             totalPages,
+//             perPage,
+//             total,
+//             categories,
+//             brands,
+//             filters: {
+//                 sortBy,
+//                 status,
+//                 timePeriod,
+//                 startDate,
+//                 endDate,
+//                 category,
+//                 brand,
+//                 minPrice,
+//                 maxPrice,
+//             },
+//         });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).render('error', { message: 'Lỗi máy chủ. Vui lòng thử lại sau.' });
+//     }
+// });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 router.get('/inventory', async (req, res) => {
