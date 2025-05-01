@@ -30,10 +30,9 @@ const REJECT_REASONS = [
 ];
 
 router.get("/", async (req, res) => {
-    // const { page = 1, limit = 10, search, status, sort } = req.query;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const { search, status, sort } = req.query;
+    const { search, status, sort, payment_method, payment_status, timePeriod, startDate, endDate, min_price, max_price } = req.query;
 
     let query = {};
 
@@ -58,6 +57,117 @@ router.get("/", async (req, res) => {
             query.status = status;
         }
     }
+    if (payment_method) {
+        query.payment_method = payment_method;
+    }
+    if (payment_status) {
+        query.payment_status = payment_status;
+    }
+
+    if (min_price) {
+        query.total_price = { $gte: parseFloat(min_price) };
+    }
+    if (max_price) {
+        if (!query.total_price) {
+            query.total_price = {};
+        }
+        query.total_price.$lte = parseFloat(max_price);
+    }
+
+    const today = new Date();
+    let start, end;
+    const offsetMs = 7 * 60 * 60 * 1000; // GMT+7
+
+    switch (timePeriod) {
+        case "today": {
+            const now = new Date();
+            const start = new Date(now);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(now);
+            end.setHours(23, 59, 59, 999);
+            query.created_at = {
+                $gte: new Date(start.getTime() - offsetMs),
+                $lte: new Date(end.getTime() - offsetMs)
+            };
+            break;
+        }
+        case "last_week": {
+            const now = new Date();
+            const day = now.getUTCDay(); // Sunday = 0
+            const diffToLastWeekStart = 7 + day;
+            const start = new Date(now);
+            start.setUTCDate(start.getUTCDate() - diffToLastWeekStart);
+            start.setUTCHours(0, 0, 0, 0);
+
+            const end = new Date(start);
+            end.setUTCDate(end.getUTCDate() + 6);
+            end.setUTCHours(23, 59, 59, 999);
+
+            query.created_at = {
+                $gte: new Date(start.getTime() + offsetMs),
+                $lte: new Date(end.getTime() + offsetMs)
+            };
+            break;
+        }
+        case "last_month": {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+            const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+            query.created_at = {
+                $gte: new Date(start.getTime() - offsetMs),
+                $lte: new Date(end.getTime() - offsetMs)
+            };
+            break;
+        }
+        case "this_month": {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+            const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            query.created_at = {
+                $gte: new Date(start.getTime() - offsetMs),
+                $lte: new Date(end.getTime() - offsetMs)
+            };
+            break;
+        }
+        case "last_3_months": {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+            const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            query.created_at = {
+                $gte: new Date(start.getTime() - offsetMs),
+                $lte: new Date(end.getTime() - offsetMs)
+            };
+            break;
+        }
+        case "custom_order":
+            if (startDate && endDate) {
+                const start = new Date(startDate + "T00:00:00+07:00");
+                const end = new Date(endDate + "T23:59:59+07:00");
+                query.created_at = { $gte: start, $lte: end };
+            } else if (startDate) {
+                const start = new Date(startDate + "T00:00:00+07:00");
+                query.created_at = { $gte: start };
+            } else if (endDate) {
+                const end = new Date(endDate + "T23:59:59+07:00");
+                query.created_at = { $lte: end };
+            }
+            break;
+
+        case "custom_delivery":
+            if (startDate && endDate) {
+                const start = new Date(startDate + "T00:00:00+07:00");
+                const end = new Date(endDate + "T23:59:59+07:00");
+                query.delivered_at = { $gte: start, $lte: end };
+            } else if (startDate) {
+                const start = new Date(startDate + "T00:00:00+07:00");
+                query.delivered_at = { $gte: start };
+            } else if (endDate) {
+                const end = new Date(endDate + "T23:59:59+07:00");
+                query.delivered_at = { $lte: end };
+            }
+            break;
+
+    }
 
     let sortOption = { created_at: -1 };
     if (sort === "created_at_asc") sortOption = { created_at: 1 };
@@ -76,13 +186,18 @@ router.get("/", async (req, res) => {
         orders,
         currentPage: parseInt(page),
         totalPages,
-        // filterStatus: status,
-        // sort,
-        // limit,
+        limit,
         filters: {
             search,
             status,
-            sort
+            sort,
+            payment_method,
+            payment_status,
+            timePeriod,
+            startDate,
+            endDate,
+            min_price,
+            max_price
         }
     });
 });
@@ -333,7 +448,7 @@ router.put("/:order_id/reject", async (req, res) => {
                 message: "Chỉ có thể từ chối đơn hàng ở trạng thái 'pending'"
             });
         }
-       
+
         if (order.payment_method === 'COD') {
             order.status = "rejected";
             await order.save();
@@ -386,18 +501,18 @@ router.put("/:order_id/reject", async (req, res) => {
             if (!transaction_id || !amount) {
                 return res.status(400).json({ error: "Missing transaction info in order" });
             }
-    
+
             const txData = await getTransactionInfo(transaction_id);
             const bin = txData.data["Mã BIN ngân hàng đối ứng"];
             const accountNo = txData.data["Số tài khoản đối ứng"];
-    
+
             if (!bin || !accountNo) {
                 return res.status(400).json({ error: "Missing BIN or account number in transaction data" });
             }
-    
+
             const bank = await getBankFromVietQR(bin);
             const qrLink = generateRejectQRLink(order, bank.code, accountNo, amount);
-    
+
             res.json({
                 qrLink
             });
@@ -586,7 +701,8 @@ router.post("/:orderId/cancel", async (req, res) => {
         for (const item of orderItems) {
             await Products.updateOne(
                 { _id: item.product_id._id },
-                { $inc: { stock_quantity: item.quantity } }
+                { $inc: { stock_quantity: item.quantity } },
+                { timestamps: true }
             );
         }
 

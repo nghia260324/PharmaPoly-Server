@@ -1,54 +1,209 @@
 <div class="container mt-5">
-    <div class="product-header mb-4 p-3 bg-light rounded">
+    <div class="card product-header mb-4 p-3 bg-light rounded">
         <div class="d-flex justify-content-between align-items-center">
             <span class="h5 mb-0"><span data-lang="orders">Orders</span></span>
+            <button class="btn btn-outline-secondary" id="toggleFilter">
+                <i class="bi bi-funnel"></i> Bộ lọc
+            </button>
         </div>
     </div>
-    <div class="row g-2 align-items-center">
-        <div class="col-md-4">
-            <input type="text" id="searchOrder" class="form-control" placeholder="Tìm theo mã đơn hoặc tên khách hàng"
-                value="{{filters.search}}">
-        </div>
-        <div class="col-md-4">
-            <select id="filterStatus" class="form-select">
-                <option value="">Tất cả trạng thái</option>
-                <option value="pending" {{#ifCond filters.status "pending" }}selected{{/ifCond}}>Chờ xác nhận</option>
-                <option value="confirmed" {{#ifCond filters.status "confirmed" }}selected{{/ifCond}}>Đã xác nhận
-                </option>
-                <option value="delivering" {{#ifCond filters.status "delivering" }}selected{{/ifCond}}>Đang giao
-                </option>
-                <option value="delivered" {{#ifCond filters.status "delivered" }}selected{{/ifCond}}>Giao thành công
-                </option>
-                <option value="canceled" {{#ifCond filters.status "canceled" }}selected{{/ifCond}}>Đã hủy</option>
-                {{!-- <option value="cancel_request" {{#ifCondfilters. statusStatus "cancel_request"
-                    }}selected{{/ifCond}}>Yêu cầu hủy
-                </option> --}}
-                <option value="cancel_request" {{#ifCond filters.status "cancel_request" }}selected{{/ifCond}}>Yêu cầu
-                    hủy</option>
+    <div class="card mb-4" id="filterCard" style="display: none;">
+        <div class="card-body">
+            <form class="g-2">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <label for="searchOrder" class="form-label">Tìm kiếm theo mã đơn hoặc tên khách hàng</label>
+                        <input type="text" id="searchOrder" class="form-control"
+                            placeholder="Tìm theo mã đơn hoặc tên khách hàng" value="{{filters.search}}">
+                    </div>
 
-                {{!-- <option value="return_request" {{#ifCond filterStatus "return_request" }}selected{{/ifCond}}>Yêu
-                    cầu trả
-                    hàng</option> --}}
-            </select>
-        </div>
-        <div class="col-md-2">
-            <select id="sortOrders" class="form-select">
-                <option value="created_at_desc" {{#ifCond filters.sort "created_at_desc" }}selected{{/ifCond}}>Mới nhất
-                </option>
-                <option value="created_at_asc" {{#ifCond filters.sort "created_at_asc" }}selected{{/ifCond}}>Cũ nhất
-                </option>
-                <option value="total_price_desc" {{#ifCond filters.sort "total_price_desc" }}selected{{/ifCond}}>Giá cao
-                    nhất
-                </option>
-                <option value="total_price_asc" {{#ifCond filters.sort "total_price_asc" }}selected{{/ifCond}}>Giá thấp
-                    nhất
-                </option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button id="btnSearchOrder" class="btn btn-primary w-100">Tìm kiếm</button>
+                    <div class="col-md-2">
+                        <label for="sortOrders" class="form-label">Sắp xếp theo</label>
+                        <select id="sortOrders" class="form-select">
+                            <option value="created_at_desc" {{#ifCond filters.sort "created_at_desc"
+                                }}selected{{/ifCond}}>
+                                Mới nhất
+                            </option>
+                            <option value="created_at_asc" {{#ifCond filters.sort "created_at_asc"
+                                }}selected{{/ifCond}}>Cũ
+                                nhất
+                            </option>
+                            <option value="total_price_desc" {{#ifCond filters.sort "total_price_desc"
+                                }}selected{{/ifCond}}>Giá cao nhất
+                            </option>
+                            <option value="total_price_asc" {{#ifCond filters.sort "total_price_asc"
+                                }}selected{{/ifCond}}>
+                                Giá thấp nhất
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filterPaymentMethod" class="form-label">Phương thức thanh toán</label>
+                        <select id="filterPaymentMethod" class="form-select" name="payment_method">
+                            <option value="">Tất cả</option>
+                            <option value="COD" {{#ifCond filters.payment_method "COD" }}selected{{/ifCond}}>COD
+                            </option>
+                            <option value="ONLINE" {{#ifCond filters.payment_method "ONLINE" }}selected{{/ifCond}}>
+                                ONLINE
+                            </option>
+                        </select>
+                    </div>
+
+                </div>
+
+
+
+
+
+                <div class="row align-items-end mt-3">
+                    <div class="col-md-2">
+                        <label for="filterStatus" class="form-label">Trạng thái đơn hàng</label>
+                        <select id="filterStatus" class="form-select" name="status">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="pending" {{#ifCond filters.status "pending" }}selected{{/ifCond}}>Chờ xác
+                                nhận
+                            </option>
+                            <option value="confirmed" {{#ifCond filters.status "confirmed" }}selected{{/ifCond}}>Đã xác
+                                nhận
+                            </option>
+                            <option value="ready_to_pick" {{#ifCond filters.status "ready_to_pick"
+                                }}selected{{/ifCond}}>Chờ
+                                lấy
+                                hàng (GHN)</option>
+                            <option value="picking" {{#ifCond filters.status "picking" }}selected{{/ifCond}}>GHN đang
+                                lấy
+                                hàng
+                            </option>
+                            <option value="picked" {{#ifCond filters.status "picked" }}selected{{/ifCond}}>GHN đã lấy
+                                hàng
+                            </option>
+                            <option value="delivering" {{#ifCond filters.status "delivering" }}selected{{/ifCond}}>Đang
+                                giao
+                                hàng
+                            </option>
+                            <option value="money_collect_delivering" {{#ifCond filters.status "money_collect_delivering"
+                                }}selected{{/ifCond}}>Đang giao (COD)</option>
+                            <option value="delivered" {{#ifCond filters.status "delivered" }}selected{{/ifCond}}>Giao
+                                thành
+                                công
+                            </option>
+                            <option value="delivery_fail" {{#ifCond filters.status "delivery_fail"
+                                }}selected{{/ifCond}}>
+                                Giao thất
+                                bại</option>
+                            <option value="waiting_to_return" {{#ifCond filters.status "waiting_to_return"
+                                }}selected{{/ifCond}}>Chờ
+                                hoàn hàng</option>
+                            <option value="return" {{#ifCond filters.status "return" }}selected{{/ifCond}}>Đang hoàn
+                                hàng
+                            </option>
+                            <option value="returned" {{#ifCond filters.status "returned" }}selected{{/ifCond}}>Đã hoàn
+                                hàng
+                            </option>
+                            <option value="return_fail" {{#ifCond filters.status "return_fail" }}selected{{/ifCond}}>
+                                Hoàn
+                                hàng thất
+                                bại</option>
+                            <option value="cancel_request" {{#ifCond filters.status "cancel_request"
+                                }}selected{{/ifCond}}>
+                                Yêu cầu
+                                hủy</option>
+                            <option value="canceled" {{#ifCond filters.status "canceled" }}selected{{/ifCond}}>Đã hủy
+                            </option>
+                            <option value="rejected" {{#ifCond filters.status "rejected" }}selected{{/ifCond}}>Từ chối
+                                xác
+                                nhận
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filterPaymentStatus" class="form-label">Trạng thái thanh toán</label>
+                        <select id="filterPaymentStatus" class="form-select" name="payment_status">
+                            <option value="">Tất cả</option>
+                            <option value="pending" {{#ifCond filters.payment_status "pending" }}selected{{/ifCond}}>Chờ
+                                thanh toán</option>
+                            <option value="paid" {{#ifCond filters.payment_status "paid" }}selected{{/ifCond}}>Đã thanh
+                                toán
+                            </option>
+                            <option value="refunded" {{#ifCond filters.payment_status "refunded" }}selected{{/ifCond}}>
+                                Hoàn
+                                tiền</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row align-items-end mt-3">
+                    <div class="col-md-2">
+                        <label for="timePeriod" class="form-label">Khoảng thời gian</label>
+                        <select name="timePeriod" id="timePeriod" class="form-select">
+                            <option value="" {{#unless filters.timePeriod}}selected{{/unless}}>Tất cả</option>
+                            <option value="today" {{#if (eq filters.timePeriod "today" )}}selected{{/if}}>Hôm nay
+                            </option>
+                            <option value="last_week" {{#if (eq filters.timePeriod "last_week" )}}selected{{/if}}>Tuần
+                                trước
+                            </option>
+                            <option value="this_month" {{#if (eq filters.timePeriod "this_month" )}}selected{{/if}}>
+                                Tháng này
+                            </option>
+                            <option value="last_month" {{#if (eq filters.timePeriod "last_month" )}}selected{{/if}}>
+                                Tháng trước
+                            </option>
+                            <option value="last_3_months" {{#if (eq filters.timePeriod "last_3_months"
+                                )}}selected{{/if}}>3
+                                tháng gần nhất</option>
+                            <option value="custom_order" {{#if (eq filters.timePeriod "custom_order" )}}selected{{/if}}>
+                                Tùy
+                                chỉnh ngày đặt hàng</option>
+                            <option value="custom_delivery" {{#if (eq filters.timePeriod "custom_delivery"
+                                )}}selected{{/if}}>
+                                Tùy chỉnh ngày nhận hàng</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 custom-date-field" style="display: none;">
+                        <label class="form-label">Từ ngày</label>
+                        <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}">
+                    </div>
+
+                    <div class="col-md-2 custom-date-field" style="display: none;">
+                        <label class="form-label">Đến ngày</label>
+                        <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}">
+                    </div>
+
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="priceFilterCheckbox" {{#if filters.min_price}}checked{{/if}}>
+                        <label for="priceFilterCheckbox" class="form-label">Lọc theo tổng tiền</label>
+                    </div>
+                    <div class="col-md-2 price-filter-fields" style="display: none">
+                        <label for="minPrice" class="form-label">Giá từ: <span id="minPriceLabel">0 VND</span></label>
+                        <input type="number" class="form-control" name="min_price" id="minPrice"
+                            value="{{filters.min_price}}">
+                    </div>
+
+                    <div class="col-md-2 price-filter-fields" style="display: none">
+                        <label for="maxPrice" class="form-label">Đến: <span id="maxPriceLabel">0 VND</span></label>
+                        <input type="number" class="form-control" name="max_price" id="maxPrice"
+                            value="{{filters.max_price}}">
+                    </div>
+
+                </div>
+                <div class="row align-items-end mt-3">
+                    <div class="col-md-1">
+                        <label class="form-label">Hiển thị</label>
+                        <select class="form-select" name="limit">
+                            <option value="10" {{#if (eq limit 10 )}}selected{{/if}}>10</option>
+                            <option value="20" {{#if (eq limit 20 )}}selected{{/if}}>20</option>
+                            <option value="50" {{#if (eq limit 50 )}}selected{{/if}}>50</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button id="btnSearchOrder" class="btn btn-primary w-100">Tìm kiếm</button>
+                    </div>
+                </div>
+
+            </form>
         </div>
     </div>
+
 
     <table class="table table-striped">
         <thead>
@@ -76,6 +231,10 @@
                 <td>{{formatPrice this.total_price}} VND</td>
                 <td>
                     <span class="badge {{getStatusClass this.status}}">{{getStatusText this.status}}</span>
+                    {{#if (and this.cancel_request (neq this.status "canceled"))}}
+                    <span class="badge bg-warning text-dark ms-2">Yêu cầu hủy đơn</span>
+                    {{/if}}
+
                 </td>
 
 
@@ -99,7 +258,13 @@
             {{/each}}
         </tbody>
     </table>
-
+    {{#unless orders.length}}
+    <div class="text-center text-muted py-3">
+        <i class="bi bi-search display-6 d-block mb-2"></i>
+        <h5>Không tìm thấy đơn hàng nào phù hợp</h5>
+        <p>Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc.</p>
+    </div>
+    {{/unless}}
     <nav>
         <ul class="pagination justify-content-center">
             {{#if (gt currentPage 1)}}
@@ -139,15 +304,6 @@
         formatDates();
 
 
-        document.getElementById("btnSearchOrder").addEventListener("click", function () {
-            const search = document.getElementById("searchOrder").value.trim();
-            const status = document.getElementById("filterStatus").value;
-            const sort = document.getElementById("sortOrders").value;
-
-            window.location.href = `?page=1&limit=10&search=${search}&status=${status}&sort=${sort}`;
-        });
-
-
         const socket = io();
         socket.on("new_order", function (order) {
             showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");
@@ -177,55 +333,6 @@
             });
         }
 
-        function getStatusClass(status) {
-            switch (status) {
-                case "pending": return "bg-warning";
-                case "confirmed": return "bg-primary";
-                case "ready_to_pick": return "bg-info";
-                case "picking": return "bg-info";
-                case "picked": return "bg-success";
-                case "delivering": return "bg-primary";
-                case "money_collect_delivering": return "bg-primary";
-                case "delivered": return "bg-success";
-                case "delivery_fail": return "bg-danger";
-                case "waiting_to_return": return "bg-warning";
-                case "return": return "bg-secondary";
-                case "returned": return "bg-success";
-                case "return_fail": return "bg-danger";
-                case "canceled": return "bg-danger";
-                default: return "bg-secondary";
-            }
-        }
-
-        function getStatusText(status) {
-            switch (status) {
-                case "pending": return "Chờ xác nhận";
-                case "confirmed": return "Đã xác nhận";
-                case "ready_to_pick": return "Chờ lấy hàng";
-                case "picking": return "Đang lấy hàng";
-                case "picked": return "Đã lấy hàng";
-                case "delivering": return "Đang giao";
-                case "money_collect_delivering": return "Đang giao (COD)";
-                case "delivered": return "Giao thành công";
-                case "delivery_fail": return "Giao thất bại";
-                case "waiting_to_return": return "Chờ hoàn hàng";
-                case "return": return "Đang hoàn hàng";
-                case "returned": return "Đã hoàn hàng";
-                case "return_fail": return "Hoàn hàng thất bại";
-                case "canceled": return "Đã hủy";
-                default: return "Không xác định";
-            }
-        }
-
-        function getPaymentClass(method) {
-            switch (method) {
-                case "COD": return "bg-secondary";
-                case "MOMO": return "bg-pink";
-                case "VNPAY": return "bg-blue";
-                default: return "bg-dark";
-            }
-        }
-
         function showToast(message, bgClass = "bg-success") {
             const toastElement = document.getElementById("toastMessage");
             const toastBody = document.getElementById("toastBody");
@@ -243,20 +350,90 @@
 </script>
 
 
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggleBtn = document.getElementById("toggleFilter");
+        const filterCard = document.getElementById("filterCard");
+
+        toggleBtn.addEventListener("click", function () {
+            filterCard.style.display =
+                filterCard.style.display === "none" ? "block" : "none";
+        });
+        const timeSelect = document.getElementById('timePeriod');
+        const customFields = document.querySelectorAll('.custom-date-field');
+
+        function toggleCustomDates() {
+            const isCustom = timeSelect.value === 'custom';
+            customFields.forEach(el => {
+                el.style.display = isCustom ? 'block' : 'none';
+            });
+        }
+
+        toggleCustomDates();
+        timeSelect.addEventListener('change', toggleCustomDates);
+    });
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const timePeriodSelect = document.getElementById("timePeriod");
+        const customDateFields = document.querySelectorAll(".custom-date-field");
+
+        function toggleCustomDateFields() {
+            const value = timePeriodSelect.value;
+            if (value === "custom_order" || value === "custom_delivery") {
+                customDateFields.forEach(el => el.style.display = "block");
+            } else {
+                customDateFields.forEach(el => el.style.display = "none");
+            }
+        }
+
+        timePeriodSelect.addEventListener("change", toggleCustomDateFields);
+        toggleCustomDateFields();
+    });
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        function formatCurrency(value) {
+            if (!value) return '0 VND';
+            return parseInt(value).toLocaleString('vi-VN') + ' VND';
+        }
+
+        const minPriceInput = document.getElementById('minPrice');
+        const maxPriceInput = document.getElementById('maxPrice');
+
+        const minPriceLabel = document.getElementById('minPriceLabel');
+        const maxPriceLabel = document.getElementById('maxPriceLabel');
+
+        minPriceInput.addEventListener('input', function () {
+            const minPriceValue = minPriceInput.value;
+            minPriceLabel.textContent = formatCurrency(minPriceValue);
+        });
+
+        maxPriceInput.addEventListener('input', function () {
+            const maxPriceValue = maxPriceInput.value;
+            maxPriceLabel.textContent = formatCurrency(maxPriceValue);
+        });
+
+        minPriceLabel.textContent = formatCurrency(minPriceInput.value);
+        maxPriceLabel.textContent = formatCurrency(maxPriceInput.value);
 
 
+        function togglePriceFilter() {
+            var priceFields = document.querySelectorAll(".price-filter-fields");
+            var checkbox = document.getElementById("priceFilterCheckbox");
+            if (checkbox.checked) {
+                priceFields.forEach(function (field) {
+                    field.style.display = "block";
+                });
+            } else {
+                priceFields.forEach(function (field) {
+                    field.style.display = "none";
+                });
+            }
+        }
+        togglePriceFilter();
+        document.getElementById("priceFilterCheckbox").addEventListener("change", togglePriceFilter);
 
-{{!-- document.getElementById("searchOrder").addEventListener("input", function () {
-const query = this.value.trim();
-window.location.href = `?page=1&limit=10&search=${query}`;
-});
-
-document.getElementById("filterStatus").addEventListener("change", function () {
-const status = this.value;
-window.location.href = `?page=1&limit=10&status=${status}&search={{search}}&sort={{sort}}`;
-});
-
-document.getElementById("sortOrders").addEventListener("change", function () {
-const sort = this.value;
-window.location.href = `?page=1&limit=10&status={{filterStatus}}&search={{search}}&sort=${sort}`;
-}); --}}
+    });
+</script>

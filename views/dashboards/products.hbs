@@ -132,13 +132,13 @@
           <!-- Chọn số lượng hiển thị -->
           <div class="col-md-1">
             <label class="form-label">Hiển thị</label>
-            <select class="form-select" name="perPage">
+            <select class="form-select" name="limit">
               {{!-- <option>10</option>
               <option>20</option>
               <option>50</option> --}}
-              <option value="10" {{#if (eq perPage 10 )}}selected{{/if}}>10</option>
-              <option value="20" {{#if (eq perPage 20 )}}selected{{/if}}>20</option>
-              <option value="50" {{#if (eq perPage 50 )}}selected{{/if}}>50</option>
+              <option value="10" {{#if (eq limit 10 )}}selected{{/if}}>10</option>
+              <option value="20" {{#if (eq limit 20 )}}selected{{/if}}>20</option>
+              <option value="50" {{#if (eq limit 50 )}}selected{{/if}}>50</option>
 
             </select>
           </div>

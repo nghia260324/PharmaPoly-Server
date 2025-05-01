@@ -607,13 +607,19 @@ router.get('/user/notification', authenticateToken, async (req, res) => {
         });
     }
 });
+
 router.get('/user/notification/read-all', authenticateToken, async (req, res) => {
     try {
         const userId = req.user_id;
 
-        const result = await Notifications.updateMany(
+        await Notifications.updateMany(
             { user_id: userId, is_read: false },
-            { $set: { is_read: true } }
+            {
+                $set: {
+                    is_read: true,
+                    updated_at: new Date()
+                }
+            }
         );
 
         const notifications = await Notifications.find({ user_id: userId })
@@ -2909,7 +2915,8 @@ async function checkPaymentStatus(user_id, order_id, total_price) {
 
                 await Orders.updateOne(
                     { _id: order_id },
-                    { $set: { payment_status: "paid", transaction_id: transactionId } }
+                    { $set: { payment_status: "paid", transaction_id: transactionId } },
+                    { timestamps: true }
                 );
 
                 await db.ref(`payment_status/${user_id}`).set("PAID");

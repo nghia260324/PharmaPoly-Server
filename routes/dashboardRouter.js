@@ -510,7 +510,7 @@ router.get('/products', async function (req, res, next) {
         let {
             sortBy,
             status,
-            perPage = 10,
+            limit = 10,
             page = 1,
             timePeriod,
             startDate,
@@ -523,7 +523,7 @@ router.get('/products', async function (req, res, next) {
 
         sortBy = sortBy || 'best_selling';
         page = parseInt(page);
-        perPage = parseInt(perPage);
+        limit = parseInt(limit);
 
         const now = new Date();
         let dateFilter = {};
@@ -634,8 +634,8 @@ router.get('/products', async function (req, res, next) {
                 const [products, total] = await Promise.all([
                     Products.find(productFilter)
                         .sort({ created_at: -1 })
-                        .skip((page - 1) * perPage)
-                        .limit(perPage)
+                        .skip((page - 1) * limit)
+                        .limit(limit)
                         .lean(),
                     Products.countDocuments(productFilter),
                 ]);
@@ -688,8 +688,8 @@ router.get('/products', async function (req, res, next) {
                 return res.render('dashboards/products', {
                     products: finalProducts,
                     currentPage: page,
-                    totalPages: Math.ceil(total / perPage),
-                    perPage,
+                    totalPages: Math.ceil(total / limit),
+                    limit,
                     total,
                     categories,
                     brands,
@@ -823,8 +823,8 @@ router.get('/products', async function (req, res, next) {
                 },
             },
 
-            { $skip: (page - 1) * perPage },
-            { $limit: perPage },
+            { $skip: (page - 1) * limit },
+            { $limit: limit },
         ];
 
         const [products, totalCount] = await Promise.all([
@@ -927,7 +927,7 @@ router.get('/products', async function (req, res, next) {
         ]);
 
         const total = totalCount[0]?.total || 0;
-        const totalPages = Math.ceil(total / perPage);
+        const totalPages = Math.ceil(total / limit);
 
         const productIds = products.map((p) => p.product._id.toString());
         const images = await ProductImages.find({
@@ -956,7 +956,7 @@ router.get('/products', async function (req, res, next) {
             products: finalProducts,
             currentPage: page,
             totalPages,
-            perPage,
+            limit,
             total,
             categories,
             brands,
@@ -1380,10 +1380,10 @@ router.get('/products', async function (req, res, next) {
 
 router.get('/inventory', async (req, res) => {
     try {
-        // let { sortBy, status, timePeriod, startDate, endDate, page = 1, perPage = 10 } = req.query;
-        let { sortBy, status, perPage = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice, expiryDate } = req.query;
+        // let { sortBy, status, timePeriod, startDate, endDate, page = 1, limit = 10 } = req.query;
+        let { sortBy, status, limit = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice, expiryDate } = req.query;
         page = parseInt(page);
-        perPage = parseInt(perPage);
+        limit = parseInt(limit);
 
         let dateFilter = {};
         const now = new Date();
@@ -1524,8 +1524,8 @@ router.get('/inventory', async (req, res) => {
                 }
             },
             { $sort: sortOptions },
-            { $skip: (page - 1) * perPage },
-            { $limit: perPage }
+            { $skip: (page - 1) * limit },
+            { $limit: limit }
         ];
 
         const [inventory, totalCount] = await Promise.all([
@@ -1533,14 +1533,14 @@ router.get('/inventory', async (req, res) => {
             StockEntries.countDocuments(filter)
         ]);
 
-        const totalPages = Math.ceil(totalCount / perPage);
+        const totalPages = Math.ceil(totalCount / limit);
         const categories = await Categories.find();
         const brands = await Brands.find();
         res.render('dashboards/inventory', {
             stocks: inventory,
             currentPage: page,
             totalPages,
-            perPage,
+            limit,
             total: totalCount,
             categories,
             brands,
