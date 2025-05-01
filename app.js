@@ -150,7 +150,7 @@ app.post('/webhook/ghn', async (req, res) => {
       newStatus === 'delivering' ||
       newStatus === 'delivered'
     ) {
-      sendPickedNotification();
+      sendPickedNotification(order,newStatus);
     }
 
     console.log(`Đơn hàng ${updatedOrder.order_code} đã được cập nhật trạng thái ${updatedOrder.status}`);
@@ -366,7 +366,7 @@ app.post("/webhook/payment", async (req, res) => {
 });
 
 
-const sendPickedNotification = async (order) => {
+const sendPickedNotification = async (order,newStatus) => {
   try {
     const orderItems = await OrderItems.find({ order_id: order._id })
       .populate({
@@ -420,6 +420,7 @@ const sendPickedNotification = async (order) => {
     console.error("Lỗi khi gửi thông báo cho trạng thái 'picked':", error.message);
   }
 };
+
 
 const sendRefundNotification = async (order) => {
   const orderItems = await OrderItems.find({ order_id: order._id })
