@@ -177,6 +177,26 @@
     </div>
 </div>
 
+<!-- Modal Confirm for Product Type -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalLabel">Xác nhận</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn thêm loại sản phẩm này không?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="confirmActionBtn">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelector(".btn-primary").addEventListener("click", saveCategory);
@@ -190,34 +210,39 @@
         const categoryName = nameInput.value.trim();
 
         if (!categoryName) {
-            showToast("Category name is required!", "danger");
+            showToast("Tên danh mục là bắt buộc!", "danger");
             return;
         }
 
-        try {
-            const response = await fetch("/categories/add", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ name: categoryName })
-            });
+        const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        confirmModal.show();
 
-            const result = await response.json();
-            if (result.status === 200) {
-                showToast(result.message, "success");
-                modal.hide();
-                setTimeout(() => {
-                    location.reload();
-                }, 1000);
-                //addCategoryToDOM(result.data);
+        document.getElementById("confirmActionBtn").onclick = async function () {
+            try {
+                const response = await fetch("/categories/add", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ name: categoryName })
+                });
 
-                nameInput.value = '';
-            } else {
-                showToast(result.message, "danger");
+                const result = await response.json();
+                if (result.status === 200) {
+                    showToast(result.message, "success");
+
+                    setTimeout(() => {
+                        location.href = '/categories';
+                    }, 1000);
+
+                } else {
+                    confirmModal.hide();
+                    showToast(result.message, "danger");
+                }
+            } catch (error) {
+                confirmModal.hide();
+                showToast("Đã có lỗi xảy ra!", "danger");
             }
-        } catch (error) {
-            showToast("An error occurred!", "danger");
         }
     }
 
@@ -303,7 +328,7 @@
         const categoryName = document.getElementById("editCategoryName").value.trim();
 
         if (!categoryName) {
-            showToast("Category name is required!", "danger");
+            showToast("Tên danh mục là bắt buộc!", "danger");
             return;
         }
 
@@ -324,7 +349,7 @@
                 modal.hide();
 
                 setTimeout(() => {
-                    location.reload();
+                    location.href = '/categories';
                 }, 1000);
             } else {
                 showToast(result.message, "danger");

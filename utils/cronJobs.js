@@ -54,11 +54,11 @@ cron.schedule("0 0 * * *", async () => {
             }
         );
 
-        console.log(`✅ Cập nhật trạng thái 'expired' cho ${expiredStock.modifiedCount || expiredStock.nModified} lô hàng đã hết hạn.`);
+        console.log("✅ Cập nhật trạng thái 'expired', chi tiết:", expiredStock);
+
     } catch (error) {
         console.error("❌ Lỗi khi cập nhật trạng thái lô hàng đã hết hạn:", error);
     }
 });
-
 
 console.log("🚀 Cron job for auto-canceling unpaid orders is running...");

@@ -19,6 +19,16 @@ const binMap = {
     "01203001": "970436",
 };
 
+const REJECT_REASONS = [
+    { code: "OUT_OF_STOCK", reason: "Sản phẩm tạm thời hết hàng" },
+    { code: "DISCONTINUED", reason: "Sản phẩm đã ngừng kinh doanh" },
+    { code: "SHOP_PAUSED", reason: "Shop đang tạm ngưng hoạt động" },
+    { code: "PRICE_CHANGED", reason: "Giá sản phẩm thay đổi, cần xác nhận lại" },
+    { code: "CUSTOMER_CANCEL", reason: "Khách yêu cầu hủy đơn" },
+    { code: "AREA_UNSUPPORTED", reason: "Không hỗ trợ giao đến khu vực của khách hàng" },
+    { code: "OTHER", reason: "Lý do khác" }
+];
+
 router.get("/", async (req, res) => {
     // const { page = 1, limit = 10, search, status, sort } = req.query;
     const page = parseInt(req.query.page) || 1;
@@ -114,7 +124,8 @@ router.get("/:id/detail", async function (req, res, next) {
         res.render("orders/detail", {
             order,
             orderItems: orderItemsWithImages,
-            userAddress
+            userAddress,
+            rejectReasons: REJECT_REASONS
         });
     } catch (error) {
         next(error);
@@ -155,7 +166,12 @@ function generateVietQRQuickLink(order, bankId, accountNo) {
 
     return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
 }
+function generateRejectQRLink(order, bankId, accountNo) {
+    const template = process.env.TEMPLATE || "compact";
+    const addInfo = `REJECT${order._id}END`;
 
+    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
+}
 router.get("/:order_id/refund-qr", async (req, res) => {
     try {
         const { order_id } = req.params;
@@ -191,9 +207,6 @@ router.get("/:order_id/refund-qr", async (req, res) => {
         res.status(500).json({ error: err.message || "Internal Server Error" });
     }
 });
-
-
-
 
 
 router.put("/:order_id/confirm", async (req, res) => {
@@ -256,16 +269,16 @@ router.put("/:order_id/confirm", async (req, res) => {
         const shortenName = (name, maxLength = 40) => {
             return name.length > maxLength ? name.slice(0, maxLength).trim() + '…' : name;
         };
-        
+
         const shortName = shortenName(firstProductName);
         const otherCount = orderItems.length - 1;
-        
+
         const productSummary = otherCount > 0
             ? `${shortName} và ${otherCount} sản phẩm khác`
             : shortName;
-        
+
         const message = `Đơn hàng của bạn (${productSummary}) đã được xác nhận và đang được chuẩn bị.`;
-        
+
         await sendNotification({
             user_id: order.user_id,
             title: 'Đơn hàng đã được xác nhận',
@@ -292,6 +305,22 @@ router.put("/:order_id/confirm", async (req, res) => {
 router.put("/:order_id/reject", async (req, res) => {
     try {
         const { order_id } = req.params;
+        const { reason, value } = req.body;
+
+        const validReason = REJECT_REASONS.find(r => r.code === reason);
+        if (!validReason) {
+            return res.status(400).json({
+                status: 400,
+                message: "Lý do từ chối không hợp lệ"
+            });
+        }
+
+        if (reason === "OTHER" && !value.trim()) {
+            return res.status(400).json({
+                status: 400,
+                message: "Vui lòng nhập lý do khác"
+            });
+        }
 
         const order = await Orders.findById(order_id);
         if (!order) {
@@ -304,15 +333,75 @@ router.put("/:order_id/reject", async (req, res) => {
                 message: "Chỉ có thể từ chối đơn hàng ở trạng thái 'pending'"
             });
         }
+       
+        if (order.payment_method === 'COD') {
+            order.status = "rejected";
+            await order.save();
+            const orderItems = await OrderItems.find({ order_id })
+                .populate({
+                    path: "product_product_type_id",
+                    model: "productProductType",
+                    populate: {
+                        path: "product_id",
+                        model: "product",
+                        select: "name"
+                    }
+                });
 
-        order.status = "canceled";
-        await order.save();
+            const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
+            const shortenName = (name, maxLength = 40) => {
+                return name.length > maxLength ? name.slice(0, maxLength).trim() + '…' : name;
+            };
 
-        return res.status(200).json({
-            status: 200,
-            message: "Đã từ chối đơn hàng",
-            data: order
-        });
+            const shortName = shortenName(firstProductName);
+            const otherCount = orderItems.length - 1;
+            const finalReason = reason === "OTHER" ? value : validReason.reason;
+
+            const productSummary = otherCount > 0
+                ? `${shortName} và ${otherCount} sản phẩm khác`
+                : shortName;
+
+            const message =
+                `- Đơn hàng của bạn (${productSummary}) đã bị từ chối.\n` +
+                `- Lý do: ${finalReason}.`;
+
+
+            await sendNotification({
+                user_id: order.user_id,
+                title: 'Đơn hàng của bạn đã bị từ chối',
+                message: message
+            });
+
+            return res.status(200).json({
+                status: 200,
+                message: "Đã từ chối đơn hàng",
+                data: order
+            });
+        } else if (order.payment_method === "ONLINE" && order.payment_status === 'paid') {
+
+            await db.ref(`reject_requests/${order._id}`).set(reason === "OTHER" ? value : validReason.reason);
+
+            const transaction_id = order.transaction_id;
+            const amount = order.total_price;
+            if (!transaction_id || !amount) {
+                return res.status(400).json({ error: "Missing transaction info in order" });
+            }
+    
+            const txData = await getTransactionInfo(transaction_id);
+            const bin = txData.data["Mã BIN ngân hàng đối ứng"];
+            const accountNo = txData.data["Số tài khoản đối ứng"];
+    
+            if (!bin || !accountNo) {
+                return res.status(400).json({ error: "Missing BIN or account number in transaction data" });
+            }
+    
+            const bank = await getBankFromVietQR(bin);
+            const qrLink = generateRejectQRLink(order, bank.code, accountNo, amount);
+    
+            res.json({
+                qrLink
+            });
+        }
     } catch (error) {
         console.error("Lỗi khi từ chối đơn hàng:", error);
         return res.status(500).json({
@@ -330,29 +419,43 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
 
         const order = await Orders.findById(order_id);
         if (!order) {
-            return res.status(404).json({ status: 404, message: "Order not found" });
+            return res.status(404).json({ status: 404, message: "Không tìm thấy đơn hàng" });
         }
 
         if (order.status !== "confirmed") {
-            return res.status(400).json({ status: 400, message: "Order must be in 'confirmed' status before sending to GHN" });
+            return res.status(400).json({ status: 400, message: "Không thể gửi đơn hàng đi GHN khi đơn hàng chưa ở trạng thái 'Đã xác nhận'" });
         }
 
         const orderItems = await OrderItems.find({ order_id })
             .populate({
-                path: 'product_id',
-                select: 'name'
+                path: 'product_product_type_id',
+                populate: {
+                    path: 'product_id',
+                    select: 'name'
+                }
             })
             .lean();
 
         if (!orderItems.length) {
-            return res.status(400).json({ status: 400, message: "Order has no items" });
+            return res.status(400).json({ status: 400, message: "Đơn hàng không có sản phẩm" });
         }
 
-        const formattedOrderItems = orderItems.map(item => ({
-            ...item,
-            product_name: item.product_id.name,
-            product_id: item.product_id._id
-        }));
+        // const formattedOrderItems = orderItems.map(item => ({
+        //     ...item,
+        //     product_name: item.product_product_type_id?.product_id?.name || "Unknown product",
+        //     product_id: item.product_product_type_id?.product_id?._id || null
+        // }));
+        const formattedOrderItems = orderItems.map(item => {
+            if (!item.product_product_type_id?.product_id) {
+                throw new Error("Sản phẩm không còn tồn tại hoặc đã bị xóa.");
+            }
+
+            return {
+                ...item,
+                product_name: item.product_product_type_id.product_id.name,
+                product_id: item.product_product_type_id.product_id._id
+            };
+        });
 
         const shopInfo = await getShopInfo();
         const servicesResponse = await axios.get(`${GHN_API}/v2/shipping-order/available-services`, {
@@ -361,12 +464,16 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
         });
 
         if (!servicesResponse.data.data || !servicesResponse.data.data.length) {
-            return res.status(500).json({ status: 500, message: "No available GHN services" });
+            return res.status(500).json({
+                status: 500,
+                message: "Giao Hàng Nhanh chưa hỗ trợ giao hàng đến khu vực này."
+            });
         }
 
         const service = servicesResponse.data.data[0];
 
         const payment_type_id = order.payment_method === "COD" ? 2 : 1;
+        const cod_amount = order.payment_method === "COD" ? order.total_price - order.shipping_fee : 0;
 
         const ghnResponse = await axios.post(`${GHN_API}/v2/shipping-order/create`, {
             payment_type_id,
@@ -398,14 +505,14 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
             })),
             weight: 1,
             //cod_amount: order.payment_method === "COD" ? order.total_price - order.shipping_fee : 0,
-            cod_amount: order.payment_method === "COD" ? order.total_price : 0,
-            insurance_value: order.total_price - order.shipping_fee,
+            cod_amount: order.payment_method === "COD" ? cod_amount : 0,
+            insurance_value: cod_amount,
         }, {
             headers: { "Content-Type": "application/json", "Token": TOKEN_GHN, "ShopId": SHOP_ID }
         });
 
         if (ghnResponse.data.code !== 200) {
-            return res.status(500).json({ status: 500, message: "Failed to create GHN order", error: ghnResponse.data });
+            return res.status(500).json({ status: 500, message: "Tạo đơn hàng GHN thất bại", error: ghnResponse.data });
         }
 
         const order_code = ghnResponse.data.data.order_code;
@@ -414,13 +521,17 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
         order.order_code = order_code;
         await order.save();
 
-        res.status(200).json({ status: 200, message: "Order confirmed and GHN order created", data: { order, order_code } });
+        res.status(200).json({
+            status: 200,
+            message: "Đơn hàng đã được xác nhận và tạo đơn trên Giao Hàng Nhanh thành công",
+            data: { order, order_code }
+        });
 
     } catch (error) {
-        console.error("Error confirming order:", error);
+        console.error("Lỗi khi xác nhận đơn hàng:", error);
         return res.status(500).json({
             status: 500,
-            message: "Internal Server Error",
+            message: "Lỗi hệ thống",
             error: error.response?.data || error.message
         });
     }
@@ -491,7 +602,7 @@ router.post("/:orderId/cancel", async (req, res) => {
 
 
 
-router.get('/payment_status/:order_id',async (req, res) => {
+router.get('/payment_status/:order_id', async (req, res) => {
     const orderId = req.params.order_id;
 
     const order = await Orders.findById(orderId);

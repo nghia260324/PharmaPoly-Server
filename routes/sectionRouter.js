@@ -131,6 +131,15 @@ router.put('/update/:id', async (req, res) => {
             return res.status(400).json({ status: 400, message: "Tên mục nội dung là bắt buộc!" });
         }
 
+        const existedSection = await Sections.findOne({
+            _id: { $ne: id },
+            name: { $regex: `^${name}$`, $options: 'i' }
+        });
+
+        if (existedSection) {
+            return res.status(400).json({ status: 400, message: "Tên mục nội dung này đã được sử dụng bởi mục khác!" });
+        }
+
         const updatedSection = await Sections.findByIdAndUpdate(id, { name }, { new: true });
 
         if (updatedSection) {

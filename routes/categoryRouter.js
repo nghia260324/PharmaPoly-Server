@@ -2,29 +2,65 @@ var express = require('express');
 var router = express.Router();
 
 const Categories = require('../models/categories');
+const { removeDiacritics } = require('../utils/textUtils');
+
+// router.get('/', async function (req, res, next) {
+//     const { page = 1, limit = 10, search, sort } = req.query;
+
+//     let query = {};
+//     if (search) {
+//         query.name = { $regex: search, $options: 'i' };
+//     }
+
+//     let sortOption = { name: 1 };
+//     if (sort === 'name_desc') sortOption = { name: -1 };
+
+//     const categories = await Categories.find(query)
+//         .sort(sortOption)
+//         .skip((page - 1) * limit)
+//         .limit(parseInt(limit));
+
+//     const totalCategories = await Categories.countDocuments(query);
+//     const totalPages = Math.ceil(totalCategories / limit);
+
+//     res.render('categories/list', {
+//         categories,
+//         currentPage: parseInt(page),
+//         totalPages,
+//         limit: parseInt(limit),
+//         search,
+//         sort
+//     });
+// });
 
 router.get('/', async function (req, res, next) {
-    const { page = 1, limit = 10, search, sort } = req.query;
+    const { page = 1, limit = 10, search = '', sort } = req.query;
 
-    let query = {};
-    if (search) {
-        query.name = { $regex: search, $options: 'i' };
-    }
-
-    let sortOption = { name: 1 };
+    let sortOption = { created_at: -1 };
+    if (sort === 'name_asc') sortOption = { name: 1 };
     if (sort === 'name_desc') sortOption = { name: -1 };
 
-    const categories = await Categories.find(query)
-        .sort(sortOption)
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+    let categories = await Categories.find().sort(sortOption);
 
-    const totalCategories = await Categories.countDocuments(query);
+    if (search) {
+        const keyword = removeDiacritics(search.toLowerCase());
+
+        categories = categories.filter(item => {
+            const nameNoDiacritics = removeDiacritics(item.name.toLowerCase());
+            const idMatch = item._id.toString().includes(keyword);
+            const nameMatch = nameNoDiacritics.includes(keyword);
+            return idMatch || nameMatch;
+        });
+    }
+
+    const totalCategories = categories.length;
     const totalPages = Math.ceil(totalCategories / limit);
+    const currentPage = parseInt(page);
+    const paginatedCategories = categories.slice((currentPage - 1) * limit, currentPage * limit);
 
     res.render('categories/list', {
-        categories,
-        currentPage: parseInt(page),
+        categories: paginatedCategories,
+        currentPage,
         totalPages,
         limit: parseInt(limit),
         search,
@@ -32,8 +68,6 @@ router.get('/', async function (req, res, next) {
     });
 });
 
-
-// Thêm danh mục sản phẩm
 router.post('/add', async (req, res) => {
     try {
         const data = req.body;
@@ -44,7 +78,7 @@ router.post('/add', async (req, res) => {
 
         const existingType = await Categories.findOne({ name: { $regex: new RegExp(`^${data.name}$`, 'i') } });
         if (existingType) {
-            return res.status(409).json({ status: 409, message: `Danh mục sản phẩm "${data.name}" đã tồn tại!` });
+            return res.status(404).json({ status: 404, message: `Danh mục sản phẩm "${data.name}" đã tồn tại!` });
         }
 
         const newCategory = new Categories({ name: data.name });
@@ -60,7 +94,6 @@ router.post('/add', async (req, res) => {
     }
 });
 
-// Xóa danh mục sản phẩm
 router.delete('/delete/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -81,7 +114,6 @@ router.delete('/delete/:id', async (req, res) => {
     }
 });
 
-// Cập nhật danh mục sản phẩm
 router.put('/update/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -89,6 +121,14 @@ router.put('/update/:id', async (req, res) => {
 
         if (!name) {
             return res.status(400).json({ status: 400, message: "Tên danh mục sản phẩm là bắt buộc!" });
+        }
+        const existedCategory = await Categories.findOne({
+            _id: { $ne: id },
+            name: { $regex: `^${name}$`, $options: 'i' }
+        });
+
+        if (existedCategory) {
+            return res.status(400).json({ status: 400, message: "Tên danh mục sản phẩm này đã được sử dụng bởi danh mục khác!" });
         }
 
         const updatedCategory = await Categories.findByIdAndUpdate(id, { name }, { new: true });
@@ -107,7 +147,6 @@ router.put('/update/:id', async (req, res) => {
     }
 });
 
-// Lấy tất cả danh mục sản phẩm
 router.get('/all', async (req, res) => {
     try {
         const categories = await Categories.find();

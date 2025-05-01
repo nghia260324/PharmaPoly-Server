@@ -57,6 +57,12 @@ router.post('/add', async (req, res) => {
             return res.status(400).json({ status: 400, message: "Tên thương hiệu và mô tả là bắt buộc!" });
         }
 
+        const existedBrand = await Brands.findOne({ name: { $regex: `^${data.name}$`, $options: 'i' } });
+
+        if (existedBrand) {
+            return res.status(400).json({ status: 400, message: "Thương hiệu này đã tồn tại!" });
+        }
+
         const newBrand = new Brands({ name: data.name, description: data.description });
         const result = await newBrand.save();
 
@@ -99,6 +105,15 @@ router.put('/update/:id', async (req, res) => {
 
         if (!name || !description) {
             return res.status(400).json({ status: 400, message: "Tên thương hiệu và mô tả là bắt buộc!" });
+        }
+
+        const existedBrand = await Brands.findOne({ 
+            _id: { $ne: id }, 
+            name: { $regex: `^${name}$`, $options: 'i' } 
+        });
+
+        if (existedBrand) {
+            return res.status(400).json({ status: 400, message: "Tên thương hiệu này đã được sử dụng bởi thương hiệu khác!" });
         }
 
         const updatedBrand = await Brands.findByIdAndUpdate(id, { name, description }, { new: true });

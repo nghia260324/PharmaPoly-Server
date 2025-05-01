@@ -58,14 +58,4 @@ const Orders = new Schema({
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-Orders.pre(['updateOne', 'findOneAndUpdate'], function (next) {
-    const update = this.getUpdate();
-
-    if (update && update.status === "delivered") {
-        this.set({ delivered_at: new Date() });
-    }
-
-    next();
-});
-
 module.exports = mongoose.model('order', Orders, 'orders');

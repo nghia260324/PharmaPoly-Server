@@ -3159,7 +3159,6 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
             order.status = "canceled";
         } else {
             order.cancel_request = true;
-            await db.ref("cancel_requests").set({ _id: order._id.toString(), timestamp: Date.now() });
         }
 
         await order.save();

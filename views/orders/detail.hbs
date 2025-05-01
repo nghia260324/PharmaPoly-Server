@@ -37,6 +37,7 @@
                 {{/if}}
                 {{/if}} --}}
 
+                {{#if (eq order.payment_method "ONLINE")}}
                 {{#if (or (eq order.payment_status "paid") (eq order.payment_status "refunded"))}}
                 <span class="badge bg-success">Đã thanh toán</span>
                 {{else}}
@@ -44,6 +45,7 @@
                     Chưa thanh toán
                     <span id="countdown" class="fw-bold"></span>
                 </span>
+                {{/if}}
                 {{/if}}
 
             </p>
@@ -60,29 +62,6 @@
                 {{/if}}
             </p>
 
-            {{!-- <div class="mt-3">
-                {{#if (eq order.status "pending")}}
-                <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
-                <button class="btn btn-danger" onclick="rejectOrder('{{order._id}}')">Từ chối đơn hàng</button>
-                {{/if}}
-
-                {{#if (eq order.status "confirmed")}}
-                {{#if (eq order.payment_method "COD")}}
-                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
-                {{else}}
-                {{#if (eq order.payment_status "paid")}}
-                <button class="btn btn-success" onclick="readyToShip('{{order._id}}')">Sẵn sàng giao hàng</button>
-                {{else}}
-                <p class="text-danger">⚠ Không thể chuyển trạng thái vì đơn hàng chưa được thanh toán.</p>
-                {{/if}}
-                {{/if}}
-                {{/if}}
-
-                {{#if (and (or (eq order.status "confirmed") (eq order.status "ready_to_pick")) order.cancel_request)}}
-                <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
-                <button class="btn btn-secondary" onclick="rejectCancel('{{order._id}}')">Từ chối yêu cầu hủy</button>
-                {{/if}}
-            </div> --}}
             <div class="mt-3">
                 {{#if (eq order.status "pending")}}
                 <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
@@ -106,7 +85,8 @@
                 (and (eq order.status "pending") (neq order.payment_method "COD") order.cancel_request)
                 )}}
                 <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
-                <button class="btn btn-secondary" onclick="rejectCancel('{{order._id}}')">Từ chối yêu cầu hủy</button>
+                {{!-- <button class="btn btn-secondary" onclick="rejectCancel('{{order._id}}')">Từ chối yêu cầu
+                    hủy</button> --}}
                 {{/if}}
             </div>
 
@@ -192,7 +172,7 @@
 <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static"
     data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content text-center p-4">
+        <div class="modal-content p-4 d-flex align-items-center justify-content-center">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Đang xử lý...</span>
             </div>
@@ -228,6 +208,44 @@
         </div>
     </div>
 </div>
+<!-- Modal từ chối đơn hàng -->
+<div class="modal fade" id="rejectOrderModal" tabindex="-1" aria-labelledby="rejectOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectOrderModalLabel">Từ chối đơn hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="rejectOrderForm">
+                    <div class="mb-3">
+                        <label for="rejectReason" class="form-label">Lý do từ chối</label>
+                        {{#each rejectReasons}}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="rejectReason" id="reason{{this.code}}"
+                                value="{{this.code}}">
+                            <label class="form-check-label" for="reason{{this.code}}">
+                                {{this.reason}}
+                            </label>
+                        </div>
+                        {{/each}}
+                    </div>
+                    <div class="mb-3" id="otherReasonInput" style="display: none;">
+                        <label for="otherReason" class="form-label">Lý do khác (bắt buộc)</label>
+                        <textarea class="form-control" id="otherReason" rows="3" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirmRejectBtn"
+                    data-payment-method="{{order.payment_method}}" onclick="confirmRejectOrder()">Từ
+                    chối đơn hàng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         document.getElementById('backBtn').addEventListener('click', function (e) {
@@ -242,10 +260,6 @@
         socket.on("cancel_request", function (order) {
             showToast("⚠️ Có yêu cầu hủy đơn hàng!", "bg-warning");
         });
-
-        //socket.on("return_request", function (order) {
-        //showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
-        //});
 
         formatDates();
         startCountdown();
@@ -264,6 +278,8 @@
         new bootstrap.Modal(document.getElementById("confirmModal")).show();
     }
     function sendRequest(url, method = "POST", body = null) {
+        const loadingModal = new bootstrap.Modal(document.getElementById("loadingModal"));
+        loadingModal.show();
         const options = {
             method,
             headers: { "Content-Type": "application/json" }
@@ -274,21 +290,23 @@
         fetch(url, options)
             .then(response => response.json())
             .then(data => {
+                loadingModal.hide();
                 if (data.status == 200) {
-                    showToast("Thành công!", "bg-success");
-                    setTimeout(() => location.reload(), 1500);
+                    showToast(data.message, "bg-success");
+                    setTimeout(() => location.reload(), 1000);
                 } else {
                     showToast("Lỗi: " + data.message, "bg-danger");
                 }
             })
             .catch(error => {
                 console.error("Lỗi:", error);
+                loadingModal.hide();
                 showToast("Đã xảy ra lỗi.", "bg-danger");
             });
     }
-    function rejectOrder(orderId) {
-        openConfirmModal("Từ chối đơn hàng", () => sendRequest(`/orders/${orderId}/reject`, 'PUT'));
-    }
+    //function rejectOrder(orderId) {
+    //openConfirmModal("Từ chối đơn hàng", () => sendRequest(`/orders/${orderId}/reject`, 'PUT'));
+    //}
 
     function confirmOrder(orderId) {
         openConfirmModal("Xác nhận đơn hàng", () => sendRequest(`/orders/${orderId}/confirm`, 'PUT'));
@@ -298,9 +316,6 @@
         openConfirmModal("Sẵn sàng giao hàng", () => sendRequest(`/orders/${orderId}/send-to-ghn`, 'PUT'));
     }
 
-    //function approveCancel(orderId) {
-    //openConfirmModal("Đồng ý hủy đơn", () => sendRequest(`/orders/${orderId}/cancel`, "POST", { action: "accept" }));
-    //}
     function approveCancel(orderId) {
         const isOnlinePaid = "{{order.payment_method}}" === "ONLINE" && "{{order.payment_status}}" === "paid";
 
@@ -395,7 +410,7 @@
                         clearInterval(statusIntervalId);
                         closeQrModal();
 
-                        showToast("Hoàn tiền thành công! Đơn hàng đã được hủy.", "bg-success");
+                        showToast("Hoàn tiền thành công!", "bg-success");
                         setTimeout(() => {
                             location.reload();
                         }, 1000);
@@ -425,4 +440,108 @@
         const toast = new bootstrap.Toast(toastElement);
         toast.show();
     }
+
+
+
+
+
+
+    function rejectOrder(orderId) {
+        document.getElementById("rejectOrderForm").reset();
+        document.getElementById("otherReasonInput").style.display = "none";
+
+        document.getElementById("confirmRejectBtn").setAttribute('data-order-id', orderId);
+
+        var rejectModal = new bootstrap.Modal(document.getElementById('rejectOrderModal'));
+        rejectModal.show();
+    }
+
+    document.querySelectorAll('input[name="rejectReason"]').forEach((radioButton) => {
+        radioButton.addEventListener('change', function () {
+            if (this.value === "OTHER") {
+                document.getElementById("otherReasonInput").style.display = "block";
+            } else {
+                document.getElementById("otherReasonInput").style.display = "none";
+            }
+        });
+    });
+
+    function confirmRejectOrder() {
+        const selectedReason = document.querySelector('input[name="rejectReason"]:checked');
+        const otherReason = document.getElementById("otherReason").value.trim();
+
+        if (!selectedReason) {
+            showToast("Vui lòng chọn lý do từ chối.", "bg-danger");
+            return;
+        }
+
+        let rejectReason = selectedReason.value;
+        if (rejectReason === "OTHER" && !otherReason) {
+            showToast("Vui lòng nhập lý do khác.", "bg-danger");
+            return;
+        }
+
+        const orderId = document.getElementById("confirmRejectBtn").getAttribute('data-order-id');
+        const paymentMethod = document.getElementById("confirmRejectBtn").getAttribute('data-payment-method');
+
+        const reasonToSend = rejectReason === "OTHER" ? { reason: rejectReason, value: otherReason } : { reason: rejectReason, value: '' };
+
+        const modalElement = document.getElementById('rejectOrderModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+        modalInstance.hide();
+
+        if (paymentMethod === "ONLINE") {
+
+            const modal = new bootstrap.Modal(document.getElementById('refundModal'));
+            const qrImage = document.getElementById('qrCodeImage');
+            const loading = document.getElementById('loadingQr');
+
+            loading.classList.remove('d-none');
+            qrImage.style.display = 'none';
+
+            modal.show();
+
+            fetch(`/orders/${orderId}/reject`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reasonToSend)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.qrLink) {
+                        qrImage.src = data.qrLink;
+                        loading.classList.add('d-none');
+                        qrImage.style.display = 'block';
+                        checkOrderStatus(orderId);
+                        modal.show();
+                    }
+                })
+                .catch(error => {
+                    console.error('Lỗi khi từ chối đơn hàng:', error);
+                    showToast("Lỗi khi từ chối đơn hàng", "bg-danger");
+                });
+        } else {
+            // COD: chỉ cần gọi đơn giản
+            sendRequest(`/orders/${orderId}/reject`, 'PUT', reasonToSend);
+        }
+    }
+
+
+
+
 </script>
+
+{{!-- sendRequest(`/orders/${orderId}/reject`, 'PUT', { reason: reasonToSend })
+.then(() => {
+// Đóng modal sau khi gửi request thành công
+const rejectModal = bootstrap.Modal.getInstance(document.getElementById('rejectOrderModal'));
+rejectModal.hide();
+
+// Thông báo thành công
+showToast("Đơn hàng đã được từ chối!", "bg-success");
+})
+.catch(error => {
+// Xử lý lỗi nếu có
+console.error("Lỗi khi từ chối đơn hàng:", error);
+showToast("Có lỗi xảy ra khi từ chối đơn hàng.", "bg-danger");
+}); --}}

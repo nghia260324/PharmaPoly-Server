@@ -218,8 +218,6 @@ document.querySelector(".btn-primary").addEventListener("click", saveBrand);
 }); --}}
 
 <script>
-
-
     async function saveBrand(button) {
         event.preventDefault();
 
@@ -229,8 +227,8 @@ document.querySelector(".btn-primary").addEventListener("click", saveBrand);
         const name = nameInput.value.trim();
         const description = descriptionInput.value.trim();
 
-        if (!name || !description) {
-            showToast('Please fill all fields', 'danger');
+      if (!name || !description) {
+            showToast('Vui lòng điền đầy đủ thông tin', 'danger');
             return;
         }
 
@@ -245,56 +243,18 @@ document.querySelector(".btn-primary").addEventListener("click", saveBrand);
             if (result.status === 200) {
                 showToast(result.message, "success");
 
-                //addBrandToDOM(result.data);
-
-                nameInput.value = '';
-                descriptionInput.value = '';
-
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addBrandModal'));
                 modal.hide();
                 setTimeout(() => {
-                    location.reload();
+                     location.href = '/brands';
                 }, 1000);
             } else {
                 showToast(result.message, 'danger');
             }
         } catch (error) {
-            showToast('An error occurred!', 'danger');
+            showToast('Đã xảy ra lỗi!', 'danger');
         }
     }
-
-    function addBrandToDOM(brand) {
-        const brandListContainer = document.getElementById("brandList");
-        const brandCard = document.createElement("div");
-        brandCard.classList.add("brand-card");
-        brandCard.classList.add("p-2");
-        brandCard.setAttribute("data-id", brand._id);
-        brandCard.setAttribute("data-name", brand.name);
-        brandCard.setAttribute("data-description", brand.description);
-        brandCard.innerHTML = `
-
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="brand-info flex-grow-1">
-                        <small class="text-muted brand-id">ID: ${brand._id}</small>
-                        <h5 class="brand-name mt-0"><span data-lang="name">Name</span>: ${brand.name}</h5>
-                        <p class="card-text text-muted brand-description"><span
-                                data-lang="description">Description</span>: ${brand.description}</p>
-                    </div>
-                    <div class="d-flex flex-row ms-3">
-                        <button class="btn btn-sm btn-warning me-2" onclick="editBrand(this)">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteBrand(this)">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-
-        `;
-        brandListContainer.appendChild(brandCard);
-        window.loadLanguageForItem(brandCard)
-    }
-
 
     function deleteBrand(button) {
         const brandCard = button.closest('.brand-card');
@@ -355,7 +315,7 @@ document.querySelector(".btn-primary").addEventListener("click", saveBrand);
 
 
         if (!brandName || !brandDescription) {
-            showToast("Brand name and description is required!", "danger");
+            showToast("Tên và mô tả thương hiệu là bắt buộc!", "danger");
             return;
         }
 
@@ -371,17 +331,18 @@ document.querySelector(".btn-primary").addEventListener("click", saveBrand);
             const result = await response.json();
             if (result.status === 200) {
                 showToast(result.message, "success");
-                //updateBrandInDOM(result.data);
+
                 const modal = bootstrap.Modal.getInstance(document.getElementById('editBrandModal'));
                 modal.hide();
+
                 setTimeout(() => {
-                    location.reload();
+                      location.href = '/brands';
                 }, 1000);
             } else {
                 showToast(result.message, "danger");
             }
         } catch (error) {
-            showToast("An error occurred!", "danger");
+             showToast("Đã xảy ra lỗi!", "danger");
         }
     });
 

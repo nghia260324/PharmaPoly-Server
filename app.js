@@ -82,11 +82,13 @@ app.post('/webhook/ghn', async (req, res) => {
     const data = req.body;
 
     if (!data || !data.OrderCode || !data.Status) {
-      return res.status(400).send("Invalid Webhook Data");
+      return res.status(400).send("Dữ liệu webhook không hợp lệ");
     }
+
     if (data.ShopID !== SHOP_ID) {
-      return res.status(403).send("Forbidden");
+      return res.status(403).send("ShopID không hợp lệ");
     }
+
     const ghnStatusMap = {
       "pending": "pending",
       "confirmed": "confirmed",
@@ -107,25 +109,28 @@ app.post('/webhook/ghn', async (req, res) => {
     const newStatus = ghnStatusMap[data.Status];
 
     if (!newStatus) {
-      console.log(`GHN status ${data.Status} is not recognized.`);
-      return res.status(200).send("Unknown GHN status, ignored");
+      console.log(`Trạng thái GHN ${data.Status} không được nhận diện.`);
+      return res.status(200).send("Trạng thái GHN không xác định, đã bỏ qua");
     }
 
     const order = await Orders.findOne({ order_code: data.OrderCode });
 
     if (!order) {
-      console.log(`Order ${data.OrderCode} not found`);
-      return res.status(200).send("Order not found");
+      console.log(`Không tìm thấy đơn hàng với mã ${data.OrderCode}`);
+      return res.status(200).send("Không tìm thấy đơn hàng");
     }
 
     if (order.status === "delivered") {
-      return res.status(200).send("Order already delivered");
+      return res.status(200).send("Đơn hàng đã được giao, không cần cập nhật");
     }
 
     const updateFields = { status: newStatus };
 
     if (newStatus === "delivered") {
       updateFields.delivered_at = new Date();
+      if (order.payment_method === "COD") {
+        updateFields.payment_status = "paid";
+      }
     }
 
     const updatedOrder = await Orders.findOneAndUpdate(
@@ -135,17 +140,147 @@ app.post('/webhook/ghn', async (req, res) => {
     );
 
     if (!updatedOrder) {
-      console.log(`Order ${data.OrderCode} not found`);
-      return res.status(404).send("Order not found");
+      console.log(`Không thể cập nhật đơn hàng ${data.OrderCode}`);
+      return res.status(404).send("Không thể cập nhật đơn hàng");
     }
 
-    console.log(`Order ${updatedOrder.order_code} updated to status ${updatedOrder.status}`);
-    res.status(200).send("Webhook received and order updated");
+
+    if (
+      newStatus === 'picked' ||
+      newStatus === 'delivering' ||
+      newStatus === 'delivered'
+    ) {
+      sendPickedNotification();
+    }
+
+    console.log(`Đơn hàng ${updatedOrder.order_code} đã được cập nhật trạng thái ${updatedOrder.status}`);
+    res.status(200).send("Đơn hàng đã được cập nhật");
+
+
   } catch (error) {
-    console.error("Error processing webhook:", error);
-    res.status(500).send("Internal Server Error");
+    console.error("Lỗi khi xử lý webhook:", error);
+    res.status(500).send("Lỗi hệ thống");
   }
 });
+
+// app.post("/webhook/payment", async (req, res) => {
+//   try {
+//     const { error, data } = req.body;
+
+//     if (error !== 0 || !data) {
+//       console.log("Dữ liệu Casso không hợp lệ:", req.body);
+//       return res.status(200).json({ status: 200, message: "Dữ liệu Casso không hợp lệ, đã bỏ qua" });
+//     }
+
+//     const { reference, description, amount } = data;
+
+//     if (!reference || !description || !amount) {
+//       console.log("Thiếu trường dữ liệu bắt buộc:", data);
+//       return res.status(200).json({ status: 200, message: "Thiếu trường dữ liệu, đã bỏ qua" });
+//     }
+
+//     if (reference === "MA_GIAO_DICH_THU_NGHIEM" || description === "giao dich thu nghiem") {
+//       return res.json({ status: 200, message: "Đã nhận giao dịch thử nghiệm thành công" });
+//     }
+
+
+//     if (description.startsWith('REJECT')) {
+//       const refundMatch = description.match(/REJECT([a-f0-9]{24})END/);
+//       if (refundMatch) {
+//         const orderId = refundMatch[1];
+//         const order = await Orders.findById(orderId);
+//         if (!order) {
+//           console.log(`Không tìm thấy đơn hàng để từ chối: ${orderId}`);
+//           return res.status(200).json({ status: 200, message: "Không tìm thấy đơn hàng để từ chối, đã bỏ qua" });
+//         }
+
+//         const paidAmount = Number(amount);
+//         if (order.total_price !== paidAmount) {
+//           console.log(`Số tiền từ chối không chính xác cho đơn hàng ${orderId}: Mong đợi ${order.total_price}, nhận được ${paidAmount}`);
+//           return res.status(200).json({ status: 200, message: "Số tiền hoàn trả không chính xác, đã bỏ qua" });
+//         }
+
+//         order.payment_status = 'refunded';
+//         order.status = 'rejected';
+//         await order.save();
+
+//         await sendRejectedNotification(order);
+
+//         await db.ref(`reject_requests/${orderId}`).remove();
+
+//         console.log(`Đơn hàng ${orderId} đã bị từ chối thành công`);
+//         return res.json({ status: 200, message: "Từ chối đơn hàng và hoàn tiền thành công" });
+//       }
+
+//       console.log("Mẫu từ chối không khớp");
+//       return res.status(200).json({ status: 200, message: "Mẫu từ chối không hợp lệ, đã bỏ qua" });
+//     }
+
+//     if (description.startsWith('REFUND')) {
+//       const refundMatch = description.match(/REFUND([a-f0-9]{24})END/);
+//       if (refundMatch) {
+//         const orderId = refundMatch[1];
+//         const order = await Orders.findById(orderId);
+//         if (!order) {
+//           console.log(`Không tìm thấy đơn hàng để hoàn tiền: ${orderId}`);
+//           return res.status(200).json({ status: 200, message: "Không tìm thấy đơn hàng để hoàn tiền, đã bỏ qua" });
+//         }
+//         const paidAmount = Number(amount);
+//         if (order.total_price !== paidAmount) {
+//           console.log(`Số tiền từ chối không chính xác cho đơn hàng ${orderId}: Mong đợi ${order.total_price}, nhận được ${paidAmount}`);
+//           return res.status(200).json({ status: 200, message: "Số tiền hoàn trả không chính xác, đã bỏ qua" });
+//         }
+
+//         order.payment_status = 'refunded';
+//         order.status = 'canceled';
+//         await order.save();
+
+//         await sendRefundNotification(order);
+
+//         console.log(`Hoàn tiền thành công cho đơn hàng ${orderId}`);
+//         return res.json({ status: 200, message: "Đã xử lý hoàn tiền thành công" });
+//       }
+
+//       console.log("Mẫu hoàn tiền không khớp");
+//       return res.status(200).json({ status: 200, message: "Mẫu hoàn tiền không hợp lệ, đã bỏ qua" });
+//     }
+
+
+//     const match = description.match(/OID([a-f0-9]{24})END/);
+//     if (!match) {
+//       return res.status(200).json({ status: 200, message: "Mẫu giao dịch không hợp lệ, đã bỏ qua" });
+//     }
+
+//     const orderId = match[1];
+
+//     const order = await Orders.findById(orderId);
+//     if (!order) {
+//       console.log(`Không tìm thấy đơn hàng: ${orderId}`);
+//       return res.status(200).json({ status: 200, message: "Không tìm thấy đơn hàng, đã bỏ qua" });
+//     }
+
+//     if (order.payment_status === "paid") {
+//       return res.json({ status: 200, message: "Đơn hàng đã được thanh toán" });
+//     }
+
+//     const paidAmount = Number(amount);
+//     if (order.total_price !== paidAmount) {
+//       console.log(`Số tiền thanh toán không chính xác cho đơn hàng ${orderId}: Mong đợi ${order.total_price}, nhận được ${paidAmount}`);
+//       return res.status(200).json({ status: 200, message: "Số tiền thanh toán không chính xác, đã bỏ qua" });
+//     }
+
+//     order.payment_status = "paid";
+//     order.transaction_id = reference;
+//     await order.save();
+
+//     console.log(`Thanh toán thành công cho đơn hàng ${orderId}`);
+//     res.json({ status: 200, message: "Đã nhận webhook thành công" });
+
+//   } catch (error) {
+//     console.error("Lỗi Webhook:", error);
+//     res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ" });
+//   }
+// });
 
 
 app.post("/webhook/payment", async (req, res) => {
@@ -153,83 +288,138 @@ app.post("/webhook/payment", async (req, res) => {
     const { error, data } = req.body;
 
     if (error !== 0 || !data) {
-      console.log("Invalid Casso data received:", req.body);
-      return res.status(200).json({ status: 200, message: "Invalid Casso data, ignored" });
+      console.log("Dữ liệu Casso không hợp lệ:", req.body);
+      return res.status(200).json({ status: 200, message: "Dữ liệu Casso không hợp lệ, đã bỏ qua" });
     }
 
     const { reference, description, amount } = data;
 
     if (!reference || !description || !amount) {
-      console.log("Missing required fields:", data);
-      return res.status(200).json({ status: 200, message: "Missing required fields, ignored" });
+      console.log("Thiếu trường dữ liệu bắt buộc:", data);
+      return res.status(200).json({ status: 200, message: "Thiếu trường dữ liệu, đã bỏ qua" });
     }
 
     if (reference === "MA_GIAO_DICH_THU_NGHIEM" || description === "giao dich thu nghiem") {
-      return res.json({ status: 200, message: "Test transaction received successfully" });
+      return res.json({ status: 200, message: "Đã nhận giao dịch thử nghiệm thành công" });
     }
 
-    if (description.startsWith('REFUND')) {
-      const refundMatch = description.match(/REFUND([a-f0-9]{24})END/);
-      if (refundMatch) {
-        const orderId = refundMatch[1];
-        const order = await Orders.findById(orderId);
-        if (!order) {
-          console.log(`Order not found for refund: ${orderId}`);
-          return res.status(200).json({ status: 200, message: "Refund order not found, ignored" });
-        }
-
-        order.payment_status = 'refunded';
-        order.status = 'canceled';
-        await order.save();
-
-        await sendRefundNotification(order);
-
-        console.log(`Refund successful for order ${orderId}`);
-        return res.json({ status: 200, message: "Refund processed successfully" });
-      }
-
-      console.log("Refund pattern not matched");
-      return res.status(200).json({ status: 200, message: "Invalid refund format, ignored" });
-    }
-
-    const match = description.match(/OID([a-f0-9]{24})END/);
+    const match = description.match(/^(REJECT|REFUND|OID)([a-f0-9]{24})END$/);
     if (!match) {
-      return res.status(200).json({ status: 200, message: "Invalid transaction format, ignored" });
+      return res.status(200).json({ status: 200, message: "Mẫu giao dịch không hợp lệ, đã bỏ qua" });
     }
 
-    const orderId = match[1];
+    const [, type, orderId] = match;
 
     const order = await Orders.findById(orderId);
     if (!order) {
-      console.log(`Order not found: ${orderId}`);
-      return res.status(200).json({ status: 200, message: "Order not found, ignored" });
-    }
-
-    if (order.payment_status === "paid") {
-      return res.json({ status: 200, message: "Order already paid" });
+      console.log(`Không tìm thấy đơn hàng: ${orderId}`);
+      return res.status(200).json({ status: 200, message: "Không tìm thấy đơn hàng, đã bỏ qua" });
     }
 
     const paidAmount = Number(amount);
     if (order.total_price !== paidAmount) {
-      console.log(`Incorrect payment amount for order ${orderId}: Expected ${order.total_price}, received ${paidAmount}`);
-      return res.status(200).json({ status: 200, message: "Incorrect payment amount, ignored" });
+      console.log(`Số tiền không chính xác cho đơn hàng ${orderId}`);
+      return res.status(200).json({ status: 200, message: "Số tiền thanh toán không chính xác, đã bỏ qua" });
     }
 
-    order.payment_status = "paid";
-    order.transaction_id = reference;
-    await order.save();
+    let message = "Đã xử lý thành công";
 
-    await db.ref(`payment_status/${order.user_id}`).set("PAID");
+    switch (type) {
+      case 'REJECT':
+        order.payment_status = 'refunded';
+        order.status = 'rejected';
+        await order.save();
+        await sendRejectedNotification(order);
+        await db.ref(`reject_requests/${orderId}`).remove();
+        message = "Từ chối đơn hàng và hoàn tiền thành công";
+        console.log(`Đơn hàng ${orderId} đã bị từ chối thành công`);
+        break;
 
-    console.log(`Payment successful for order ${orderId}`);
-    res.json({ status: 200, message: "Webhook received successfully" });
+      case 'REFUND':
+        order.payment_status = 'refunded';
+        order.status = 'canceled';
+        await order.save();
+        await sendRefundNotification(order);
+        message = "Đã xử lý hoàn tiền thành công";
+        console.log(`Hoàn tiền thành công cho đơn hàng ${orderId}`);
+        break;
+
+      case 'OID':
+        if (order.payment_status === "paid") {
+          return res.json({ status: 200, message: "Đơn hàng đã được thanh toán" });
+        }
+        order.payment_status = "paid";
+        order.transaction_id = reference;
+        await order.save();
+        await sendPaymentNotification(order);
+        message = "Thanh toán thành công";
+        console.log(`Thanh toán thành công cho đơn hàng ${orderId}`);
+        break;
+    }
+
+    return res.json({ status: 200, message });
 
   } catch (error) {
-    console.error("Webhook Error:", error);
-    res.status(500).json({ status: 500, message: "Internal Server Error" });
+    console.error("Lỗi Webhook:", error);
+    res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ" });
   }
 });
 
+
+const sendPickedNotification = async (order) => {
+  try {
+    const orderItems = await OrderItems.find({ order_id: order._id })
+      .populate({
+        path: "product_product_type_id",
+        model: "productProductType",
+        populate: {
+          path: "product_id",
+          model: "product",
+          select: "name"
+        }
+      });
+    const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
+
+    const shortenName = (name, maxLength = 40) => {
+      return name.length > maxLength ? name.slice(0, maxLength).trim() + '…' : name;
+    };
+
+    const shortName = shortenName(firstProductName);
+    const otherCount = orderItems.length - 1;
+
+    const productSummary = otherCount > 0
+      ? `${shortName} và ${otherCount} sản phẩm khác`
+      : shortName;
+
+    let title = '';
+    let message = '';
+
+    switch (newStatus) {
+      case 'picked':
+        title = 'Đơn hàng đã được tiếp nhận';
+        message = `Đơn hàng của bạn (${productSummary}) đã được tiếp nhận và đang trong quá trình vận chuyển.`;
+        break;
+      case 'delivering':
+        title = 'Đơn hàng đang được giao';
+        message = `Đơn hàng của bạn (${productSummary}) đang trên đường giao đến bạn.`;
+        break;
+      case 'delivered':
+        title = 'Đơn hàng đã giao thành công';
+        message = `Đơn hàng của bạn (${productSummary}) đã được giao thành công. Cảm ơn bạn đã mua hàng!`;
+        break;
+      default:
+        return;
+    }
+
+    await sendNotification({
+      user_id: order.user_id,
+      title,
+      message
+    });
+  } catch (error) {
+    console.error("Lỗi khi gửi thông báo cho trạng thái 'picked':", error.message);
+  }
+};
 
 const sendRefundNotification = async (order) => {
   const orderItems = await OrderItems.find({ order_id: order._id })
@@ -237,9 +427,9 @@ const sendRefundNotification = async (order) => {
       path: "product_product_type_id",
       model: "productProductType",
       populate: {
-        path: "product_id",  // Populate thêm thông tin sản phẩm từ mô hình "product"
-        model: "product",    // Mô hình sản phẩm là "product"
-        select: "name"       // Chỉ lấy tên sản phẩm
+        path: "product_id",
+        model: "product",
+        select: "name"
       }
     });
   const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
@@ -280,6 +470,84 @@ const sendRefundNotification = async (order) => {
   });
 };
 
+const sendPaymentNotification = async (order) => {
+  const orderItems = await OrderItems.find({ order_id: order._id })
+    .populate({
+      path: "product_product_type_id",
+      model: "productProductType",
+      populate: {
+        path: "product_id",
+        model: "product",
+        select: "name"
+      }
+    });
+  const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
+  const shortenName = (name, maxLength = 40) => {
+    return name.length > maxLength ? name.slice(0, maxLength).trim() + '…' : name;
+  };
+
+  const shortName = shortenName(firstProductName);
+  const otherCount = orderItems.length - 1;
+
+  const productSummary = otherCount > 0
+    ? `${shortName} và ${otherCount} sản phẩm khác`
+    : shortName;
+
+  const currentTime = new Date();
+  const formattedTime = `${currentTime.getHours()}:${currentTime.getMinutes().toString().padStart(2, '0')} ngày ${currentTime.getDate()}/${currentTime.getMonth() + 1}/${currentTime.getFullYear()}`;
+
+  const message =
+    `- Đơn hàng của bạn (${productSummary}) đã thanh toán thành công.\n` +
+    `- Số tiền: ${order.total_price.toLocaleString()} VNĐ.\n` +
+    `- Thời gian thanh toán: ${formattedTime}`;
+
+  await sendNotification({
+    user_id: order.user_id,
+    title: 'Thanh toán thành công cho đơn hàng của bạn',
+    message: message
+  });
+};
+
+const sendRejectedNotification = async (order) => {
+  const orderItems = await OrderItems.find({ order_id: order._id })
+    .populate({
+      path: "product_product_type_id",
+      model: "productProductType",
+      populate: {
+        path: "product_id",
+        model: "product",
+        select: "name"
+      }
+    });
+  const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
+  const shortenName = (name, maxLength = 40) => {
+    return name.length > maxLength ? name.slice(0, maxLength).trim() + '…' : name;
+  };
+
+  const shortName = shortenName(firstProductName);
+  const otherCount = orderItems.length - 1;
+
+  const rejectReasonRef = await db.ref(`reject_requests/${order._id}`).once('value');
+  const rejectReason = rejectReasonRef.val();
+
+  const productSummary = otherCount > 0
+    ? `${shortName} và ${otherCount} sản phẩm khác`
+    : shortName;
+
+  const message =
+    `- Đơn hàng của bạn (${productSummary}) đã bị từ chối.\n` +
+    `- Lý do: ${rejectReason}.`;
+
+
+  await sendNotification({
+    user_id: order.user_id,
+    title: 'Đơn hàng của bạn đã bị từ chối',
+    message: message
+  });
+};
+
+
+
 async function getTransactionInfo(transactionId) {
   const url = `https://script.google.com/macros/s/AKfycbzvTz-hwBcrfK6dpRKu3slToY2gLr2ftlnoB0KuR3xLWJvkeCz4_BcXzDfRy_Qo-ywk/exec?transaction_id=${transactionId}`;
   const response = await fetch(url);
@@ -307,6 +575,8 @@ async function getBankFromVietQR(bin) {
 
   return bank;
 }
+
+
 
 
 // const testNotification = async () => {
