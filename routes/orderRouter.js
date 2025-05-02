@@ -695,18 +695,18 @@ router.post("/:orderId/cancel", async (req, res) => {
             }
         }
 
-        const orderItems = await OrderItems.find({ order_id: orderId }).populate({
-            path: "product_id",
-            select: "_id stock_quantity"
-        });
+        // const orderItems = await OrderItems.find({ order_id: orderId }).populate({
+        //     path: "product_id",
+        //     select: "_id stock_quantity"
+        // });
 
-        for (const item of orderItems) {
-            await Products.updateOne(
-                { _id: item.product_id._id },
-                { $inc: { stock_quantity: item.quantity } },
-                { timestamps: true }
-            );
-        }
+        // for (const item of orderItems) {
+        //     await Products.updateOne(
+        //         { _id: item.product_id._id },
+        //         { $inc: { stock_quantity: item.quantity } },
+        //         { timestamps: true }
+        //     );
+        // }
 
         order.status = "canceled";
         await order.save();
@@ -815,8 +815,6 @@ router.get('/payment_status/:order_id', async (req, res) => {
 //         res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
 //     }
 // });
-
-
 
 db.ref("new_orders").on("value", async (snapshot) => {
     if (snapshot.exists()) {

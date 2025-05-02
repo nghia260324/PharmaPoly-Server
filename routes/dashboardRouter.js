@@ -42,7 +42,7 @@ router.get('/revenue', async function (req, res, next) {
                         };
                         break;
                     }
-                    
+
                     case 'last_month': {
                         const start = startOfMonth(subMonths(now, 1));
                         const end = endOfMonth(subMonths(now, 1));
@@ -52,7 +52,7 @@ router.get('/revenue', async function (req, res, next) {
                         };
                         break;
                     }
-                    
+
                     case 'this_month': {
                         const start = startOfMonth(now);
                         const end = now;
@@ -62,7 +62,7 @@ router.get('/revenue', async function (req, res, next) {
                         };
                         break;
                     }
-                    
+
                     case 'last_3_months': {
                         const start = subMonths(now, 3);
                         const end = now;
@@ -72,7 +72,7 @@ router.get('/revenue', async function (req, res, next) {
                         };
                         break;
                     }
-                    
+
                     case 'custom': {
                         if (startDate || endDate) {
                             const filter = {};
@@ -569,7 +569,7 @@ router.get('/products', async function (req, res, next) {
                     };
                     break;
                 }
-                
+
                 case 'last_month': {
                     const start = startOfMonth(subMonths(now, 1));
                     const end = endOfMonth(subMonths(now, 1));
@@ -579,7 +579,7 @@ router.get('/products', async function (req, res, next) {
                     };
                     break;
                 }
-                
+
                 case 'this_month': {
                     const start = startOfMonth(now);
                     const end = now;
@@ -589,7 +589,7 @@ router.get('/products', async function (req, res, next) {
                     };
                     break;
                 }
-                
+
                 case 'last_3_months': {
                     const start = subMonths(now, 3);
                     const end = now;
@@ -599,7 +599,7 @@ router.get('/products', async function (req, res, next) {
                     };
                     break;
                 }
-                
+
 
                 case 'custom': {
                     if (startDate || endDate) {
@@ -1406,18 +1406,16 @@ function toVietnamTime(date) {
 
 router.get('/inventory', async (req, res) => {
     try {
-        // let { sortBy, status, timePeriod, startDate, endDate, page = 1, limit = 10 } = req.query;
-        let { search, sortBy, status, limit = 10, page = 1, timePeriod, startDate, endDate, category, brand, minPrice, maxPrice, expiryDate, filterByPrice } = req.query;
+        let { search, sortBy, status, limit = 10, page = 1, timePeriod, startDate, endDate, category, brand, filterField, minValue, maxValue, expiryDate, filterByPrice } = req.query;
         page = parseInt(page);
         limit = parseInt(limit);
-        
+
         let normalizedSearch = '';
         if (search) {
             search = search.trim();
             normalizedSearch = normalizeText(search);
         }
         let dateFilter = {};
-        const now = new Date();
 
         if (timePeriod) {
             const now = toVietnamTime(new Date());
@@ -1432,7 +1430,7 @@ router.get('/inventory', async (req, res) => {
                     };
                     break;
                 }
-                
+
                 case 'last_month': {
                     const start = startOfMonth(subMonths(now, 1));
                     const end = endOfMonth(subMonths(now, 1));
@@ -1442,7 +1440,7 @@ router.get('/inventory', async (req, res) => {
                     };
                     break;
                 }
-                
+
                 case 'this_month': {
                     const start = startOfMonth(now);
                     const end = now;
@@ -1452,7 +1450,7 @@ router.get('/inventory', async (req, res) => {
                     };
                     break;
                 }
-                
+
                 case 'last_3_months': {
                     const start = subMonths(now, 3);
                     const end = now;
@@ -1511,21 +1509,42 @@ router.get('/inventory', async (req, res) => {
         if (status) {
             filter.status = status;
         }
-        if (filterByPrice && (minPrice || maxPrice)) {
-            filter.import_price = {};
-            if (minPrice) {
-                filter.import_price.$gte = parseFloat(minPrice);
-            }
-            if (maxPrice) {
-                filter.import_price.$lte = parseFloat(maxPrice);
-            }
+        switch (filterField) {
+            case 'import_price':
+                if (minValue || maxValue) {
+                    filter.import_price = {};
+                    if (minValue) {
+                        filter.import_price.$gte = parseFloat(minValue);
+                    }
+                    if (maxValue) {
+                        filter.import_price.$lte = parseFloat(maxValue);
+                    }
+                }
+                break;
+            case 'quantity':
+                if (minValue || maxValue) {
+                    filter.quantity = {};
+                    if (minValue) {
+                        filter.quantity.$gte = parseFloat(minValue);
+                    }
+                    if (maxValue) {
+                        filter.quantity.$lte = parseFloat(maxValue);
+                    }
+                }
+                break;
+            case 'remaining_quantity':
+                if (minValue || maxValue) {
+                    filter.remaining_quantity = {};
+                    if (minValue) {
+                        filter.remaining_quantity.$gte = parseFloat(minValue);
+                    }
+                    if (maxValue) {
+                        filter.remaining_quantity.$lte = parseFloat(maxValue);
+                    }
+                }
+                break;
         }
-        // if (category) {
-        //     filter['product.category_id'] = new ObjectId(category);
-        // }
-        // if (brand) {
-        //     filter['product.brand_id'] = new ObjectId(brand);
-        // }
+ 
         const sortOptions = {};
         switch (sortBy) {
             case 'highest_stock':
@@ -1703,12 +1722,12 @@ router.get('/inventory', async (req, res) => {
             },
             {
                 $sort: {
-                    formattedDate: 1 // Sắp xếp tăng dần theo ngày
+                    formattedDate: 1
                 }
             },
             {
                 $project: {
-                    _id: 1, // Giữ lại chuỗi ngày đã định dạng
+                    _id: 1,
                     totalEntries: 1
                 }
             }
@@ -1724,7 +1743,6 @@ router.get('/inventory', async (req, res) => {
             total: totalCount,
             categories,
             brands,
-            // filters: { sortBy, status, timePeriod, startDate, endDate }
             filters: {
                 search,
                 sortBy,
@@ -1734,8 +1752,9 @@ router.get('/inventory', async (req, res) => {
                 endDate,
                 category,
                 brand,
-                minPrice,
-                maxPrice,
+                filterField,
+                minValue,
+                maxValue,
                 expiryDate,
                 filterByPrice
             },
