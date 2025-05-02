@@ -114,7 +114,9 @@
                     <tr>
                         <td>{{addOne @index}}</td>
                         <td><img src="{{this.image_url}}" alt="Hình ảnh sản phẩm" width="50"></td>
-                        <td>{{this.product_product_type_id.product_id.name}}</td>
+                        <td>{{this.product_product_type_id.product_id.name}}
+                            <small class="text-muted">({{this.product_product_type_id.product_type_id.name}})</small>
+                        </td>
                         <td>{{this.quantity}}</td>
                         <td>{{formatPrice this.price}} VND</td>
                         <td>{{multiplyAndFormat this.quantity this.price}} VND</td>

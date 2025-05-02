@@ -36,7 +36,7 @@
                 nhất</option>
               <option value="highest_rating" {{#if (eq filters.sortBy "highest_rating" )}}selected{{/if}}>Đánh giá cao
                 nhất</option>
-              <option value="unsold" {{#if (eq filters.sortBy "unsold")}}selected{{/if}}>Chưa có lượt bán</option>
+              <option value="unsold" {{#if (eq filters.sortBy "unsold" )}}selected{{/if}}>Chưa có lượt bán</option>
             </select>
           </div>
           <div class="col-md-3">
@@ -85,21 +85,24 @@
           </div>
 
         </div>
-        <div class="col-md-12 row g-2">
-          <div class="col-md-3">
-            <label class="form-label">Giá tối thiểu: <span id="formattedMinPrice"></span></label>
-            <input type="number" class="form-control" name="minPrice" id="minPriceInput" value="{{filters.minPrice}}">
+        <div class="col-md-12 row g-2 align-items-center">
+          <div class="col-md-2 text-center">
+            <input type="checkbox" id="priceFilterCheckbox" {{#if filters.minPrice}}checked{{/if}}>
+            <label for="priceFilterCheckbox" class="form-label">Lọc theo tổng tiền</label>
           </div>
-          <div class="col-md-3">
-            <label class="form-label">Giá tối đa: <span id="formattedMaxPrice"></span></label>
-            <input type="number" class="form-control" name="maxPrice" id="maxPriceInput" value="{{filters.maxPrice}}">
+          <div class="col-md-2 price-filter-fields" style="display: none">
+            <label for="minPrice" class="form-label">Giá từ: <span id="minPriceLabel">0 VND</span></label>
+            <input type="number" class="form-control" name="minPrice" id="minPrice" value="{{filters.minPrice}}">
+          </div>
+
+          <div class="col-md-2 price-filter-fields" style="display: none">
+            <label for="maxPrice" class="form-label">Đến: <span id="maxPriceLabel">0 VND</span></label>
+            <input type="number" class="form-control" name="maxPrice" id="maxPrice" value="{{filters.maxPrice}}">
           </div>
 
         </div>
 
         <!-- Lọc theo trạng thái -->
-
-
         <div class="col-md-12 row g-2">
           <div class="col-md-2">
             <label for="timePeriod" class="form-label">Khoảng thời gian</label>
@@ -208,6 +211,15 @@
             {{/each}}
           </tbody>
         </table>
+
+        {{#unless products.length}}
+        <div class="text-center text-muted py-3">
+          <i class="bi bi-search display-6 d-block mb-2"></i>
+          <h5>Không tìm thấy sản phẩm nào phù hợp</h5>
+          <p>Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc.</p>
+        </div>
+        {{/unless}}
+
       </div>
 
       <!-- Phân trang -->
@@ -277,26 +289,48 @@
   });
 </script>
 <script>
-  function formatVND(number) {
-    if (!number) return "";
-    return Number(number).toLocaleString('vi-VN') + ' VND';
-  }
+  document.addEventListener('DOMContentLoaded', function () {
 
-  const minInput = document.getElementById('minPriceInput');
-  const maxInput = document.getElementById('maxPriceInput');
-  const formattedMin = document.getElementById('formattedMinPrice');
-  const formattedMax = document.getElementById('formattedMaxPrice');
+    function formatCurrency(value) {
+      if (!value) return '0 VND';
+      return parseInt(value).toLocaleString('vi-VN') + ' VND';
+    }
 
-  function updateFormattedPrice(input, label) {
-    const value = input.value;
-    label.textContent = formatVND(value);
-  }
+    const minPriceInput = document.getElementById('minPrice');
+    const maxPriceInput = document.getElementById('maxPrice');
 
-  // Khởi tạo khi có sẵn value (ví dụ khi reload)
-  updateFormattedPrice(minInput, formattedMin);
-  updateFormattedPrice(maxInput, formattedMax);
+    const minPriceLabel = document.getElementById('minPriceLabel');
+    const maxPriceLabel = document.getElementById('maxPriceLabel');
 
-  // Lắng nghe sự kiện người dùng nhập
-  minInput.addEventListener('input', () => updateFormattedPrice(minInput, formattedMin));
-  maxInput.addEventListener('input', () => updateFormattedPrice(maxInput, formattedMax));
+    minPriceInput.addEventListener('input', function () {
+      const minPriceValue = minPriceInput.value;
+      minPriceLabel.textContent = formatCurrency(minPriceValue);
+    });
+
+    maxPriceInput.addEventListener('input', function () {
+      const maxPriceValue = maxPriceInput.value;
+      maxPriceLabel.textContent = formatCurrency(maxPriceValue);
+    });
+
+    minPriceLabel.textContent = formatCurrency(minPriceInput.value);
+    maxPriceLabel.textContent = formatCurrency(maxPriceInput.value);
+
+
+    function togglePriceFilter() {
+      var priceFields = document.querySelectorAll(".price-filter-fields");
+      var checkbox = document.getElementById("priceFilterCheckbox");
+      if (checkbox.checked) {
+        priceFields.forEach(function (field) {
+          field.style.display = "block";
+        });
+      } else {
+        priceFields.forEach(function (field) {
+          field.style.display = "none";
+        });
+      }
+    }
+    togglePriceFilter();
+    document.getElementById("priceFilterCheckbox").addEventListener("change", togglePriceFilter);
+
+  });
 </script>

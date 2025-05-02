@@ -212,12 +212,19 @@ router.get("/:id/detail", async function (req, res, next) {
         const orderItems = await OrderItems.find({ order_id: orderId })
             .populate({
                 path: "product_product_type_id",
-                populate: {
-                    path: "product_id",
-                    select: "name"
-                }
-            });
+                populate: [
+                    {
+                        path: "product_id",
+                        select: "name"
+                    },
+                    {
+                        path: "product_type_id",
+                        select: "name"
+                    }
+                ]
 
+            });
+            console.log(orderItems);
 
         const productIds = orderItems.map(item => item.product_product_type_id.product_id);
 
@@ -555,11 +562,6 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
             return res.status(400).json({ status: 400, message: "Đơn hàng không có sản phẩm" });
         }
 
-        // const formattedOrderItems = orderItems.map(item => ({
-        //     ...item,
-        //     product_name: item.product_product_type_id?.product_id?.name || "Unknown product",
-        //     product_id: item.product_product_type_id?.product_id?._id || null
-        // }));
         const formattedOrderItems = orderItems.map(item => {
             if (!item.product_product_type_id?.product_id) {
                 throw new Error("Sản phẩm không còn tồn tại hoặc đã bị xóa.");

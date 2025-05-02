@@ -1,25 +1,58 @@
 <div class="container mt-5">
     <div class="card product-header mb-4 p-3 bg-light rounded">
-        <div class="d-flex justify-content-between align-items-center">
+        {{!-- <div class="d-flex justify-content-between align-items-center">
             <span class="h5 mb-0"><span data-lang="orders">Orders</span></span>
+            <div class="row">
+                <form id="searchForm" class="row">
+                    <div class="col-md-3">
+                        <input type="text" id="searchOrder" name="search" class="form-control"
+                            placeholder="Tìm theo mã đơn hoặc tên khách hàng" value="{{filters.search}}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label d-block invisible">Tìm</label>
+                        <button type="submit" class="btn btn-primary w-100">Tìm kiếm</button>
+                    </div>
+                </form>
+            </div>
             <button class="btn btn-outline-secondary" id="toggleFilter">
                 <i class="bi bi-funnel"></i> Bộ lọc
             </button>
+        </div> --}}
+        <div class="row align-items-center">
+            <span class="col-md-1"><span data-lang="orders">Orders</span></span>
+            <div class="col-md-6">
+                <form id="searchForm" class="row">
+                    <div class="col-md-8">
+                        <input type="text" id="searchOrder" name="search" class="form-control"
+                            placeholder="Tìm theo mã đơn hoặc tên khách hàng" value="{{filters.search}}">
+                    </div>
+                    <div class="col-md-3">
+                        {{!-- <label class="form-label d-block invisible">Tìm</label> --}}
+                        <button type="submit" class="btn btn-primary w-100">Tìm kiếm</button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-3"></div>
+            <div class="col-md-2 row align-items-end">
+                <button class="btn btn-outline-secondary" id="toggleFilter">
+                    <i class="bi bi-funnel"></i> Bộ lọc
+                </button>
+            </div>
         </div>
     </div>
     <div class="card mb-4" id="filterCard" style="display: none;">
         <div class="card-body">
-            <form class="g-2">
+            <form class="g-2" id="filterForm">
                 <div class="row align-items-end">
-                    <div class="col-md-3">
+                    {{!-- <div class="col-md-3">
                         <label for="searchOrder" class="form-label">Tìm kiếm theo mã đơn hoặc tên khách hàng</label>
                         <input type="text" id="searchOrder" class="form-control"
                             placeholder="Tìm theo mã đơn hoặc tên khách hàng" value="{{filters.search}}">
-                    </div>
+                    </div> --}}
 
                     <div class="col-md-2">
                         <label for="sortOrders" class="form-label">Sắp xếp theo</label>
-                        <select id="sortOrders" class="form-select">
+                        <select id="sortOrders" class="form-select" name="sort">
                             <option value="created_at_desc" {{#ifCond filters.sort "created_at_desc"
                                 }}selected{{/ifCond}}>
                                 Mới nhất
@@ -29,11 +62,11 @@
                                 nhất
                             </option>
                             <option value="total_price_desc" {{#ifCond filters.sort "total_price_desc"
-                                }}selected{{/ifCond}}>Giá cao nhất
+                                }}selected{{/ifCond}}>Tổng tiền cao nhất
                             </option>
                             <option value="total_price_asc" {{#ifCond filters.sort "total_price_asc"
                                 }}selected{{/ifCond}}>
-                                Giá thấp nhất
+                                Tổng tiền thấp nhất
                             </option>
                         </select>
                     </div>
@@ -50,10 +83,6 @@
                     </div>
 
                 </div>
-
-
-
-
 
                 <div class="row align-items-end mt-3">
                     <div class="col-md-2">
@@ -159,12 +188,12 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2 custom-date-field" style="display: none;">
+                    <div class="col-md-2 custom-date-field" style="display: none;" id="startDate">
                         <label class="form-label">Từ ngày</label>
                         <input type="date" class="form-control" name="startDate" value="{{filters.startDate}}">
                     </div>
 
-                    <div class="col-md-2 custom-date-field" style="display: none;">
+                    <div class="col-md-2 custom-date-field" style="display: none;" id="endDate">
                         <label class="form-label">Đến ngày</label>
                         <input type="date" class="form-control" name="endDate" value="{{filters.endDate}}">
                     </div>
@@ -195,8 +224,11 @@
                             <option value="50" {{#if (eq limit 50 )}}selected{{/if}}>50</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <button id="btnSearchOrder" class="btn btn-primary w-100">Tìm kiếm</button>
+                    <div class="col-md-1">
+                        <button id="btnSearchOrder" class="btn btn-primary w-100">Lọc</button>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" id="btnResetFilter" class="btn btn-secondary w-100">Reset</button>
                     </div>
                 </div>
 
@@ -208,7 +240,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Mã đơn</th>
+                <th>Mã vận đơn</th>
                 <th>Khách hàng</th>
                 <th>Tổng tiền</th>
                 <th>Trạng thái</th>
@@ -265,7 +297,7 @@
         <p>Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc.</p>
     </div>
     {{/unless}}
-    <nav>
+    {{!-- <nav>
         <ul class="pagination justify-content-center">
             {{#if (gt currentPage 1)}}
             <li class="page-item">
@@ -280,6 +312,26 @@
             {{#if (lt currentPage totalPages)}}
             <li class="page-item">
                 <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+            </li>
+            {{/if}}
+        </ul>
+    </nav> --}}
+    <nav>
+        <ul class="pagination justify-content-center">
+            {{#if (gt currentPage 1)}}
+            <li class="page-item">
+                <a class="page-link" href="javascript:void(0);" onclick="goToPage({{sub currentPage 1}})">Trang
+                    trước</a>
+            </li>
+            {{/if}}
+
+            <li class="page-item disabled">
+                <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+            </li>
+
+            {{#if (lt currentPage totalPages)}}
+            <li class="page-item">
+                <a class="page-link" href="javascript:void(0);" onclick="goToPage({{add currentPage 1}})">Trang sau</a>
             </li>
             {{/if}}
         </ul>
@@ -298,7 +350,13 @@
     </div>
 </div>
 <script src="/socket.io/socket.io.js"></script>
-
+<script>
+    function goToPage(newPage) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', newPage);
+        window.location.href = url.toString();
+    }
+</script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         formatDates();
@@ -344,7 +402,42 @@
             const toast = new bootstrap.Toast(toastElement);
             toast.show();
         }
+        const form = document.getElementById("filterForm");
+        const minPriceInput = document.getElementById("minPrice");
+        const maxPriceInput = document.getElementById("maxPrice");
+        const startDateInput = document.getElementById("startDate");
+        const endDateInput = document.getElementById("endDate");
+        form.addEventListener("submit", function (e) {
+            const minPrice = minPriceInput.value.trim();
+            const maxPrice = maxPriceInput.value.trim();
+            const startDate = startDateInput?.value;
+            const endDate = endDateInput?.value;
 
+
+            if (minPrice && Number(minPrice) < 0) {
+                e.preventDefault();
+                showToast("Giá tối thiểu phải là số dương.", "bg-danger");
+                return;
+            }
+
+            if (maxPrice && Number(maxPrice) < 0) {
+                e.preventDefault();
+                showToast("Giá tối đa phải là số dương.", "bg-danger");
+                return;
+            }
+
+            if (minPrice && maxPrice && Number(minPrice) >= Number(maxPrice)) {
+                e.preventDefault();
+                showToast("Vui lòng nhập giá tối đa lớn hơn giá tối thiểu.", "bg-danger");
+                return;
+            }
+
+            if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+                e.preventDefault();
+                showToast("Vui lòng chọn ngày kết thúc lớn hơn ngày bắt đầu.", "bg-danger");
+                return;
+            }
+        });
     });
 
 </script>
@@ -435,5 +528,53 @@
         togglePriceFilter();
         document.getElementById("priceFilterCheckbox").addEventListener("change", togglePriceFilter);
 
+    });
+</script>
+
+<script>
+    const searchForm = document.getElementById('searchForm');
+    const filterForm = document.getElementById('filterForm');
+
+    searchForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const searchParams = new URLSearchParams(new FormData(searchForm));
+
+        if (filterForm) {
+            const filterParams = new FormData(filterForm);
+            for (const [key, value] of filterParams.entries()) {
+                if (!searchParams.has(key)) {
+                    searchParams.append(key, value);
+                }
+            }
+        }
+        window.location.href = `?${searchParams.toString()}`;
+    });
+
+    filterForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const filterParams = new URLSearchParams(new FormData(filterForm));
+        if (searchForm) {
+            const searchValue = searchForm.querySelector('#searchOrder').value;
+            if (searchValue) {
+                filterParams.append('search', searchValue);
+            }
+        }
+        window.location.href = `?${filterParams.toString()}`;
+    });
+</script>
+<script>
+    document.getElementById('btnResetFilter').addEventListener('click', function () {
+        const form = document.getElementById('filterForm');
+        form.reset();
+
+        form.querySelectorAll('input[type="date"], input[type="number"]').forEach(input => input.value = '');
+        form.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+        document.querySelectorAll('.custom-date-field, .price-filter-fields').forEach(field => {
+            field.style.display = 'none';
+        });
+
+        document.getElementById('priceFilterCheckbox').checked = false;
+
+        //window.location.href = window.location.pathname;
     });
 </script>

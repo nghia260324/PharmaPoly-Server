@@ -72,16 +72,21 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-md-12 row g-2">
-                    <div class="col-md-3">
-                        <label class="form-label">Giá tối thiểu: <span id="formattedMinPrice"></span></label>
-                        <input type="number" class="form-control" name="minPrice" id="minPriceInput"
-                            value="{{filters.minPrice}}" min="1">
+                <div class="col-md-12 row g-2 align-items-center">
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="priceFilterCheckbox" {{#if filters.minPrice}}checked{{/if}}>
+                        <label for="priceFilterCheckbox" class="form-label">Lọc theo giá nhập</label>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Giá tối đa: <span id="formattedMaxPrice"></span></label>
-                        <input type="number" class="form-control" name="maxPrice" id="maxPriceInput"
-                            value="{{filters.maxPrice}}" min="1">
+                    <div class="col-md-2 price-filter-fields" style="display: none">
+                        <label for="minPrice" class="form-label">Giá từ: <span id="minPriceLabel">0 VND</span></label>
+                        <input type="number" class="form-control" name="minPrice" id="minPrice"
+                            value="{{filters.minPrice}}">
+                    </div>
+
+                    <div class="col-md-2 price-filter-fields" style="display: none">
+                        <label for="maxPrice" class="form-label">Đến: <span id="maxPriceLabel">0 VND</span></label>
+                        <input type="number" class="form-control" name="maxPrice" id="maxPrice"
+                            value="{{filters.maxPrice}}">
                     </div>
 
                 </div>
@@ -158,8 +163,8 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Mã lô</th>
-                            <th>Sản phẩm</th>
+                            <th>Mã lô hàng</th>
+                            <th style="width: 40%;">Sản phẩm</th>
                             <th style="width: 10%;">Giá nhập</th>
                             <th>Tổng SL</th>
                             <th>SL tồn</th>
@@ -207,7 +212,8 @@
                 <ul class="pagination justify-content-center">
                     {{#if (gt currentPage 1)}}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{sub currentPage 1}}&limit={{limit}}">Trang trước</a>
+                        <a class="page-link" href="javascript:void(0);" onclick="goToPage({{sub currentPage 1}})">Trang
+                            trước</a>
                     </li>
                     {{/if}}
 
@@ -217,11 +223,14 @@
 
                     {{#if (lt currentPage totalPages)}}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{add currentPage 1}}&limit={{limit}}">Trang sau</a>
+                        <a class="page-link" href="javascript:void(0);" onclick="goToPage({{add currentPage 1}})">Trang
+                            sau</a>
                     </li>
                     {{/if}}
                 </ul>
             </nav>
+
+
         </div>
     </div>
 </div>
@@ -237,40 +246,14 @@
         </div>
     </div>
 </div>
-
-<!-- Thêm helpers mới -->
-{{!--
 <script>
-    // Helper định dạng ngày
-    Handlebars.registerHelper('formatDate', function (date) {
-        return new Date(date).toLocaleDateString('vi-VN');
-    });
+    function goToPage(newPage) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', newPage);
+        window.location.href = url.toString();
+    }
+</script>
 
-    // Helper trạng thái tồn kho
-    Handlebars.registerHelper('stockStatusLabel', function (status) {
-        const labels = {
-            'not_started': 'Chưa kích hoạt',
-            'active': 'Đang bán',
-            'paused': 'Tạm dừng',
-            'sold_out': 'Hết hàng',
-            'expired': 'Hết hạn',
-            'discontinued': 'Ngừng bán'
-        };
-        return labels[status] || 'Unknown';
-    });
-
-    Handlebars.registerHelper('stockStatusBadge', function (status) {
-        const classes = {
-            'not_started': 'bg-secondary',
-            'active': 'bg-success',
-            'paused': 'bg-warning',
-            'sold_out': 'bg-danger',
-            'expired': 'bg-dark',
-            'discontinued': 'bg-danger'
-        };
-        return classes[status] || 'bg-secondary';
-    });
-</script> --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const toggleBtn = document.getElementById("toggleFilter");
@@ -297,6 +280,7 @@
         timeSelect.addEventListener('change', toggleCustomDates);
     });
 </script>
+{{!--
 <script>
     function formatVND(number) {
         if (!number) return "";
@@ -320,6 +304,53 @@
     // Lắng nghe sự kiện người dùng nhập
     minInput.addEventListener('input', () => updateFormattedPrice(minInput, formattedMin));
     maxInput.addEventListener('input', () => updateFormattedPrice(maxInput, formattedMax));
+</script> --}}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        function formatCurrency(value) {
+            if (!value) return '0 VND';
+            return parseInt(value).toLocaleString('vi-VN') + ' VND';
+        }
+
+        const minPriceInput = document.getElementById('minPrice');
+        const maxPriceInput = document.getElementById('maxPrice');
+
+        const minPriceLabel = document.getElementById('minPriceLabel');
+        const maxPriceLabel = document.getElementById('maxPriceLabel');
+
+        minPriceInput.addEventListener('input', function () {
+            const minPriceValue = minPriceInput.value;
+            minPriceLabel.textContent = formatCurrency(minPriceValue);
+        });
+
+        maxPriceInput.addEventListener('input', function () {
+            const maxPriceValue = maxPriceInput.value;
+            maxPriceLabel.textContent = formatCurrency(maxPriceValue);
+        });
+
+        minPriceLabel.textContent = formatCurrency(minPriceInput.value);
+        maxPriceLabel.textContent = formatCurrency(maxPriceInput.value);
+
+
+        function togglePriceFilter() {
+            var priceFields = document.querySelectorAll(".price-filter-fields");
+            var checkbox = document.getElementById("priceFilterCheckbox");
+            if (checkbox.checked) {
+                priceFields.forEach(function (field) {
+                    field.style.display = "block";
+                });
+            } else {
+                priceFields.forEach(function (field) {
+                    field.style.display = "none";
+                });
+            }
+        }
+        togglePriceFilter();
+        document.getElementById("priceFilterCheckbox").addEventListener("change", togglePriceFilter);
+
+    });
 </script>
 <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -353,11 +384,24 @@
             const endDate = endDateInput?.value;
 
 
-            if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
+            if (minPrice && Number(minPrice) < 0) {
                 e.preventDefault();
-                showToast("Vui lòng nhập giá tối đa lớn hơn hoặc bằng giá tối thiểu.", "bg-danger");
+                showToast("Giá tối thiểu phải là số dương.", "bg-danger");
                 return;
             }
+
+            if (maxPrice && Number(maxPrice) < 0) {
+                e.preventDefault();
+                showToast("Giá tối đa phải là số dương.", "bg-danger");
+                return;
+            }
+
+            if (minPrice && maxPrice && Number(minPrice) >= Number(maxPrice)) {
+                e.preventDefault();
+                showToast("Vui lòng nhập giá tối đa lớn hơn giá tối thiểu.", "bg-danger");
+                return;
+            }
+
             if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
                 e.preventDefault();
                 showToast("Vui lòng chọn ngày kết thúc lớn hơn ngày bắt đầu.", "bg-danger");

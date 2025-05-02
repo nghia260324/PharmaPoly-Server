@@ -34,7 +34,7 @@ router.post('/api/login', async (req, res) => {
         if (!phone_number || !password) {
             return res.status(400).json({
                 status: 400,
-                message: "Phone number and password are required!"
+                message: "Số điện thoại và mật khẩu là bắt buộc!"
             });
         }
 
@@ -42,7 +42,7 @@ router.post('/api/login', async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 status: 404,
-                message: "User not found!"
+                message: "Không tìm thấy người dùng!"
             });
         }
 
@@ -50,17 +50,17 @@ router.post('/api/login', async (req, res) => {
         if (!isPasswordValid) {
             return res.status(401).json({
                 status: 401,
-                message: "Invalid password!"
+                message: "Mật khẩu không đúng!"
             });
         }
         const token = jwt.sign(
-            { _id: user._id, phone_number: user.phone_number, role: user.role }, // Thêm role
+            { _id: user._id, phone_number: user.phone_number, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
         const refreshToken = jwt.sign(
-            { _id: user._id, phone_number: user.phone_number, role: user.role }, // Thêm role
+            { _id: user._id, phone_number: user.phone_number, role: user.role },
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: '7d' }
         );
@@ -84,15 +84,15 @@ router.post('/api/login', async (req, res) => {
         delete userObj.password;
         res.status(200).json({
             status: 200,
-            message: "Login successful!",
+            message: "Đăng nhập thành công!",
             //data: userObj
         });
 
     } catch (error) {
-        console.error("Error during login:", error);
+        console.error("Lỗi khi đăng nhập:", error);
         res.status(500).json({
             status: 500,
-            message: "Internal server error"
+            message: "Lỗi máy chủ nội bộ!"
         });
     }
 });

@@ -20,50 +20,56 @@ router.get('/revenue', async function (req, res, next) {
     try {
         const now = new Date();
 
-        // match cho đơn đã giao để tính doanh thu/lợi nhuận
         let matchStageDelivered = { status: 'delivered' };
         if (paymentMethod) {
             matchStageDelivered.payment_method = paymentMethod;
         }
-        // match tất cả đơn hàng để đếm trạng thái và tổng số đơn
         let matchStageAll = {};
 
-        // Tạo điều kiện ngày
         if (timePeriod) {
             let dateFilter;
+            const now = toVietnamTime(new Date());
+
             switch (timePeriod) {
                 case 'last_week':
                     dateFilter = {
-                        $gte: startOfWeek(subWeeks(now, 1)),
-                        $lte: endOfWeek(subWeeks(now, 1))
+                        $gte: toVietnamTime(startOfWeek(subWeeks(now, 1))),
+                        $lte: toVietnamTime(endOfWeek(subWeeks(now, 1))),
                     };
                     break;
                 case 'last_month':
                     dateFilter = {
-                        $gte: startOfMonth(subMonths(now, 1)),
-                        $lte: endOfMonth(subMonths(now, 1))
+                        $gte: toVietnamTime(startOfMonth(subMonths(now, 1))),
+                        $lte: toVietnamTime(endOfMonth(subMonths(now, 1))),
                     };
                     break;
                 case 'this_month':
                     dateFilter = {
-                        $gte: startOfMonth(now),
-                        $lte: endOfMonth(now)
+                        $gte: toVietnamTime(startOfMonth(now)),
+                        $lte: toVietnamTime(endOfMonth(now)),
                     };
                     break;
                 case 'last_3_months':
                     dateFilter = {
-                        $gte: subMonths(startOfMonth(now), 3),
-                        $lte: endOfMonth(now)
+                        $gte: toVietnamTime(subMonths(startOfMonth(now), 3)),
+                        $lte: toVietnamTime(endOfMonth(now)),
                     };
                     break;
                 case 'custom':
-                    if (startDate && endDate) {
-                        dateFilter = {
-                            $gte: new Date(`${startDate}T00:00:00`),
-                            $lte: new Date(`${endDate}T23:59:59`)
-                        };
+                    if (startDate || endDate) {
+                        const start = startDate
+                            ? toVietnamTime(new Date(`${startDate}T00:00:00`))
+                            : null;
+                        const end = endDate
+                            ? toVietnamTime(new Date(`${endDate}T23:59:59`))
+                            : null;
+
+                        dateFilter = {};
+                        if (start) dateFilter.$gte = start;
+                        if (end) dateFilter.$lte = end;
                     }
                     break;
+
             }
 
             if (dateFilter) {
@@ -71,6 +77,7 @@ router.get('/revenue', async function (req, res, next) {
                 matchStageAll.created_at = dateFilter;
             }
         }
+
 
         // Tính doanh thu và lợi nhuận cho đơn đã giao
         const revenueData = await Orders.aggregate([
@@ -525,40 +532,40 @@ router.get('/products', async function (req, res, next) {
         page = parseInt(page);
         limit = parseInt(limit);
 
-        const now = new Date();
         let dateFilter = {};
 
-        // Điều kiện lọc theo thời gian
         if (timePeriod) {
+            const now = toVietnamTime(new Date());
+
             switch (timePeriod) {
                 case 'last_week':
                     dateFilter.created_at = {
-                        $gte: startOfWeek(subWeeks(now, 1)),
-                        $lte: endOfWeek(subWeeks(now, 1)),
+                        $gte: toVietnamTime(startOfWeek(subWeeks(now, 1))),
+                        $lte: toVietnamTime(endOfWeek(subWeeks(now, 1))),
                     };
                     break;
                 case 'last_month':
                     dateFilter.created_at = {
-                        $gte: startOfMonth(subMonths(now, 1)),
-                        $lte: endOfMonth(subMonths(now, 1)),
+                        $gte: toVietnamTime(startOfMonth(subMonths(now, 1))),
+                        $lte: toVietnamTime(endOfMonth(subMonths(now, 1))),
                     };
                     break;
                 case 'this_month':
                     dateFilter.created_at = {
-                        $gte: startOfMonth(now),
-                        $lte: endOfMonth(now),
+                        $gte: toVietnamTime(startOfMonth(now)),
+                        $lte: toVietnamTime(endOfMonth(now)),
                     };
                     break;
                 case 'last_3_months':
                     dateFilter.created_at = {
-                        $gte: subMonths(startOfMonth(now), 3),
-                        $lte: endOfMonth(now),
+                        $gte: toVietnamTime(subMonths(startOfMonth(now), 3)),
+                        $lte: toVietnamTime(endOfMonth(now)),
                     };
                     break;
                 case 'custom':
                     if (startDate && endDate) {
-                        const start = new Date(`${startDate}T00:00:00`);
-                        const end = new Date(`${endDate}T23:59:59`);
+                        const start = toVietnamTime(new Date(`${startDate}T00:00:00`));
+                        const end = toVietnamTime(new Date(`${endDate}T23:59:59`));
                         dateFilter.created_at = {
                             $gte: start,
                             $lte: end,
@@ -567,6 +574,7 @@ router.get('/products', async function (req, res, next) {
                     break;
             }
         }
+
 
         const matchOrder = {
             'order.status': { $in: ['delivered'] },
@@ -621,16 +629,16 @@ router.get('/products', async function (req, res, next) {
                         },
                     },
                 ]);
-            
+
                 const soldProductIds = soldProductIdsResult[0]?.productIds || [];
-            
+
                 const productFilter = {
                     _id: { $nin: soldProductIds },
                     ...(status && status !== 'all' ? { status } : {}),
                     ...(category ? { category_id: new ObjectId(category) } : {}),
                     ...(brand ? { brand_id: new ObjectId(brand) } : {}),
                 };
-            
+
                 const [products, total] = await Promise.all([
                     Products.find(productFilter)
                         .sort({ created_at: -1 })
@@ -639,9 +647,9 @@ router.get('/products', async function (req, res, next) {
                         .lean(),
                     Products.countDocuments(productFilter),
                 ]);
-            
+
                 const productIds = products.map(p => p._id.toString());
-            
+
                 const productTypes = await ProductProductTypes.find({
                     product_id: { $in: productIds },
                     ...(minPrice || maxPrice
@@ -655,20 +663,20 @@ router.get('/products', async function (req, res, next) {
                 })
                     .populate('product_type_id')
                     .lean();
-            
+
                 const productTypeMap = Object.fromEntries(
                     productTypes.map(ppt => [ppt.product_id.toString(), ppt])
                 );
-            
+
                 const images = await ProductImages.find({
                     product_id: { $in: productIds },
                     is_primary: true,
                 }).lean();
-            
+
                 const imageMap = Object.fromEntries(
                     images.map(img => [img.product_id.toString(), img.image_url])
                 );
-            
+
                 const finalProducts = products.map(p => {
                     const ppt = productTypeMap[p._id.toString()];
                     return {
@@ -681,10 +689,11 @@ router.get('/products', async function (req, res, next) {
                         price: ppt?.price || 0,
                     };
                 });
-            
-                const categories = await Categories.find();
-                const brands = await Brands.find();
-            
+
+                const categories = await Categories.find().collation({ locale: 'vi', strength: 1 }).sort({ name: 1 });
+                const brands = await Brands.find().collation({ locale: 'vi', strength: 1 }).sort({ name: 1 });
+                     
+
                 return res.render('dashboards/products', {
                     products: finalProducts,
                     currentPage: page,
@@ -705,7 +714,7 @@ router.get('/products', async function (req, res, next) {
                         maxPrice,
                     },
                 });
-            }            
+            }
         }
         const aggregatePipeline = [
             {
@@ -782,8 +791,6 @@ router.get('/products', async function (req, res, next) {
                     },
                 ]
                 : []),
-
-
             ...(category
                 ? [
                     {
@@ -876,14 +883,7 @@ router.get('/products', async function (req, res, next) {
                 {
                     $group: {
                         _id: '$ppt._id',
-                        // sold_quantity: { $sum: '$quantity' },
-                        // total_revenue: {
-                        //     $sum: { $multiply: ['$quantity', '$price'] },
-                        // },
                         product_id: { $first: '$ppt.product_id' },
-                        // product_type_name: { $first: '$product_type.name' },
-                        // price: { $first: '$ppt.price' },
-                        // earliest_order: { $min: '$created_at' },
                     },
                 },
                 {
@@ -922,7 +922,7 @@ router.get('/products', async function (req, res, next) {
                         },
                     ]
                     : []),
-                    { $count: 'total' }
+                { $count: 'total' }
             ]),
         ]);
 
@@ -1375,6 +1375,9 @@ router.get('/products', async function (req, res, next) {
 
 
 
+function toVietnamTime(date) {
+    return new Date(date.getTime() + 7 * 60 * 60 * 1000);
+}
 
 
 
@@ -1389,35 +1392,37 @@ router.get('/inventory', async (req, res) => {
         const now = new Date();
 
         if (timePeriod) {
+            const now = toVietnamTime(new Date());
+
             switch (timePeriod) {
                 case 'last_week':
                     dateFilter.created_at = {
-                        $gte: startOfWeek(subWeeks(now, 1)),
-                        $lte: endOfWeek(subWeeks(now, 1))
+                        $gte: toVietnamTime(startOfWeek(subWeeks(now, 1))),
+                        $lte: toVietnamTime(endOfWeek(subWeeks(now, 1)))
                     };
                     break;
                 case 'last_month':
                     dateFilter.created_at = {
-                        $gte: startOfMonth(subMonths(now, 1)),
-                        $lte: endOfMonth(subMonths(now, 1))
+                        $gte: toVietnamTime(startOfMonth(subMonths(now, 1))),
+                        $lte: toVietnamTime(endOfMonth(subMonths(now, 1)))
                     };
                     break;
                 case 'this_month':
                     dateFilter.created_at = {
-                        $gte: startOfMonth(now),
-                        $lte: endOfMonth(now)
+                        $gte: toVietnamTime(startOfMonth(now)),
+                        $lte: toVietnamTime(endOfMonth(now))
                     };
                     break;
                 case 'last_3_months':
                     dateFilter.created_at = {
-                        $gte: subMonths(startOfMonth(now), 3),
-                        $lte: endOfMonth(now)
+                        $gte: toVietnamTime(subMonths(startOfMonth(now), 3)),
+                        $lte: toVietnamTime(endOfMonth(now))
                     };
                     break;
                 case 'custom':
                     if (startDate && endDate) {
-                        const start = new Date(`${startDate}T00:00:00`);
-                        const end = new Date(`${endDate}T23:59:59`);
+                        const start = toVietnamTime(new Date(`${startDate}T00:00:00`));
+                        const end = toVietnamTime(new Date(`${endDate}T23:59:59`));
                         dateFilter.created_at = {
                             $gte: start,
                             $lte: end
@@ -1426,7 +1431,7 @@ router.get('/inventory', async (req, res) => {
                     break;
                 case 'expiring_soon':
                     if (expiryDate) {
-                        const expiryLimit = new Date();
+                        const expiryLimit = toVietnamTime(new Date());
                         expiryLimit.setDate(expiryLimit.getDate() + parseInt(expiryDate));
                         dateFilter.expiry_date = {
                             $lte: expiryLimit
@@ -1435,6 +1440,7 @@ router.get('/inventory', async (req, res) => {
                     break;
             }
         }
+
 
         const filter = {
             ...dateFilter
