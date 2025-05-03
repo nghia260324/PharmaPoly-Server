@@ -537,6 +537,7 @@ router.get('/revenue', async function (req, res, next) {
 router.get('/products', async function (req, res, next) {
     try {
         let {
+            search,
             sortBy,
             status,
             limit = 10,
@@ -546,9 +547,16 @@ router.get('/products', async function (req, res, next) {
             endDate,
             category,
             brand,
-            minPrice,
-            maxPrice,
+            filterField,
+            minValue,
+            maxValue,
         } = req.query;
+
+        let normalizedSearch = '';
+        if (search) {
+            search = search.trim();
+            normalizedSearch = normalizeText(search);
+        }
 
         sortBy = sortBy || 'best_selling';
         page = parseInt(page);
@@ -700,11 +708,11 @@ router.get('/products', async function (req, res, next) {
 
                 const productTypes = await ProductProductTypes.find({
                     product_id: { $in: productIds },
-                    ...(minPrice || maxPrice
+                    ...(filterField && filterField === 'price' && (minValue || maxValue)
                         ? {
                             price: {
-                                ...(minPrice && { $gte: parseFloat(minPrice) }),
-                                ...(maxPrice && { $lte: parseFloat(maxPrice) }),
+                                ...(minValue && { $gte: parseFloat(minValue) }),
+                                ...(maxValue && { $lte: parseFloat(maxValue) }),
                             },
                         }
                         : {}),
@@ -758,8 +766,9 @@ router.get('/products', async function (req, res, next) {
                         endDate,
                         category,
                         brand,
-                        minPrice,
-                        maxPrice,
+                        filterField,
+                        minValue,
+                        maxValue,
                     },
                 });
             }
@@ -785,14 +794,13 @@ router.get('/products', async function (req, res, next) {
             },
             { $unwind: '$ppt' },
 
-            // Lọc giá
-            ...(minPrice || maxPrice
+            ...(filterField && filterField === 'price' && (minValue || maxValue)
                 ? [
                     {
                         $match: {
                             'ppt.price': {
-                                ...(minPrice && { $gte: parseFloat(minPrice) }),
-                                ...(maxPrice && { $lte: parseFloat(maxPrice) }),
+                                ...(minValue && { $gte: parseFloat(minValue) }),
+                                ...(maxValue && { $lte: parseFloat(maxValue) }),
                             },
                         },
                     },
@@ -821,6 +829,18 @@ router.get('/products', async function (req, res, next) {
                     earliest_order: { $min: '$created_at' },
                 },
             },
+            ...(filterField && filterField === 'revenue' && (minValue || maxValue)
+            ? [
+                {
+                    $match: {
+                        'total_revenue': {
+                            ...(minValue && { $gte: parseFloat(minValue) }),
+                            ...(maxValue && { $lte: parseFloat(maxValue) }),
+                        },
+                    },
+                },
+            ]
+            : []),
             {
                 $lookup: {
                     from: 'products',
@@ -830,6 +850,13 @@ router.get('/products', async function (req, res, next) {
                 },
             },
             { $unwind: '$product' },
+            ...(search ? [{
+                $match: {
+                    $or: [
+                        { 'product.normalized_name': { $regex: normalizedSearch, $options: 'i' } }
+                    ]
+                }
+            }] : []),
             ...(status && status !== 'all'
                 ? [
                     {
@@ -905,14 +932,13 @@ router.get('/products', async function (req, res, next) {
                 },
                 { $unwind: '$ppt' },
 
-                // Lọc giá
-                ...(minPrice || maxPrice
+                ...(filterField && filterField === 'price' && (minValue || maxValue)
                     ? [
                         {
                             $match: {
                                 'ppt.price': {
-                                    ...(minPrice && { $gte: parseFloat(minPrice) }),
-                                    ...(maxPrice && { $lte: parseFloat(maxPrice) }),
+                                    ...(minValue && { $gte: parseFloat(minValue) }),
+                                    ...(maxValue && { $lte: parseFloat(maxValue) }),
                                 },
                             },
                         },
@@ -932,8 +958,21 @@ router.get('/products', async function (req, res, next) {
                     $group: {
                         _id: '$ppt._id',
                         product_id: { $first: '$ppt.product_id' },
+                        total_revenue: { $sum: { $multiply: ['$quantity', '$price'] } },
                     },
                 },
+                ...(filterField && filterField === 'revenue' && (minValue || maxValue)
+                ? [
+                    {
+                        $match: {
+                            'total_revenue': {
+                                ...(minValue && { $gte: parseFloat(minValue) }),
+                                ...(maxValue && { $lte: parseFloat(maxValue) }),
+                            },
+                        },
+                    },
+                ]
+                : []),
                 {
                     $lookup: {
                         from: 'products',
@@ -943,6 +982,13 @@ router.get('/products', async function (req, res, next) {
                     },
                 },
                 { $unwind: '$product' },
+                ...(search ? [{
+                    $match: {
+                        $or: [
+                            { 'product.normalized_name': { $regex: normalizedSearch, $options: 'i' } }
+                        ]
+                    }
+                }] : []),
                 ...(status && status !== 'all'
                     ? [
                         {
@@ -1009,6 +1055,7 @@ router.get('/products', async function (req, res, next) {
             categories,
             brands,
             filters: {
+                search,
                 sortBy,
                 status,
                 timePeriod,
@@ -1016,8 +1063,9 @@ router.get('/products', async function (req, res, next) {
                 endDate,
                 category,
                 brand,
-                minPrice,
-                maxPrice,
+                filterField,
+                minValue,
+                maxValue,
             },
         });
     } catch (err) {
@@ -1544,7 +1592,7 @@ router.get('/inventory', async (req, res) => {
                 }
                 break;
         }
- 
+
         const sortOptions = {};
         switch (sortBy) {
             case 'highest_stock':

@@ -7,7 +7,7 @@
                 <form id="searchForm" class="row">
                     <div class="col-md-8">
                         <input type="text" id="searchStockEntry" name="search" class="form-control"
-                            placeholder="Tìm theo mã lô hàng hoặc tên sản phẩm" value="{{filters.search}}">
+                            placeholder="Tìm theo mã lô hàng hoặc tên sản phẩm" value="{{filters.search}}" required>
                     </div>
                     <div class="col-md-3">
                         {{!-- <label class="form-label d-block invisible">Tìm</label> --}}
@@ -95,41 +95,6 @@
                         </select>
                     </div>
                 </div>
-                {{!-- <div class="col-md-2 text-center">
-                    <input type="checkbox" id="priceFilterCheckbox" name="filterByPrice" value="true" {{#if
-                        filters.filterByPrice}}checked{{/if}}>
-
-                    <label for="priceFilterCheckbox" class="form-label">Lọc theo giá nhập</label>
-                </div> --}}
-                {{!-- <div class="col-md-12 row g-2 align-items-end">
-
-                    <div class="col-md-3">
-                        <label for="filterField" class="form-label">Lọc theo thuộc tính</label>
-                        <select id="filterField" name="filterField" class="form-select">
-                            <option value="">-- Không lọc --</option>
-                            <option value="import_price" {{#ifEquals filters.filterField 'import_price'
-                                }}selected{{/ifEquals}}>Giá nhập</option>
-                            <option value="quantity" {{#ifEquals filters.filterField 'quantity' }}selected{{/ifEquals}}>
-                                Số lượng nhập</option>
-                            <option value="remaining_quantity" {{#ifEquals filters.filterField 'remaining_quantity'
-                                }}selected{{/ifEquals}}>Số lượng còn lại</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-2 price-filter-fields" style="display: none">
-                        <label for="minPrice" class="form-label">Giá nhập từ: <span id="minPriceLabel">0
-                                VND</span></label>
-                        <input type="number" class="form-control" name="minPrice" id="minPrice"
-                            value="{{filters.minPrice}}">
-                    </div>
-
-                    <div class="col-md-2 price-filter-fields" style="display: none">
-                        <label for="maxPrice" class="form-label">Đến: <span id="maxPriceLabel">0 VND</span></label>
-                        <input type="number" class="form-control" name="maxPrice" id="maxPrice"
-                            value="{{filters.maxPrice}}">
-                    </div>
-
-                </div> --}}
 
                 <div class="col-md-12 row g-2 align-items-end">
 
@@ -500,50 +465,6 @@
         timeSelect.addEventListener('change', toggleCustomDates);
     });
 </script>
-{{!--
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-
-        function formatCurrency(value) {
-            if (!value) return '0 VND';
-            return parseInt(value).toLocaleString('vi-VN') + ' VND';
-        }
-
-        const minPriceInput = document.getElementById('minPrice');
-        const maxPriceInput = document.getElementById('maxPrice');
-
-        const minPriceLabel = document.getElementById('minPriceLabel');
-        const maxPriceLabel = document.getElementById('maxPriceLabel');
-
-        minPriceInput.addEventListener('input', function () {
-            const minPriceValue = minPriceInput.value;
-            minPriceLabel.textContent = formatCurrency(minPriceValue);
-        });
-
-        maxPriceInput.addEventListener('input', function () {
-            const maxPriceValue = maxPriceInput.value;
-            maxPriceLabel.textContent = formatCurrency(maxPriceValue);
-        });
-
-        minPriceLabel.textContent = formatCurrency(minPriceInput.value);
-        maxPriceLabel.textContent = formatCurrency(maxPriceInput.value);
-
-
-        const filterField = document.getElementById("filterField");
-        const priceFields = document.querySelectorAll(".price-filter-fields");
-
-        function togglePriceFields() {
-            if (filterField.value === "import_price" || filterField.value === "quantity" || filterField.value === "remaining_quantity") {
-                priceFields.forEach(field => field.style.display = "block");
-            } else {
-                priceFields.forEach(field => field.style.display = "none");
-            }
-        }
-
-        filterField.addEventListener("change", togglePriceFields);
-        togglePriceFields();
-    });
-</script> --}}
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -637,27 +558,6 @@
             const startDate = startDateInput?.value;
             const endDate = endDateInput?.value;
 
-
-            //if (minValue && Number(minValue) < 0) {
-            //showToast("Giá tối thiểu phải là số dương.", "bg-danger");
-            //return;
-            //}
-
-            //if (maxValue && Number(maxValue) < 0) {
-            //showToast("Giá tối đa phải là số dương.", "bg-danger");
-            //return;
-            //}
-
-            //if (minValue && maxValue && Number(minValue) >= Number(maxValue)) {
-            //showToast("Vui lòng nhập giá tối đa lớn hơn giá tối thiểu.", "bg-danger");
-            //return;
-            //}
-
-            //if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-            //showToast("Vui lòng chọn ngày kết thúc lớn hơn ngày bắt đầu.", "bg-danger");
-            //return;
-            //}
-
             let fieldLabel = "Giá";
             if (filterFieldValue === "quantity") fieldLabel = "Số lượng nhập";
             if (filterFieldValue === "remaining_quantity") fieldLabel = "Số lượng còn lại";
@@ -682,8 +582,6 @@
                 showToast("Vui lòng chọn ngày kết thúc lớn hơn ngày bắt đầu.", "bg-danger");
                 return;
             }
-
-
 
             const searchParams = new URLSearchParams(new FormData(searchForm));
 

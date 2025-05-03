@@ -8,13 +8,36 @@
 </style>
 
 <!-- views/products/stats.hbs -->
-<div class="container">
+<div class="container mt-3">
   {{!-- <h1 class="h3 mb-4">Thống kê sản phẩm</h1> --}}
-  <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
+  {{!-- <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
     <h1 class="h3">Thống kê sản phẩm</h1>
     <button class="btn btn-outline-secondary" id="toggleFilter">
       <i class="bi bi-funnel"></i> Bộ lọc
     </button>
+  </div> --}}
+  <div class="card product-header mb-4 p-3 bg-light rounded">
+    <div class="row align-items-center">
+      <span class="col-md-1"><span>Thống kê sản phẩm</span></span>
+      <div class="col-md-6">
+        <form id="searchForm" class="row">
+          <div class="col-md-8">
+            <input type="text" id="searchStockEntry" name="search" class="form-control"
+              placeholder="Tìm theo tên sản phẩm" value="{{filters.search}}" required>
+          </div>
+          <div class="col-md-3">
+            {{!-- <label class="form-label d-block invisible">Tìm</label> --}}
+            <button type="submit" class="btn btn-primary w-100">Tìm kiếm</button>
+          </div>
+        </form>
+      </div>
+      <div class="col-md-3"></div>
+      <div class="col-md-2 row align-items-end">
+        <button class="btn btn-outline-secondary" id="toggleFilter">
+          <i class="bi bi-funnel"></i> Bộ lọc
+        </button>
+      </div>
+    </div>
   </div>
 
   <div class="card mb-4" id="filterCard" style="display: none;">
@@ -85,7 +108,9 @@
           </div>
 
         </div>
-        <div class="col-md-12 row g-2 align-items-center">
+
+        {{!--
+        <div class="col-md-12 row g-2 align-items-end">
           <div class="col-md-2 text-center">
             <input type="checkbox" id="priceFilterCheckbox" {{#if filters.minPrice}}checked{{/if}}>
             <label for="priceFilterCheckbox" class="form-label">Lọc theo tổng tiền</label>
@@ -100,10 +125,35 @@
             <input type="number" class="form-control" name="maxPrice" id="maxPrice" value="{{filters.maxPrice}}">
           </div>
 
+        </div> --}}
+        <div class="col-md-12 row g-2 align-items-end">
+
+          <div class="col-md-3">
+            <label for="filterField" class="form-label">Lọc theo giá bán / doanh thu</label>
+            <select id="filterField" name="filterField" class="form-select">
+              <option value="">-- Không lọc --</option>
+              <option value="price" {{#ifEquals filters.filterField 'price' }}selected{{/ifEquals}}>Giá bán</option>
+              <option value="revenue" {{#ifEquals filters.filterField 'revenue' }}selected{{/ifEquals}}>
+                Doanh thu</option>
+            </select>
+          </div>
+
+          <div class="col-md-2 value-filter-fields" style="display: none">
+            <label for="minValue" class="form-label"><span id="minLabelName">Từ:</span> <span
+                id="minLabelValue">0</span></label>
+            <input type="number" class="form-control" name="minValue" id="minValue" value="{{filters.minValue}}">
+          </div>
+
+          <div class="col-md-2 value-filter-fields" style="display: none">
+            <label for="maxValue" class="form-label"><span id="maxLabelName">Đến:</span> <span
+                id="maxLabelValue">0</span></label>
+            <input type="number" class="form-control" name="maxValue" id="maxValue" value="{{filters.maxValue}}">
+          </div>
+
         </div>
 
         <!-- Lọc theo trạng thái -->
-        <div class="col-md-12 row g-2">
+        <div class="col-md-12 row g-2 align-items-end">
           <div class="col-md-2">
             <label for="timePeriod" class="form-label">Khoảng thời gian</label>
             <select name="timePeriod" id="timePeriod" class="form-select">
@@ -151,8 +201,10 @@
               <i class="bi bi-funnel me-2"></i>Áp dụng
             </button>
           </div>
+          <div class="col-md-1">
+            <button type="button" id="btnResetFilter" class="btn btn-secondary w-100">Reset</button>
+          </div>
         </div>
-
       </form>
     </div>
   </div>
@@ -253,6 +305,19 @@
   </div>
 </div>
 
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody">
+                <!-- Message will be inserted here -->
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
 <!-- Script xử lý filter -->
 <script>
   document.getElementById('filterForm').addEventListener('submit', function (e) {
@@ -288,6 +353,7 @@
     timeSelect.addEventListener('change', toggleCustomDates);
   });
 </script>
+{{!--
 <script>
   document.addEventListener('DOMContentLoaded', function () {
 
@@ -296,24 +362,24 @@
       return parseInt(value).toLocaleString('vi-VN') + ' VND';
     }
 
-    const minPriceInput = document.getElementById('minPrice');
-    const maxPriceInput = document.getElementById('maxPrice');
+    const minValueInput = document.getElementById('minValue');
+    const maxValueInput = document.getElementById('maxValue');
 
-    const minPriceLabel = document.getElementById('minPriceLabel');
-    const maxPriceLabel = document.getElementById('maxPriceLabel');
+    const minValueLabel = document.getElementById('minValueLabel');
+    const maxValueLabel = document.getElementById('maxValueLabel');
 
-    minPriceInput.addEventListener('input', function () {
-      const minPriceValue = minPriceInput.value;
-      minPriceLabel.textContent = formatCurrency(minPriceValue);
+    minValueInput.addEventListener('input', function () {
+      const minValueValue = minValueInput.value;
+      minValueLabel.textContent = formatCurrency(minValueValue);
     });
 
-    maxPriceInput.addEventListener('input', function () {
-      const maxPriceValue = maxPriceInput.value;
-      maxPriceLabel.textContent = formatCurrency(maxPriceValue);
+    maxValueInput.addEventListener('input', function () {
+      const maxValueValue = maxValueInput.value;
+      maxValueLabel.textContent = formatCurrency(maxValueValue);
     });
 
-    minPriceLabel.textContent = formatCurrency(minPriceInput.value);
-    maxPriceLabel.textContent = formatCurrency(maxPriceInput.value);
+    minValueLabel.textContent = formatCurrency(minValueInput.value);
+    maxValueLabel.textContent = formatCurrency(maxValueInput.value);
 
 
     function togglePriceFilter() {
@@ -333,4 +399,142 @@
     document.getElementById("priceFilterCheckbox").addEventListener("change", togglePriceFilter);
 
   });
+</script> --}}
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+
+    function formatCurrency(value) {
+      if (!value) return '0';
+      return parseInt(value).toLocaleString('vi-VN');
+    }
+
+    const filterField = document.getElementById("filterField");
+    const minValueInput = document.getElementById("minValue");
+    const maxValueInput = document.getElementById("maxValue");
+
+    const minLabelValue = document.getElementById("minLabelValue");
+    const maxLabelValue = document.getElementById("maxLabelValue");
+
+    const minLabelName = document.getElementById("minLabelName");
+    const maxLabelName = document.getElementById("maxLabelName");
+
+    const valueFields = document.querySelectorAll(".value-filter-fields");
+
+    function updateLabelsAndDisplay() {
+      const field = filterField.value;
+      const isPrice = field === "price";
+
+      if (field === "price" || field === "revenue") {
+        valueFields.forEach(f => f.style.display = "block");
+
+        if (isPrice) {
+          minLabelName.textContent = "Giá bán từ:";
+          maxLabelName.textContent = "Đến:";
+        } else if (field === "revenue") {
+          minLabelName.textContent = "Doanh thu từ:";
+          maxLabelName.textContent = "Đến:";
+        }
+        minLabelValue.textContent = formatCurrency(minValueInput.value) + " VND";
+        maxLabelValue.textContent = formatCurrency(maxValueInput.value) + " VND";
+      } else {
+        valueFields.forEach(f => f.style.display = "none");
+      }
+    }
+
+    minValueInput.addEventListener('input', updateLabelsAndDisplay);
+    maxValueInput.addEventListener('input', updateLabelsAndDisplay);
+    filterField.addEventListener("change", updateLabelsAndDisplay);
+
+    updateLabelsAndDisplay();
+  });
+</script>
+
+<script>
+  document.getElementById('btnResetFilter').addEventListener('click', function () {
+    const form = document.getElementById('filterForm');
+    form.reset();
+
+    form.querySelectorAll('input[type="date"], input[type="number"]').forEach(input => input.value = '');
+    form.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+    document.querySelectorAll('.custom-date-field, .price-filter-fields').forEach(field => {
+      field.style.display = 'none';
+    });
+
+    document.getElementById('priceFilterCheckbox').checked = false;
+  });
+</script>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const filterForm = document.getElementById("filterForm");
+        const filterField = document.getElementById("filterField");
+        const minValueInput = document.getElementById("minValue");
+        const maxValueInput = document.getElementById("maxValue");
+        const startDateInput = document.getElementById("startDate");
+        const endDateInput = document.getElementById("endDate");
+
+
+        filterForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const filterFieldValue = filterField.value;
+            const minValue = minValueInput.value.trim();
+            const maxValue = maxValueInput.value.trim();
+            const startDate = startDateInput?.value;
+            const endDate = endDateInput?.value;
+
+            let fieldLabel = "Giá";
+            if (filterFieldValue === "price") fieldLabel = "Giá nhập";
+            if (filterFieldValue === "revenue") fieldLabel = "Doanh thu";
+
+            if (filterFieldValue && filterFieldValue !== '' && minValue && Number(minValue) < 0) {
+                showToast(`${fieldLabel} tối thiểu phải là số dương.`, "bg-danger");
+                return;
+            }
+
+            if (filterFieldValue && filterFieldValue !== '' && maxValue && Number(maxValue) < 0) {
+                showToast(`${fieldLabel} tối đa phải là số dương.`, "bg-danger");
+                return;
+            }
+
+            if (filterFieldValue && filterFieldValue !== '' && minValue && maxValue && Number(minValue) >= Number(maxValue)) {
+                showToast(`${fieldLabel} tối đa phải lớn hơn tối thiểu.`, "bg-danger");
+                return;
+            }
+
+            if (filterFieldValue && filterFieldValue !== '' && startDate && endDate && new Date(startDate) > new Date(endDate)) {
+                showToast("Vui lòng chọn ngày kết thúc lớn hơn ngày bắt đầu.", "bg-danger");
+                return;
+            }
+
+
+
+            const searchParams = new URLSearchParams(new FormData(searchForm));
+
+            if (filterForm) {
+                const filterParams = new FormData(filterForm);
+                for (const [key, value] of filterParams.entries()) {
+                    if (!searchParams.has(key)) {
+                        searchParams.append(key, value);
+                    }
+                }
+            }
+            window.location.href = `?${searchParams.toString()}`;
+        });
+        function showToast(message, bgClass = "bg-success") {
+            const toastElement = document.getElementById("toastMessage");
+            const toastBody = document.getElementById("toastBody");
+
+            toastBody.textContent = message;
+            toastElement.classList.remove("bg-success", "bg-danger");
+            toastElement.classList.add(bgClass);
+
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+        }
+    });
+
 </script>
