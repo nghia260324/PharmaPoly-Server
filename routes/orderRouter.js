@@ -32,27 +32,31 @@ const REJECT_REASONS = [
 router.get("/", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const { search, status, sort, payment_method, payment_status, timePeriod, startDate, endDate, min_price, max_price } = req.query;
+    const { search, status, sort, payment_method, payment_status, timePeriod, startDate, endDate, filterPrice, min_price, max_price } = req.query;
 
     let query = {};
 
-    let cleanedSearch = search;
-    if (cleanedSearch && cleanedSearch.startsWith("#")) {
-        cleanedSearch = cleanedSearch.substring(1);
-    }
+    let cleanedSearch = "";
+    if (search && typeof search === "string") {
+        // cleanedSearch = normalizeText(search);
+        cleanedSearch = removeVietnameseTones(cleanedSearch);
+        if (cleanedSearch.startsWith("#")) {
+            cleanedSearch = cleanedSearch.substring(1);
+        }
 
-    if (search) {
         query.$or = [
             { order_code: { $regex: cleanedSearch, $options: "i" } },
-            { to_name: { $regex: cleanedSearch, $options: "i" } }
+            { to_name: { $regex: cleanedSearch, $options: "i" } } 
         ];
     }
 
     if (status) {
-        if (status === "cancel_request") {
+        if (status === "cancel_request_pending") {
             query.cancel_request = true;
-        } else if (status === "return_request") {
-            query.return_request = true;
+            query.status = { $ne: "canceled" };
+        } else if (status === "cancel_request_completed") {
+            query.cancel_request = true;
+            query.status = 'canceled'
         } else {
             query.status = status;
         }
@@ -64,19 +68,21 @@ router.get("/", async (req, res) => {
         query.payment_status = payment_status;
     }
 
-    if (min_price) {
-        query.total_price = { $gte: parseFloat(min_price) };
-    }
-    if (max_price) {
-        if (!query.total_price) {
-            query.total_price = {};
+    if (filterPrice) {
+        if (min_price) {
+            query.total_price = { $gte: parseFloat(min_price) };
         }
-        query.total_price.$lte = parseFloat(max_price);
+        if (max_price) {
+            if (!query.total_price) {
+                query.total_price = {};
+            }
+            query.total_price.$lte = parseFloat(max_price);
+        }
     }
 
     const today = new Date();
     let start, end;
-    const offsetMs = 7 * 60 * 60 * 1000; // GMT+7
+    const offsetMs = 7 * 60 * 60 * 1000;
 
     switch (timePeriod) {
         case "today": {
@@ -174,10 +180,22 @@ router.get("/", async (req, res) => {
     if (sort === "total_price_desc") sortOption = { total_price: -1 };
     if (sort === "total_price_asc") sortOption = { total_price: 1 };
 
-    const orders = await Orders.find(query)
+    const ordersRaw = await Orders.find(query)
         .sort(sortOption)
         .skip((page - 1) * limit)
         .limit(parseInt(limit));
+
+    let orders = ordersRaw;
+
+    if (cleanedSearch) {
+        const normalizedSearch = normalizeText(cleanedSearch);
+        orders = ordersRaw.filter(order => {
+            const nameMatch = order.to_name && normalizeText(order.to_name).includes(normalizedSearch);
+            const codeMatch = order.order_code && normalizeText(order.order_code).includes(normalizedSearch);
+            return nameMatch || codeMatch;
+        });
+    }
+
 
     const totalOrders = await Orders.countDocuments(query);
     const totalPages = Math.ceil(totalOrders / limit);
@@ -196,12 +214,39 @@ router.get("/", async (req, res) => {
             timePeriod,
             startDate,
             endDate,
+            filterPrice,
             min_price,
             max_price
         }
     });
 });
-
+function removeVietnameseTones(str) {
+    const map = {
+        a: 'áàạảãâấầậẩẫăắằặẳẵ',
+        e: 'éèẹẻẽêếềệểễ',
+        i: 'íìịỉĩ',
+        o: 'óòọỏõôốồộổỗơớờợởỡ',
+        u: 'úùụủũûứừựửữướừựửữ',
+        y: 'ýỳỵỷỹ',
+        d: 'đ'
+    };
+    return str.split('').map(c => {
+        for (let key in map) {
+            if (map[key].indexOf(c) !== -1) {
+                return key;
+            }
+        }
+        return c;
+    }).join('');
+}
+function normalizeText(text) {
+    return text
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+}
 router.get("/:id/detail", async function (req, res, next) {
     try {
         const orderId = req.params.id;
@@ -224,7 +269,7 @@ router.get("/:id/detail", async function (req, res, next) {
                 ]
 
             });
-            console.log(orderItems);
+        console.log(orderItems);
 
         const productIds = orderItems.map(item => item.product_product_type_id.product_id);
 
@@ -300,13 +345,13 @@ router.get("/:order_id/refund-qr", async (req, res) => {
 
         const order = await Orders.findById(order_id);
         if (!order) {
-            return res.status(404).json({ error: "Order not found" });
+            return res.status(404).json({ error: "Không tìm thấy đơn hàng" });
         }
 
         const transaction_id = order.transaction_id;
         const amount = order.total_price;
         if (!transaction_id || !amount) {
-            return res.status(400).json({ error: "Missing transaction info in order" });
+            return res.status(400).json({ error: "Thiếu thông tin giao dịch trong đơn hàng" });
         }
 
         const txData = await getTransactionInfo(transaction_id);
@@ -314,7 +359,7 @@ router.get("/:order_id/refund-qr", async (req, res) => {
         const accountNo = txData.data["Số tài khoản đối ứng"];
 
         if (!bin || !accountNo) {
-            return res.status(400).json({ error: "Missing BIN or account number in transaction data" });
+            return res.status(400).json({ error: "Thiếu mã BIN hoặc số tài khoản trong dữ liệu giao dịch" });
         }
 
         const bank = await getBankFromVietQR(bin);
@@ -326,7 +371,7 @@ router.get("/:order_id/refund-qr", async (req, res) => {
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: err.message || "Internal Server Error" });
+        res.status(500).json({ error: err.message || "Lỗi máy chủ" });
     }
 });
 
@@ -339,11 +384,17 @@ router.put("/:order_id/confirm", async (req, res) => {
 
         const order = await Orders.findById(order_id);
         if (!order) {
-            return res.status(404).json({ status: 404, message: "Order not found" });
+            return res.status(404).json({ status: 404, message: "Không tìm thấy đơn hàng" });
         }
 
         if (order.status !== "pending") {
-            return res.status(400).json({ status: 400, message: "Order can only be confirmed from 'pending' status" });
+            return res.status(400).json({ status: 400, message: "Không thể xác nhận đơn hàng ở trạng thái hiện tại" });
+        }
+        if (order.payment_method === "ONLINE" && order.payment_status !== "paid") {
+            return res.status(400).json({
+                status: 400,
+                message: "Không thể xác nhận đơn hàng online khi chưa được thanh toán"
+            });
         }
 
         const orderItems = await OrderItems.find({ order_id })
@@ -351,41 +402,88 @@ router.put("/:order_id/confirm", async (req, res) => {
                 path: "product_product_type_id",
                 model: "productProductType",
                 populate: {
-                    path: "product_id",  // Populate thêm thông tin sản phẩm từ mô hình "product"
-                    model: "product",    // Mô hình sản phẩm là "product"
-                    select: "name"       // Chỉ lấy tên sản phẩm
+                    path: "product_id",
+                    model: "product",
+                    select: "name"
                 }
             });
 
-        for (const item of orderItems) {
-            const quantityNeeded = item.quantity;
+        const batchesMap = {};
+        let isStockSufficient = true;
 
-            const stockEntry = await StockEntries.findOne({
+        for (const item of orderItems) {
+            let quantityNeeded = item.quantity;
+            let totalAvailableQuantity = 0;
+
+            const stockEntries = await StockEntries.find({
                 product_product_type_id: item.product_product_type_id._id,
-                remaining_quantity: { $gte: quantityNeeded },
+                remaining_quantity: { $gt: 0 },
                 status: "active"
             }).sort({ import_date: 1 }).session(session);
 
-            if (!stockEntry) {
-                await session.abortTransaction();
-                session.endSession();
-                return res.status(400).json({
-                    status: 400,
-                    message: `Không đủ tồn kho cho sản phẩm ${item.product_product_type_id._id}`
+            for (const stockEntry of stockEntries) {
+                totalAvailableQuantity += stockEntry.remaining_quantity;
+            }
+
+            if (totalAvailableQuantity < quantityNeeded) {
+                isStockSufficient = false;
+                break;
+            }
+
+            let tempBatches = [];
+            for (const stockEntry of stockEntries) {
+                if (quantityNeeded <= 0) break;
+
+                const available = stockEntry.remaining_quantity;
+                const useQty = Math.min(available, quantityNeeded);
+
+                tempBatches.push({
+                    batch_number: stockEntry.batch_number,
+                    quantity: useQty
                 });
+
+                quantityNeeded -= useQty;
             }
 
-            item.batch_number = stockEntry.batch_number;
-            await item.save({ session });
-
-            stockEntry.remaining_quantity -= quantityNeeded;
-            if (stockEntry.remaining_quantity === 0) {
-                stockEntry.status = "sold_out";
-            }
-            await stockEntry.save({ session });
+            batchesMap[item._id] = tempBatches;
         }
 
-        order.status = "confirmed";
+        if (isStockSufficient) {
+            for (const item of orderItems) {
+                const batches = batchesMap[item._id];
+
+                item.batches = batches;
+                await item.save({ session });
+
+                for (const batch of batches) {
+                    const stockEntry = await StockEntries.findOne({
+                        batch_number: batch.batch_number,
+                        product_product_type_id: item.product_product_type_id._id,
+                        status: "active"
+                    }).session(session);
+
+                    if (stockEntry) {
+                        stockEntry.remaining_quantity -= batch.quantity;
+                        if (stockEntry.remaining_quantity === 0) {
+                            stockEntry.status = "sold_out";
+                        }
+                        await stockEntry.save({ session });
+                    }
+                }
+            }
+            order.status = "confirmed";
+            await order.save({ session });
+        } else {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({
+                status: 400,
+                message: `Không đủ tồn kho cho các sản phẩm trong đơn hàng.`
+            });
+        }
+
+
+
 
         const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
         const shortenName = (name, maxLength = 40) => {
@@ -411,7 +509,7 @@ router.put("/:order_id/confirm", async (req, res) => {
         await session.commitTransaction();
 
         session.endSession();
-        res.status(200).json({ status: 200, message: "Order confirmed", data: order });
+        res.status(200).json({ status: 200, message: "Xác nhận đơn hàng thành công", data: order });
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
@@ -452,7 +550,13 @@ router.put("/:order_id/reject", async (req, res) => {
         if (order.status !== "pending") {
             return res.status(400).json({
                 status: 400,
-                message: "Chỉ có thể từ chối đơn hàng ở trạng thái 'pending'"
+                message: "Không thể từ chối đơn hàng ở trạng thái hiện tại"
+            });
+        }
+        if (order.payment_method === "ONLINE" && order.payment_status !== "paid") {
+            return res.status(400).json({
+                status: 400,
+                message: "Không thể từ chối đơn hàng online khi chưa được thanh toán"
             });
         }
 
@@ -506,7 +610,7 @@ router.put("/:order_id/reject", async (req, res) => {
             const transaction_id = order.transaction_id;
             const amount = order.total_price;
             if (!transaction_id || !amount) {
-                return res.status(400).json({ error: "Missing transaction info in order" });
+                return res.status(400).json({ error: "Thiếu thông tin giao dịch trong đơn hàng" });
             }
 
             const txData = await getTransactionInfo(transaction_id);
@@ -514,7 +618,7 @@ router.put("/:order_id/reject", async (req, res) => {
             const accountNo = txData.data["Số tài khoản đối ứng"];
 
             if (!bin || !accountNo) {
-                return res.status(400).json({ error: "Missing BIN or account number in transaction data" });
+                return res.status(400).json({ error: "Thiếu mã BIN hoặc số tài khoản trong dữ liệu giao dịch" });
             }
 
             const bank = await getBankFromVietQR(bin);
@@ -533,7 +637,6 @@ router.put("/:order_id/reject", async (req, res) => {
         });
     }
 });
-
 
 router.put("/:order_id/send-to-ghn", async (req, res) => {
     try {
@@ -654,7 +757,6 @@ router.put("/:order_id/send-to-ghn", async (req, res) => {
     }
 });
 
-
 router.post("/:orderId/cancel", async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -662,17 +764,11 @@ router.post("/:orderId/cancel", async (req, res) => {
 
         const order = await Orders.findById(orderId);
         if (!order) {
-            return res.status(404).json({ status: 404, message: "Order not found" });
+            return res.status(404).json({ status: 404, message: "Không tìm thấy đơn hàng" });
         }
 
         if (!["pending", "confirmed", "ready_to_pick"].includes(order.status)) {
-            return res.status(400).json({ status: 400, message: "Cannot cancel order in this status" });
-        }
-
-        if (action === "reject") {
-            order.cancel_request = false;
-            await order.save();
-            return res.status(200).json({ status: 200, message: "Cancel request rejected", data: order });
+            return res.status(400).json({ status: 400, message: "Không thể hủy đơn hàng ở trạng thái hiện tại" });
         }
 
         if (order.status === "ready_to_pick") {
@@ -687,38 +783,67 @@ router.post("/:orderId/cancel", async (req, res) => {
                 });
 
                 if (ghnResponse.data.code !== 200) {
-                    return res.status(400).json({ status: 400, message: "Failed to cancel order on GHN", error: ghnResponse.data });
+                    return res.status(400).json({ status: 400, message: "Hủy đơn hàng trên GHN thất bại", error: ghnResponse.data });
                 }
             } catch (ghnError) {
-                console.error("Error canceling order on GHN:", ghnError.response?.data || ghnError.message);
-                return res.status(500).json({ status: 500, message: "Failed to cancel order on GHN", error: ghnError.message });
+                console.error("Lỗi khi hủy đơn trên GHN:", ghnError.response?.data || ghnError.message);
+                return res.status(500).json({ status: 500, message: "Hủy đơn hàng trên GHN thất bại", error: ghnError.message });
             }
         }
 
-        // const orderItems = await OrderItems.find({ order_id: orderId }).populate({
-        //     path: "product_id",
-        //     select: "_id stock_quantity"
-        // });
+        // const orderItems = await OrderItems.find({ order_id: orderId });
+        const orderItems = await OrderItems.find({ order_id: orderId })
+            .populate({
+                path: "product_product_type_id",
+                model: "productProductType",
+                populate: {
+                    path: "product_id",
+                    model: "product",
+                    select: "name"
+                }
+            });
+        for (const item of orderItems) {
+            for (const batch of item.batches) {
+                const stockEntry = await StockEntries.findOne({ batch_number: batch.batch_number });
+                if (stockEntry) {
+                    stockEntry.remaining_quantity += batch.quantity;
+                    if (stockEntry.status === "sold_out" && stockEntry.remaining_quantity > 0) {
+                        stockEntry.status = "active";
+                    }
+                    await stockEntry.save();
+                }
+            }
+        }
 
-        // for (const item of orderItems) {
-        //     await Products.updateOne(
-        //         { _id: item.product_id._id },
-        //         { $inc: { stock_quantity: item.quantity } },
-        //         { timestamps: true }
-        //     );
-        // }
+        const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
+        const shortenName = (name, maxLength = 40) => {
+            return name.length > maxLength ? name.slice(0, maxLength).trim() + '…' : name;
+        };
+
+        const shortName = shortenName(firstProductName);
+        const otherCount = orderItems.length - 1;
+
+        const productSummary = otherCount > 0
+            ? `${shortName} và ${otherCount} sản phẩm khác`
+            : shortName;
+
+        const message = `Yêu cầu hủy đơn hàng (${productSummary}) của bạn đã được chấp nhận. Đơn hàng đã được hủy thành công.`;
+
+        await sendNotification({
+            user_id: order.user_id,
+            title: 'Đơn hàng đã được hủy',
+            message: message
+        });
 
         order.status = "canceled";
         await order.save();
 
-        res.status(200).json({ status: 200, message: "Order canceled successfully", data: order });
+        res.status(200).json({ status: 200, message: "Hủy đơn hàng thành công", data: order });
     } catch (error) {
-        console.error("Error canceling order:", error);
-        res.status(500).json({ status: 500, message: "Internal Server Error", error: error.message });
+        console.error("Lỗi khi hủy đơn hàng:", error);
+        res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ", error: error.message });
     }
 });
-
-
 
 router.get('/payment_status/:order_id', async (req, res) => {
     const orderId = req.params.order_id;
@@ -859,7 +984,5 @@ db.ref("cancel_requests").on("value", async (snapshot) => {
 //         db.ref("return_requests").remove();
 //     }
 // });
-
-
 
 module.exports = router;

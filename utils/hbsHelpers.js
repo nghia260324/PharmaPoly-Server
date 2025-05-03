@@ -83,6 +83,7 @@ const registerHelpers = () => {
     return paymentClasses[method] || "bg-dark";
   });
 
+  hbs.registerHelper("not", (a) => !a);
   hbs.registerHelper("gt", (a, b) => a > b);
   hbs.registerHelper("lt", (a, b) => a < b);
   hbs.registerHelper("eq", (a, b) => a === b);
@@ -238,6 +239,7 @@ const registerHelpers = () => {
     ];
     return allowedStatuses.includes(status);
   });
+
 };
 
 module.exports = registerHelpers;

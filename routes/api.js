@@ -3043,6 +3043,39 @@ router.get("/orders", authenticateToken, async (req, res) => {
     }
 });
 
+router.get("/orders/count", authenticateToken, async (req, res) => {
+    try {
+        const user_id = req.user_id;
+
+        const orderCounts = {
+            processing: 0,
+            shipping: 0,
+            delivered: 0,
+            canceled: 0,
+        };
+
+        for (const [group, statuses] of Object.entries(statusGroups)) {
+            const count = await Orders.countDocuments({
+                user_id: user_id,
+                status: { $in: statuses }
+            });
+            orderCounts[group] = count;
+        }
+
+        res.status(200).json({
+            status: 200,
+            message: "Success",
+            data: orderCounts
+        });
+
+    } catch (error) {
+        console.error("Error retrieving order counts:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error!"
+        });
+    }
+});
 
 router.get("/orders/:id/detail", authenticateToken, async (req, res) => {
     try {

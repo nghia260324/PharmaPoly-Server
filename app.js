@@ -29,6 +29,7 @@ const orderRouter = require("./routes/orderRouter");
 const Orders = require('./models/orders');
 const chatRouter = require("./routes/chatRouter");
 const OrderItems = require("./models/orderItems");
+const StockEntries = require("./models/stockEntries");
 
 const { sendNotification } = require('./utils/notification');
 
@@ -150,7 +151,7 @@ app.post('/webhook/ghn', async (req, res) => {
       newStatus === 'delivering' ||
       newStatus === 'delivered'
     ) {
-      sendPickedNotification(order,newStatus);
+      sendPickedNotification(order, newStatus);
     }
 
     console.log(`Đơn hàng ${updatedOrder.order_code} đã được cập nhật trạng thái ${updatedOrder.status}`);
@@ -316,6 +317,11 @@ app.post("/webhook/payment", async (req, res) => {
       return res.status(200).json({ status: 200, message: "Không tìm thấy đơn hàng, đã bỏ qua" });
     }
 
+    if (["canceled", "rejected"].includes(order.status)) {
+      console.log(`Đơn hàng ${orderId} đã bị huỷ hoặc từ chối, bỏ qua thanh toán.`);
+      return res.status(200).json({ status: 200, message: "Đơn hàng đã được xử lý" });
+    } 
+
     const paidAmount = Number(amount);
     if (order.total_price !== paidAmount) {
       console.log(`Số tiền không chính xác cho đơn hàng ${orderId}`);
@@ -338,6 +344,30 @@ app.post("/webhook/payment", async (req, res) => {
       case 'REFUND':
         order.payment_status = 'refunded';
         order.status = 'canceled';
+
+        const orderItems = await OrderItems.find({ order_id: order._id })
+          .populate({
+            path: "product_product_type_id",
+            model: "productProductType",
+            populate: {
+              path: "product_id",
+              model: "product",
+              select: "name"
+            }
+          });
+        for (const item of orderItems) {
+          for (const batch of item.batches) {
+            const stockEntry = await StockEntries.findOne({ batch_number: batch.batch_number });
+            if (stockEntry) {
+              stockEntry.remaining_quantity += batch.quantity;
+              if (stockEntry.status === "sold_out" && stockEntry.remaining_quantity > 0) {
+                stockEntry.status = "active";
+              }
+              await stockEntry.save();
+            }
+          }
+        }
+
         await order.save();
         await sendRefundNotification(order);
         message = "Đã xử lý hoàn tiền thành công";
@@ -366,7 +396,7 @@ app.post("/webhook/payment", async (req, res) => {
 });
 
 
-const sendPickedNotification = async (order,newStatus) => {
+const sendPickedNotification = async (order, newStatus) => {
   try {
     const orderItems = await OrderItems.find({ order_id: order._id })
       .populate({
@@ -547,8 +577,6 @@ const sendRejectedNotification = async (order) => {
   });
 };
 
-
-
 async function getTransactionInfo(transactionId) {
   const url = `https://script.google.com/macros/s/AKfycbzvTz-hwBcrfK6dpRKu3slToY2gLr2ftlnoB0KuR3xLWJvkeCz4_BcXzDfRy_Qo-ywk/exec?transaction_id=${transactionId}`;
   const response = await fetch(url);
@@ -578,8 +606,6 @@ async function getBankFromVietQR(bin) {
 }
 
 
-
-
 // const testNotification = async () => {
 //   const order = await Orders.findById("68118923c42e43956614039d")
 //   sendRefundNotification(order);
@@ -587,12 +613,6 @@ async function getBankFromVietQR(bin) {
 
 
 // testNotification();
-
-
-
-
-
-
 
 
 

@@ -1,23 +1,5 @@
 <div class="container mt-3">
     <div class="card product-header mb-4 p-3 bg-light rounded">
-        {{!-- <div class="d-flex justify-content-between align-items-center">
-            <span class="h5 mb-0"><span data-lang="orders">Orders</span></span>
-            <div class="row">
-                <form id="searchForm" class="row">
-                    <div class="col-md-3">
-                        <input type="text" id="searchOrder" name="search" class="form-control"
-                            placeholder="Tìm theo mã đơn hoặc tên khách hàng" value="{{filters.search}}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label d-block invisible">Tìm</label>
-                        <button type="submit" class="btn btn-primary w-100">Tìm kiếm</button>
-                    </div>
-                </form>
-            </div>
-            <button class="btn btn-outline-secondary" id="toggleFilter">
-                <i class="bi bi-funnel"></i> Bộ lọc
-            </button>
-        </div> --}}
         <div class="row align-items-center">
             <span class="col-md-1"><span data-lang="orders">Orders</span></span>
             <div class="col-md-6">
@@ -133,10 +115,20 @@
                                 Hoàn
                                 hàng thất
                                 bại</option>
-                            <option value="cancel_request" {{#ifCond filters.status "cancel_request"
+                            {{!-- <option value="cancel_request" {{#ifCond filters.status "cancel_request"
                                 }}selected{{/ifCond}}>
                                 Yêu cầu
-                                hủy</option>
+                                hủy</option> --}}
+                            <option value="cancel_request_pending" {{#ifCond filters.status "cancel_request_pending"
+                                }}selected{{/ifCond}}>
+                                Yêu cầu hủy (Chưa xử lý)
+                            </option>
+
+                            <option value="cancel_request_completed" {{#ifCond filters.status "cancel_request_completed"
+                                }}selected{{/ifCond}}>
+                                Yêu cầu hủy (Đã xử lý)
+                            </option>
+
                             <option value="canceled" {{#ifCond filters.status "canceled" }}selected{{/ifCond}}>Đã hủy
                             </option>
                             <option value="rejected" {{#ifCond filters.status "rejected" }}selected{{/ifCond}}>Từ chối
@@ -199,7 +191,8 @@
                     </div>
 
                     <div class="col-md-2 text-center">
-                        <input type="checkbox" id="priceFilterCheckbox" {{#if filters.min_price}}checked{{/if}}>
+                        <input type="checkbox" id="priceFilterCheckbox" name="filterPrice" {{#if
+                            filters.filterPrice}}checked{{/if}}>
                         <label for="priceFilterCheckbox" class="form-label">Lọc theo tổng tiền</label>
                     </div>
                     <div class="col-md-2 price-filter-fields" style="display: none">
