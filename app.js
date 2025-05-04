@@ -28,8 +28,12 @@ const productImageRouter = require("./routes/productImageRouter");
 const orderRouter = require("./routes/orderRouter");
 const Orders = require('./models/orders');
 const chatRouter = require("./routes/chatRouter");
+
+
 const OrderItems = require("./models/orderItems");
 const StockEntries = require("./models/stockEntries");
+const Notifications = require("./models/notifications");
+const Users = require("./models/users");
 
 const { sendNotification } = require('./utils/notification');
 
@@ -74,8 +78,6 @@ app.use("/discounts", authenticateToken, authorizeAdmin, discountRouter);
 app.use("/users", authenticateToken, authorizeAdmin, userRouter);
 app.use("/orders", authenticateToken, authorizeAdmin, orderRouter);
 app.use("/chat", authenticateToken, authorizeAdmin, chatRouter);
-
-
 
 
 app.post('/webhook/ghn', async (req, res) => {
@@ -613,9 +615,6 @@ async function getBankFromVietQR(bin) {
 
 
 // testNotification();
-
-
-
 
 
 database.connect();

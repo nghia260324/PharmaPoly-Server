@@ -15,6 +15,8 @@ const TOKEN_GHN = process.env.GHN_TOKEN;
 const SHOP_ID = process.env.GHN_SHOP_ID;
 
 const { checkPhoneVerification, checkUidAndPhoneNumber } = require('../utils/checkPhoneVerification');
+const { sendNotification, sendNotificationToAdmin } = require('../utils/notification');
+
 const { db, bucket, auth } = require("../firebase/firebaseAdmin");
 
 const Users = require('../models/users');
@@ -588,7 +590,7 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
     }
 });
 
-router.get('/user/notification', authenticateToken, async (req, res) => {
+router.get('/user/notifications', authenticateToken, async (req, res) => {
     try {
         const userId = req.user_id;
 
@@ -2795,7 +2797,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
                 product_product_type_id: item.product_product_type_id,
                 quantity: item.quantity,
                 price: item.original_price,
-                // batch_number: stockEntry.batch_number
+                // batch_number: 
             });
         }
 
@@ -2806,13 +2808,13 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
-        // await db.ref("new_orders").set({ _id: newOrder._id.toString(), timestamp: Date.now() });
-
         let qrCodeUrl = null;
         if (payment_method === "ONLINE") {
             qrCodeUrl = generateVietQRQuickLink(newOrder);
             checkPaymentStatus(user_id, newOrder._id, total_price);
         }
+
+        sendNewOrderNotificationToAdmin(newOrder._id);
 
         return res.status(200).json({
             status: 200,
@@ -2835,7 +2837,49 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
     }
 });
 
-router.get('/orders/payment_status/:order_id', authenticateToken,async (req, res) => {
+const sendNewOrderNotificationToAdmin = async (order) => {
+    try {
+        const orderItems = await OrderItems.find({ order_id: order._id })
+            .populate({
+                path: "product_product_type_id",
+                model: "productProductType",
+                populate: {
+                    path: "product_id",
+                    model: "product",
+                    select: "name"
+                }
+            });
+            const itemDescriptions = orderItems.map(item => {
+                const productName = item.product_product_type_id?.product_id?.name || "Sản phẩm không xác định";
+                return `- ${productName} x${item.quantity}`;
+            }).join('\n');
+    
+            const shippingFee = order.shipping_fee?.toLocaleString("vi-VN") || "0";
+            const totalPrice = order.total_price?.toLocaleString("vi-VN") || "0";
+    
+            const title = `Bạn vừa nhận được 1 đơn hàng mới từ khách hàng "${order.to_name}" (${order.to_phone})`;
+            const message = `Chi tiết đơn hàng:\n${itemDescriptions}\n\nPhí giao hàng: ${shippingFee}đ\nTổng thanh toán: ${totalPrice}đ`;
+    
+        await sendNotificationToAdmin({
+            title,
+            message
+        });
+
+    } catch (error) {
+        console.error('Lỗi khi gửi thông báo đơn hàng xác nhận đến admin:', error);
+    }
+};
+
+const testNotification = async () => {
+  const order = await Orders.findById("68118923c42e43956614039d")
+  sendNewOrderNotificationToAdmin(order);
+};
+
+
+testNotification();
+
+
+router.get('/orders/payment_status/:order_id', authenticateToken, async (req, res) => {
     const orderId = req.params.order_id;
 
     const order = await Orders.findById(orderId);
@@ -3568,13 +3612,11 @@ const deleteTestAccounts = async (req, res) => {
                 phone_number = "+84" + phone_number.substring(1);
             }
 
-            // Tìm người dùng trong MongoDB
             const existingUser = await Users.findOne({ phone_number });
 
             if (existingUser) {
                 console.log(`User with phone number ${phone_number} found in MongoDB.`);
 
-                // Xóa người dùng khỏi Firebase
                 try {
                     await auth.deleteUser(existingUser.uid);
                     console.log(`User with phone number ${phone_number} deleted from Firebase.`);
@@ -3582,7 +3624,6 @@ const deleteTestAccounts = async (req, res) => {
                     console.error(`Error deleting user from Firebase: ${firebaseError}`);
                 }
 
-                // Xóa người dùng khỏi MongoDB
                 await Users.deleteOne({ phone_number });
                 console.log(`User with phone number ${phone_number} deleted from MongoDB.`);
             } else {

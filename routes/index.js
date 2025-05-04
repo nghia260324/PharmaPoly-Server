@@ -1,5 +1,10 @@
 var express = require('express');
 var router = express.Router();
+const { authenticateToken, authorizeAdmin } = require("../middlewares/authenticateToken");
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const Notifications = require("../models/notifications");
+const Users = require("../models/users");
 
 
 
@@ -23,9 +28,7 @@ router.get('/login', function (req, res) {
     res.render('login/login', { layout: false });
 });
 
-const Users = require('../models/users');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+
 
 router.post('/api/login', async (req, res) => {
     try {
@@ -96,6 +99,102 @@ router.post('/api/login', async (req, res) => {
         });
     }
 });
+
+
+router.get('/admin/notifications', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const adminUser = await Users.findOne({ role: 0 });
+
+        const notifications = await Notifications.find({ user_id: adminUser._id })
+            .sort({ created_at: 1 });
+
+        const unreadCount = await Notifications.countDocuments({
+            user_id: adminUser._id,
+            is_read: false
+        });
+
+        res.json({
+            status: 200,
+            message: 'Lấy danh sách thông báo thành công',
+            data: notifications,
+            unread_count: unreadCount
+        });
+    } catch (error) {
+        console.error('Lỗi lấy thông báo:', error);
+        res.status(500).json({
+            status: 500,
+            message: 'Đã xảy ra lỗi máy chủ'
+        });
+    }
+});
+
+
+router.put('/admin/notifications/read/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const adminUser = await Users.findOne({ role: 0 });
+        const notificationId = req.params.id;
+
+        const notification = await Notifications.findOne({
+            _id: notificationId,
+            user_id: adminUser._id
+        });
+
+        if (!notification) {
+            return res.status(404).json({
+                status: 404,
+                message: 'Không tìm thấy thông báo'
+            });
+        }
+
+        if (notification.is_read) {
+            return res.status(200).json({
+                status: 200,
+                message: 'Thông báo đã được đánh dấu là đã đọc trước đó',
+                data: notification
+            });
+        }
+
+        notification.is_read = true;
+        await notification.save();
+
+        res.status(200).json({
+            status: 200,
+            message: 'Đánh dấu đã đọc thành công',
+            data: notification
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 500,
+            message: 'Lỗi server',
+            error: error.message
+        });
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 router.get("/keep-alive", (req, res) => {
     res.status(200).send('Server is up and running!');
