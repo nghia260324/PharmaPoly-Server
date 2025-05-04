@@ -2814,7 +2814,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
             checkPaymentStatus(user_id, newOrder._id, total_price);
         }
 
-        sendNewOrderNotificationToAdmin(newOrder._id);
+        sendNewNotificationToAdmin(newOrder, 'new_order');
 
         return res.status(200).json({
             status: 200,
@@ -2837,7 +2837,7 @@ router.post("/orders/create", authenticateToken, async (req, res) => {
     }
 });
 
-const sendNewOrderNotificationToAdmin = async (order) => {
+const sendNewNotificationToAdmin = async (order, type) => {
     try {
         const orderItems = await OrderItems.find({ order_id: order._id })
             .populate({
@@ -2849,17 +2849,31 @@ const sendNewOrderNotificationToAdmin = async (order) => {
                     select: "name"
                 }
             });
-            const itemDescriptions = orderItems.map(item => {
-                const productName = item.product_product_type_id?.product_id?.name || "Sản phẩm không xác định";
-                return `- ${productName} x${item.quantity}`;
-            }).join('\n');
-    
-            const shippingFee = order.shipping_fee?.toLocaleString("vi-VN") || "0";
-            const totalPrice = order.total_price?.toLocaleString("vi-VN") || "0";
-    
-            const title = `Bạn vừa nhận được 1 đơn hàng mới từ khách hàng "${order.to_name}" (${order.to_phone})`;
-            const message = `Chi tiết đơn hàng:\n${itemDescriptions}\n\nPhí giao hàng: ${shippingFee}đ\nTổng thanh toán: ${totalPrice}đ`;
-    
+        const itemDescriptions = orderItems.map(item => {
+            const productName = item.product_product_type_id?.product_id?.name || "Sản phẩm không xác định";
+            return `- ${productName} x${item.quantity}`;
+        }).join('\n');
+
+        const shippingFee = order.shipping_fee?.toLocaleString("vi-VN") || "0";
+        const totalPrice = order.total_price?.toLocaleString("vi-VN") || "0";
+
+        // const title = `Bạn vừa nhận được 1 đơn hàng mới từ khách hàng "${order.to_name}" (${order.to_phone})`;
+        // const message = `Chi tiết đơn hàng:\n${itemDescriptions}\n\nPhí giao hàng: ${shippingFee}đ\nTổng thanh toán: ${totalPrice}đ`;
+
+        let title = '';
+        let message = '';
+
+        switch (type) {
+            case 'new_order':
+                title = `Bạn vừa nhận được 1 đơn hàng mới từ khách hàng "${order.to_name}" (${order.to_phone})`;
+                message = `Chi tiết đơn hàng:\n${itemDescriptions}\n\nPhí giao hàng: ${shippingFee}đ\nTổng thanh toán: ${totalPrice}đ`;
+                break;
+            case 'canceled':
+                title = `Bạn vừa nhận được 1 yêu cầu hủy đơn từ khách hàng "${order.to_name}" (${order.to_phone})`;
+                message = `Đơn hàng có các sản phẩm:\n${itemDescriptions}\n\nPhí giao hàng: ${shippingFee}đ\nTổng thanh toán: ${totalPrice}đ`;
+                break;
+        }
+
         await sendNotificationToAdmin({
             title,
             message
@@ -2870,18 +2884,18 @@ const sendNewOrderNotificationToAdmin = async (order) => {
     }
 };
 
-const testNotification = async () => {
-  const order = await Orders.findById("68118923c42e43956614039d")
-  sendNewOrderNotificationToAdmin(order);
-};
+// const testNotification = async () => {
+//   const order = await Orders.findById("68118923c42e43956614039d")
+//   sendNewNotificationToAdmin(order);
+// };
 
 
-testNotification();
+// testNotification();
 
 
 router.get('/orders/payment_status/:order_id', authenticateToken, async (req, res) => {
     const orderId = req.params.order_id;
-
+    // const userId = req.user_id;
     const order = await Orders.findById(orderId);
 
     if (!order) {
@@ -2891,9 +2905,9 @@ router.get('/orders/payment_status/:order_id', authenticateToken, async (req, re
         });
     }
 
-    if (order.user_id.toString() !== userId.toString()) {
-        return res.status(403).json({ status: 403, message: 'Bạn không có quyền truy cập đơn hàng này' });
-    }
+    // if (order.user_id.toString() !== userId.toString()) {
+    //     return res.status(403).json({ status: 403, message: 'Bạn không có quyền truy cập đơn hàng này' });
+    // }
 
     const paymentStatus = order.payment_status;
 
@@ -3246,6 +3260,8 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
         }
 
         await order.save();
+
+        sendNewNotificationToAdmin(order, 'canceled');
 
         res.status(200).json({
             status: 200,
@@ -4023,13 +4039,17 @@ async function createFakeOrdersV2() {
 
                 const { type, stock } = typesArray[Math.floor(Math.random() * typesArray.length)];
 
-                const quantity = Math.floor(Math.random() * 3) + 1; // 1–3 cái
+                const quantity = Math.floor(Math.random() * 3) + 1;
 
-                if (stock.remaining_quantity < quantity) continue; // Nếu không đủ tồn thì bỏ qua
+                if (stock.remaining_quantity < quantity) continue;
 
                 selectedItems.push({
                     product_product_type_id: type._id,
-                    batch_number: stock.batch_number,
+                    // batch_number: stock.batch_number,
+                    batches: [{
+                        batch_number: stock.batch_number,
+                        quantity
+                    }],
                     quantity,
                     price: type.price,
                     created_at
@@ -4060,7 +4080,21 @@ async function createFakeOrdersV2() {
 
 
 
+async function resetRemainingQuantity() {
+    try {
+        const stockEntries = await StockEntries.find();
 
+        for (const entry of stockEntries) {
+            entry.remaining_quantity = entry.quantity;
+            await entry.save();
+            console.log(`✅ Đã reset remaining_quantity cho ${entry.batch_number}`);
+        }
+
+        console.log(`✅ Đã reset remaining_quantity cho ${stockEntries.length} lô hàng`);
+    } catch (err) {
+        console.error('❌ Lỗi khi reset remaining_quantity:', err.message);
+    }
+}
 
 
 async function createProductReviews() {

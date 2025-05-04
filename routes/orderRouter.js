@@ -247,6 +247,7 @@ function normalizeText(text) {
         .replace(/\s+/g, '')
         .toLowerCase();
 }
+
 router.get("/:id/detail", async function (req, res, next) {
     try {
         const orderId = req.params.id;
@@ -260,7 +261,7 @@ router.get("/:id/detail", async function (req, res, next) {
                 populate: [
                     {
                         path: "product_id",
-                        select: "name"
+                        select: "_id name"
                     },
                     {
                         path: "product_type_id",
@@ -269,7 +270,6 @@ router.get("/:id/detail", async function (req, res, next) {
                 ]
 
             });
-        console.log(orderItems);
 
         const productIds = orderItems.map(item => item.product_product_type_id.product_id);
 
@@ -283,11 +283,35 @@ router.get("/:id/detail", async function (req, res, next) {
             return acc;
         }, {});
 
+        // const orderItemsWithImages = orderItems.map(item => ({
+        //     ...item.toObject(),
+        //     image_url: imageMap[item.product_product_type_id.product_id._id.toString()] || null
+        // }));
+
+        const allBatchNumbers = orderItems.flatMap(item =>
+            item.batches.map(b => b.batch_number)
+        );
+
+        const batchDetails = await StockEntries.find({
+            batch_number: { $in: allBatchNumbers }
+        });
+
+        const batchMap = batchDetails.reduce((acc, batch) => {
+            acc[batch.batch_number] = {
+                expiry_date: batch.expiry_date,
+                import_date: batch.import_date,
+                status: batch.status
+            };
+            return acc;
+        }, {});
         const orderItemsWithImages = orderItems.map(item => ({
             ...item.toObject(),
-            image_url: imageMap[item.product_product_type_id.product_id._id.toString()] || null
+            image_url: imageMap[item.product_product_type_id.product_id._id.toString()] || null,
+            batches: item.batches.map(b => ({
+                ...b.toObject(),
+                ...batchMap[b.batch_number]
+            }))
         }));
-
         res.render("orders/detail", {
             order,
             orderItems: orderItemsWithImages,
@@ -481,9 +505,7 @@ router.put("/:order_id/confirm", async (req, res) => {
                 message: `Không đủ tồn kho cho các sản phẩm trong đơn hàng.`
             });
         }
-
-
-
+        
 
         const firstProductName = orderItems[0]?.product_product_type_id?.product_id?.name || "sản phẩm";
         const shortenName = (name, maxLength = 40) => {

@@ -101,7 +101,6 @@ router.get('/revenue', async function (req, res, next) {
         }
 
 
-        // Tính doanh thu và lợi nhuận cho đơn đã giao
         const revenueData = await Orders.aggregate([
             { $match: matchStageDelivered },
             {
@@ -113,10 +112,14 @@ router.get('/revenue', async function (req, res, next) {
                 }
             },
             { $unwind: "$items" },
+            { $unwind: "$items.batches" }, // ✅ Unwind mảng batches
             {
                 $lookup: {
                     from: "stockEntries",
-                    let: { ppid: "$items.product_product_type_id", batch: "$items.batch_number" },
+                    let: {
+                        ppid: "$items.product_product_type_id",
+                        batch: "$items.batches.batch_number"
+                    },
                     pipeline: [
                         {
                             $match: {
@@ -143,14 +146,6 @@ router.get('/revenue', async function (req, res, next) {
                     }
                 }
             },
-            // {
-            //     $group: {
-            //         _id: { orderId: "$_id", date: "$date", status: "$status", total_price: "$total_price" },
-            //         total_cost: {
-            //             $sum: { $multiply: ["$items.quantity", "$import_price"] }
-            //         }
-            //     }
-            // },
             {
                 $group: {
                     _id: {
@@ -161,31 +156,27 @@ router.get('/revenue', async function (req, res, next) {
                         shipping_fee: "$shipping_fee"
                     },
                     total_cost: {
-                        $sum: { $multiply: ["$items.quantity", "$import_price"] }
+                        $sum: {
+                            $multiply: ["$items.batches.quantity", "$import_price"]
+                        }
                     }
                 }
             },
-            // {
-            //     $group: {
-            //         _id: "$_id.date",
-            //         totalRevenue: { $sum: "$_id.total_price" },
-            //         totalCost: { $sum: "$total_cost" },
-            //         orderCount: { $sum: 1 }
-            //     }
-            // },
             {
                 $group: {
                     _id: "$_id.date",
                     totalRevenue: {
-                        $sum: { $subtract: ["$_id.total_price", { $ifNull: ["$_id.shipping_fee", 0] }] }
+                        $sum: {
+                            $subtract: ["$_id.total_price", { $ifNull: ["$_id.shipping_fee", 0] }]
+                        }
                     },
                     totalCost: { $sum: "$total_cost" },
                     orderCount: { $sum: 1 }
                 }
             },
-
             { $sort: { _id: 1 } }
         ]);
+        
 
         const revenueLabels = revenueData.map(r => format(new Date(r._id), 'dd/MM/yyyy', { locale: viLocale.vi }));
         const revenueValues = revenueData.map(r => r.totalRevenue);
