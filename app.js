@@ -35,7 +35,7 @@ const StockEntries = require("./models/stockEntries");
 const Notifications = require("./models/notifications");
 const Users = require("./models/users");
 
-const { sendNotification } = require('./utils/notification');
+const { sendNotification, sendNotificationToAdmin } = require('./utils/notification');
 
 const registerHelpers = require('./utils/hbsHelpers');
 registerHelpers();
@@ -147,6 +147,8 @@ app.post('/webhook/ghn', async (req, res) => {
       return res.status(404).send("Không thể cập nhật đơn hàng");
     }
 
+    // if (newStatus === "returned") {
+    // }
 
     if (
       newStatus === 'picked' ||
@@ -372,6 +374,10 @@ app.post("/webhook/payment", async (req, res) => {
 
         await order.save();
         await sendRefundNotification(order);
+
+        const ref = db.ref(`admin_notifications/${orderId}`);
+        await ref.remove();
+
         message = "Đã xử lý hoàn tiền thành công";
         console.log(`Hoàn tiền thành công cho đơn hàng ${orderId}`);
         break;
@@ -452,7 +458,6 @@ const sendPickedNotification = async (order, newStatus) => {
     console.error("Lỗi khi gửi thông báo cho trạng thái 'picked':", error.message);
   }
 };
-
 
 const sendRefundNotification = async (order) => {
   const orderItems = await OrderItems.find({ order_id: order._id })

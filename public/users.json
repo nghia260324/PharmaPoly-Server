@@ -1,5 +1,10 @@
 [
     {
+        "full_name": "Nguyễn Kim Linh",
+        "phone_number": "0219605210",
+        "password": ".Z]0|c[!"
+    },
+    {
         "full_name": "Hoàng Văn Giang",
         "phone_number": "0267458178",
         "password": "m2n&+NoQ"
@@ -8,11 +13,6 @@
         "full_name": "Trần Văn Dũng",
         "phone_number": "0748296666",
         "password": "3bBJD@]@"
-    },
-    {
-        "full_name": "Nguyễn Kim Linh",
-        "phone_number": "0219605210",
-        "password": ".Z]0|c[!"
     },
     {
         "full_name": "Nguyễn Thanh Mai",

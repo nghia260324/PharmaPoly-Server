@@ -2573,8 +2573,6 @@ const getWard = async (district_id, ward_id) => {
     }
 };
 
-
-
 const getUserAddress = async (user_id) => {
     try {
         const address = await UserAddress.findOne({ user_id }).lean();
@@ -2866,7 +2864,7 @@ const sendNewNotificationToAdmin = async (order, type) => {
         switch (type) {
             case 'new_order':
                 title = `Bạn vừa nhận được 1 đơn hàng mới từ khách hàng "${order.to_name}" (${order.to_phone})`;
-                message = `Chi tiết đơn hàng:\n${itemDescriptions}\n\nPhí giao hàng: ${shippingFee}đ\nTổng thanh toán: ${totalPrice}đ`;
+                message = `Thông tin đơn hàng:\n${itemDescriptions}\n\nPhí giao hàng: ${shippingFee}đ\nTổng thanh toán: ${totalPrice}đ`;
                 break;
             case 'canceled':
                 title = `Bạn vừa nhận được 1 yêu cầu hủy đơn từ khách hàng "${order.to_name}" (${order.to_phone})`;
@@ -2876,7 +2874,8 @@ const sendNewNotificationToAdmin = async (order, type) => {
 
         await sendNotificationToAdmin({
             title,
-            message
+            message,
+            order_id: order._id
         });
 
     } catch (error) {
@@ -2885,13 +2884,11 @@ const sendNewNotificationToAdmin = async (order, type) => {
 };
 
 // const testNotification = async () => {
-//   const order = await Orders.findById("68118923c42e43956614039d")
+//   const order = await Orders.findById("681733b250f229660edb194a")
 //   sendNewNotificationToAdmin(order);
 // };
 
-
 // testNotification();
-
 
 router.get('/orders/payment_status/:order_id', authenticateToken, async (req, res) => {
     const orderId = req.params.order_id;
@@ -3235,21 +3232,21 @@ router.post("/orders/:id/cancel", authenticateToken, async (req, res) => {
         if (!order) {
             return res.status(404).json({
                 status: 404,
-                message: "Order not found!"
+                message: "Không tìm thấy đơn hàng!"
             });
         }
 
         if (order.user_id.toString() !== req.user_id) {
             return res.status(403).json({
                 status: 403,
-                message: "You do not have permission to cancel this order!"
+                message: "Bạn không có quyền truy cập đơn hàng này!"
             });
         }
 
         if (!statusGroups.processing.includes(order.status)) {
             return res.status(400).json({
                 status: 400,
-                message: "This order cannot be canceled at its current stage!"
+                message: "Không thể hủy đơn hàng ở trạng thái này!"
             });
         }
 

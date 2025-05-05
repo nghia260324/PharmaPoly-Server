@@ -37,26 +37,52 @@ const getAdminUser = async () => {
         throw error;
     }
 };
-const sendNotificationToAdmin = async ({ title, message }) => {
+const sendNotificationToAdmin = async ({ title, message, order_id }) => {
     try {
+        // const admin = await getAdminUser();
+        // const new_notification = await Notification.create({
+        //     user_id: admin._id,
+        //     title,
+        //     message,
+        //     is_read: false
+        // });
+
+        // const notifications = await Notification.find({user_id: admin._id});
+
+        // const io = require('../app').get("io");
+        // io.emit("admin_notification", new_notification, notifications);
+
+        const orderIdString = `IDS-${order_id}-IDE`;
+        const updatedMessage = `${message} ${orderIdString}`;
+
         const admin = await getAdminUser();
+
         const new_notification = await Notification.create({
             user_id: admin._id,
             title,
-            message,
+            message: updatedMessage,
             is_read: false
         });
 
-        const notifications = await Notification.find({user_id: admin._id});
-
+        // const notifications = await Notification.find({ user_id: admin._id });
+        console.log({
+            new_notification: {
+                ...new_notification.toObject(),
+                order_id
+            },
+        })
         const io = require('../app').get("io");
-        io.emit("admin_notification", new_notification, notifications);
+        io.emit("admin_notification", {
+            ...new_notification.toObject(),
+            order_id
+        });
+
     } catch (error) {
         console.error('Lỗi gửi thông báo tới admin:', error.message);
     }
 };
 
-// sendNotificationToAdmin({ title: "Title Test", message: "Content Test" });
+// sendNotificationToAdmin({ title: "Title Test", message: "Content Test",order_id: "681733b250f229660edb194a"  });
 
 
 module.exports = { sendNotification, sendNotificationToAdmin };

@@ -47,7 +47,7 @@
                     <div class="mb-4">
                         <h3 class="fw-bold mb-3">{{product.name}}</h3>
                         <div class="d-flex flex-wrap gap-2 align-items-center">
-                            <span class="badge bg-primary">{{product.brand.name}}</span>
+                            {{!-- <span class="badge bg-primary">{{product.brand.name}}</span> --}}
                             <span class="badge bg-secondary">{{product.category.name}}</span>
                             <span class="badge {{statusBadge product.status}}">
                                 <i class="bi {{getStatusIcon product.status}} me-1"></i>
@@ -90,12 +90,12 @@
                                 <strong>{{product.specification}}</strong>
                             </div>
                         </div>
-                        <div class="col">
+                        {{!-- <div class="col">
                             <div class="bg-light p-3 rounded">
                                 <small class="text-muted d-block">Cập nhật</small>
                                 <strong>{{formatDate product.updated_at}}</strong>
                             </div>
-                        </div>
+                        </div> --}}
                     </div>
 
                     <!-- Product Types -->

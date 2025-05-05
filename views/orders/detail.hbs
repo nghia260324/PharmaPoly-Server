@@ -17,11 +17,17 @@
                 {{userAddress.district.DistrictName}}, {{userAddress.province.ProvinceName}}</p>
 
             <p class="date-format" data-created-at="{{order.created_at}}"><strong>Ngày đặt:</strong>
-                {{order.created_at}}
+                {{formatDateTime order.created_at}}
             </p>
             {{#if (eq order.status "delivered")}}
             <p class="date-format" data-delivered-at="{{order.delivered_at}}">
-                <strong>Ngày nhận hàng:</strong> {{order.delivered_at}}
+                <strong>Ngày nhận hàng:</strong> {{formatDateTime order.delivered_at}}
+            </p>
+            {{/if}}
+
+            {{#if (eq order.status "canceled")}}
+            <p class="date-format" data-canceled-at="{{order.updated_at}}">
+                <strong>Ngày hủy đơn:</strong> {{formatDateTime order.updated_at}}
             </p>
             {{/if}}
 
@@ -39,7 +45,6 @@
                 </span>
                 {{/if}}
                 {{/if}}
-
             </p>
 
             <p><strong>Tổng tiền:</strong> {{formatPrice order.total_price}} VND</p>
@@ -54,8 +59,17 @@
 
             <div class="mt-3">
                 {{#if (eq order.status "pending")}}
+
+                {{#if (or (eq order.payment_method "COD") (eq order.payment_status "paid"))}}
+                  {{#if (not order.cancel_request)}}
                 <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
+                {{/if}}
+
                 <button class="btn btn-danger" onclick="rejectOrder('{{order._id}}')">Từ chối đơn hàng</button>
+                {{else}}
+                <p class="text-danger">⚠ Không thể xác nhận vì đơn hàng chưa được thanh toán.</p>
+                {{/if}}
+
                 {{/if}}
 
                 {{#if (and (eq order.status "confirmed") (not order.cancel_request))}}
@@ -70,14 +84,11 @@
                 {{/if}}
                 {{/if}}
 
-                {{#if (or
-                (and (or (eq order.status "confirmed") (eq order.status "ready_to_pick")) order.cancel_request)
-                (and (eq order.status "pending") (neq order.payment_method "COD") order.cancel_request)
-                )}}
+                {{#if (and order.cancel_request (neq order.status "canceled") (neq order.payment_status "refunded"))}}
                 <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
-
                 {{/if}}
             </div>
+
 
 
         </div>
@@ -110,7 +121,9 @@
                             {{#if this.batches}}
                             {{#each this.batches}}
                             <div class="mb-2">
-                                <div><strong>Mã lô hàng: <a href="/products/{{this.product_product_type_id.product_id._id}}/import-stock">{{batch_number}}</a></strong></div>
+                                <div><strong>Mã lô hàng: <a
+                                            href="/products/{{this.product_product_type_id.product_id._id}}/import-stock">{{batch_number}}</a></strong>
+                                </div>
                                 <div>Số lượng: <strong>{{quantity}}</strong></div>
                                 <small class="text-muted">
                                     HSD: {{#if expiry_date}}{{formatDate expiry_date}}{{else}}N/A{{/if}}
@@ -254,7 +267,7 @@
             window.history.go(-1);
         });
 
-        formatDates();
+        //formatDates();
         startCountdown();
     });
 
@@ -353,17 +366,17 @@
         const countdownElement = document.getElementById("countdown");
         if (!countdownElement) return;
 
-        const createdAt = new Date("{{order.created_at}}"); // Lấy thời gian tạo đơn
-        const expireTime = new Date(createdAt.getTime() + 10 * 60000); // Hết hạn sau 10 phút
+        const createdAt = new Date("{{order.created_at}}");
+        const expireTime = new Date(createdAt.getTime() + 10 * 60000);
 
         function updateCountdown() {
             const now = new Date();
-            const diff = Math.max(0, Math.floor((expireTime - now) / 1000)); // Số giây còn lại
+            const diff = Math.max(0, Math.floor((expireTime - now) / 1000));
             const minutes = Math.floor(diff / 60);
             const seconds = diff % 60;
 
             if (diff > 0) {
-                countdownElement.textContent = ` (Hủy sau: ${minutes} phút ${seconds} giây)`;
+                countdownElement.textContent = ` (Tự động hủy đơn sau: ${minutes} phút ${seconds} giây)`;
             } else {
                 countdownElement.textContent = " (Đơn hàng đã hết hạn)";
                 countdownElement.classList.remove("text-danger");
@@ -375,23 +388,6 @@
         setInterval(updateCountdown, 1000);
     }
 
-    function formatDates() {
-        document.querySelectorAll(".date-format").forEach(element => {
-            const timestamp = element.dataset.createdAt;
-            if (timestamp) {
-                const date = new Date(timestamp);
-                const formattedDate = date.toLocaleString("vi-VN", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false
-                });
-                element.innerHTML = `<strong>Ngày đặt:</strong> ${formattedDate}`;
-            }
-        });
-    }
     let statusIntervalId = null;
 
     function checkOrderStatus(orderId) {

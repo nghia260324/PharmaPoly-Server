@@ -38,6 +38,16 @@
 
 </head>
 
+<style>
+  .toast-title, .toast-message {
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Giới hạn 2 dòng */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+</style>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary sidebar-open app-loaded">
   <div class="app-wrapper">
     <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">{{> sidebar}}</aside>
@@ -56,7 +66,7 @@
 
   <!-- Notification Button -->
   <!-- Notification Button -->
-  <div id="notification-btn" style="position: fixed; bottom: 56px; right: 20px; z-index: 9999; cursor: pointer;">
+  <div id="notification-btn" style="position: fixed; bottom: 96px; right: 20px; z-index: 9999; cursor: pointer;">
     <div
       style="background-color: #0d6efd; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative;">
       <i class="bi bi-bell-fill fs-4"></i>
@@ -229,7 +239,7 @@
     function updateNotificationList(notification) {
       const li = document.createElement('li');
       li.classList.add('list-group-item', 'border', 'mb-2');
-      li.setAttribute('data-id', notification.id);
+      li.setAttribute('data-id', notification._id);
 
       const header = document.createElement('div');
       header.classList.add('d-flex', 'justify-content-between', 'align-items-center', 'cursor-pointer');
@@ -250,7 +260,7 @@
       statusDot.style.borderRadius = '50%';
       statusDot.style.display = 'inline-block';
       statusDot.style.backgroundColor = notification.is_read ? 'green' : 'red';
-      statusDot.style.flexShrink = '0'; // Prevent statusDot from shrinking
+      statusDot.style.flexShrink = '0';
 
 
       rightInfo.appendChild(time);
@@ -265,6 +275,14 @@
       messageDiv.innerHTML = notification.message.replace(/\n/g, '<br>');
 
       messageDiv.style.display = 'none';
+
+      const orderLink = document.createElement('a');
+      orderLink.href = `/orders/${notification.order_id}/detail`;
+      orderLink.textContent = 'Chi tiết đơn hàng';
+      orderLink.classList.add('d-block', 'mt-2', 'text-primary');
+      orderLink.target = '_blank';
+
+      messageDiv.appendChild(orderLink);
 
       header.addEventListener('click', () => {
         const isVisible = messageDiv.style.display === 'block';
@@ -336,25 +354,27 @@
 
 
 
-    function showToast(title, message) {
-      const toastId = `toast-${Date.now()}`;
-      const toastHTML = `
+   function showToast(title, message) {
+  const toastId = `toast-${Date.now()}`;
+  const toastHTML = `
     <div style="z-index:9999" id="${toastId}" class="toast align-items-center text-white bg-primary border-0" role="alert"
       aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
-          <strong>${title}</strong><br>${message}
+          <div class="toast-title"><strong>${title}</strong></div>
+          <div class="toast-message">${message}</div>
         </div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
           aria-label="Close"></button>
       </div>
     </div>
   `;
-      document.getElementById('toast-container').innerHTML += toastHTML;
-      const toastElement = document.getElementById(toastId);
-      const toastInstance = new bootstrap.Toast(toastElement, { delay: 5000 });
-      toastInstance.show();
-    }
+  document.getElementById('toast-container').innerHTML += toastHTML;
+  const toastElement = document.getElementById(toastId);
+  const toastInstance = new bootstrap.Toast(toastElement, { delay: 5000 });
+  toastInstance.show();
+}
+
 
   });
 </script>

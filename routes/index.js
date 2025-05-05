@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const Notifications = require("../models/notifications");
 const Users = require("../models/users");
-
+const { db } = require('../firebase/firebaseAdmin');
 
 
 /* GET home page. */
@@ -113,10 +113,24 @@ router.get('/admin/notifications', authenticateToken, authorizeAdmin, async (req
             is_read: false
         });
 
+        const processedNotifications = notifications.map(notification => {
+
+            const orderIdMatch = notification.message.match(/IDS-([a-f0-9]{24})-IDE/);
+            const order_id = orderIdMatch ? orderIdMatch[1] : null;
+
+            const messageWithoutOrderId = notification.message.replace(/IDS-[a-f0-9]{24}-IDE/g, '').trim();
+
+            return {
+                ...notification.toObject(),
+                message: messageWithoutOrderId,
+                order_id: order_id
+            };
+        });
+
         res.json({
             status: 200,
             message: 'Lấy danh sách thông báo thành công',
-            data: notifications,
+            data: processedNotifications,
             unread_count: unreadCount
         });
     } catch (error) {
@@ -157,12 +171,16 @@ router.put('/admin/notifications/read/:id', authenticateToken, authorizeAdmin, a
         notification.is_read = true;
         await notification.save();
 
+        const ref = db.ref(`admin_notifications/${orderId}`);
+        await ref.remove();
+
         res.status(200).json({
             status: 200,
             message: 'Đánh dấu đã đọc thành công',
             data: notification
         });
     } catch (error) {
+        console.log(error.message);
         res.status(500).json({
             status: 500,
             message: 'Lỗi server',
