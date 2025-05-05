@@ -64,12 +64,14 @@
             <input type="text" id="searchProduct" class="form-control" placeholder="Tìm theo tên sản phẩm"
                 value="{{search}}">
         </div>
-        <div class="col-md-4">
+        <div class="col-md-2">
             <select id="sortProducts" class="form-select">
-                <option value="name_asc" {{#ifCond sort "name_asc" }}selected{{/ifCond}}>Tên A-Z</option>
                 <option value="name_desc" {{#ifCond sort "name_desc" }}selected{{/ifCond}}>Tên Z-A</option>
-                {{!-- <option value="price_asc" {{#ifCond sort "price_asc" }}selected{{/ifCond}}>Giá thấp đến cao</option>
-                <option value="price_desc" {{#ifCond sort "price_desc" }}selected{{/ifCond}}>Giá cao đến thấp</option> --}}
+                <option value="name_asc" {{#ifCond sort "name_asc" }}selected{{/ifCond}}>Tên A-Z</option>
+                {{!-- <option value="price_asc" {{#ifCond sort "price_asc" }}selected{{/ifCond}}>Giá thấp đến cao
+                </option>
+                <option value="price_desc" {{#ifCond sort "price_desc" }}selected{{/ifCond}}>Giá cao đến thấp</option>
+                --}}
             </select>
         </div>
         <div class="col-md-2">
@@ -128,12 +130,12 @@
                                                     <li><a class="dropdown-item update-status-item"
                                                             data-id="{{this._id}}" data-status="active">
                                                             Hoạt động (bắt đầu bán)</a></li>
-                                                    <li><a class="dropdown-item update-status-item"
+                                                    {{!-- <li><a class="dropdown-item update-status-item"
                                                             data-id="{{this._id}}" data-status="paused">
                                                             Tạm ngừng bán (có thể mở lại)</a></li>
                                                     <li><a class="dropdown-item update-status-item"
                                                             data-id="{{this._id}}" data-status="discontinued">
-                                                            Ngừng bán vĩnh viễn</a></li>
+                                                            Ngừng bán vĩnh viễn</a></li> --}}
                                                     {{/if}}
 
                                                     {{#if (eq this.status "active")}}
@@ -181,7 +183,8 @@
                                                     </div>
 
                                                     <div class="d-flex justify-content-between align-items-center mt-1">
-                                                        <span class="text-muted">Giá bán: ({{formatPrice this.price}}VND)</span>
+                                                        <span class="text-muted">Giá bán: ({{formatPrice
+                                                            this.price}}VND)</span>
                                                         <input step="100" type="number"
                                                             class="form-control form-control-sm update-price"
                                                             data-product-id="{{../_id}}"
@@ -215,18 +218,18 @@
                                 <div class="col-12 col-md-2 col-lg-2 h-100">
                                     <div class="d-grid gap-2">
                                         <div class="btn-group w-100" role="group">
-                                            <button class="btn btn-sm btn-outline-secondary view-product-details"
+                                            <button class="btn btn-sm btn-secondary view-product-details"
                                                 data-id="{{this._id}}" title="Xem chi tiết">
                                                 <i class="bi bi-eye"></i>
                                             </button>
 
-                                            <button class="btn btn-sm btn-outline-warning edit-product"
-                                                data-id="{{this._id}}" title="Chỉnh sửa">
+                                            <button class="btn btn-sm btn-warning edit-product" data-id="{{this._id}}"
+                                                title="Chỉnh sửa">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
 
-                                            {{#if (neq this.status "not_started")}}
-                                            <button class="btn btn-sm btn-outline-secondary position-relative pe-none"
+                                            {{!-- {{#if (neq this.status "not_started")}}
+                                            <button class="btn btn-sm btn-secondary position-relative pe-none"
                                                 data-bs-toggle="tooltip" data-bs-placement="top"
                                                 title="Sản phẩm đang ở trạng thái {{formatProductStatus this.status}} - Không thể xóa">
                                                 <span class="opacity-50 d-inline-flex align-items-center">
@@ -237,9 +240,27 @@
                                                 </span>
                                             </button>
                                             {{else}}
-                                            <button class="btn btn-sm btn-outline-danger delete-product"
-                                                data-id="{{this._id}}" title="Xóa sản phẩm">
+                                            <button class="btn btn-sm btn-danger delete-product" data-id="{{this._id}}"
+                                                title="Xóa sản phẩm">
                                                 <i class="bi bi-trash"></i>
+                                            </button>
+                                            {{/if}} --}}
+                                            {{#if (and (eq this.status "not_started") (eq this.product_types.length
+                                            0))}}
+                                            <button class="btn btn-sm btn-danger delete-product" data-id="{{this._id}}"
+                                                title="Xóa sản phẩm">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                            {{else}}
+                                            <button class="btn btn-sm btn-secondary position-relative pe-none"
+                                                data-bs-toggle="tooltip" data-bs-placement="top"
+                                                title="{{#if (neq this.status 'not_started')}}Sản phẩm đang ở trạng thái {{formatProductStatus this.status}} - Không thể xóa{{else}}Sản phẩm đã có loại sản phẩm - Không thể xóa{{/if}}">
+                                                <span class="opacity-50 d-inline-flex align-items-center">
+                                                    <i class="bi bi-trash"></i>
+                                                </span>
+                                                <span class="position-absolute top-0 start-100 translate-middle">
+                                                    <i class="bi bi-lock-fill text-danger small"></i>
+                                                </span>
                                             </button>
                                             {{/if}}
 

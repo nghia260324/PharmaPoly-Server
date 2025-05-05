@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Brands = require('../models/brands');
+const Products = require('../models/products');
+const ProductImages = require('../models/productImages');
 const { removeDiacritics } = require('../utils/textUtils');
 
 
@@ -129,6 +131,33 @@ router.put('/update/:id', async (req, res) => {
         }
     } catch (error) {
         return res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ!", error: error.message });
+    }
+});
+
+router.get('/:brandId', async (req, res) => {
+    try {
+        const brandId = req.params.brandId;
+
+        const brand = await Brands.findById(brandId);
+
+        if (!brand) {
+            return res.status(404).render('404', { message: 'Không tìm thấy thương hiệu' });
+        }
+
+        const products = await Products.find({ brand_id: brandId }).populate('category_id').populate('brand_id');
+
+        for (let product of products) {
+            const primaryImage = await ProductImages.findOne({ product_id: product._id, is_primary: true }).sort({ sort_order: 1 });
+            product.primaryImage = primaryImage ? primaryImage.image_url : null;
+        }
+
+        res.render('brands/detail', {
+            brand,
+            products
+        });
+    } catch (error) {
+        console.error("Lỗi khi lấy thông tin thương hiệu:", error);
+        res.status(500).render('500', { message: 'Lỗi máy chủ nội bộ!' });
     }
 });
 

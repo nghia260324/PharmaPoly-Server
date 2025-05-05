@@ -139,7 +139,6 @@ router.get("/add", async (req, res) => {
 
 router.get("/:id/detail", async (req, res) => {
     const id = req.params.id;
-    //const product = await getProductDetails(id)
     const product = await Products
         .findById(id)
         .populate('category_id')
@@ -585,10 +584,6 @@ router.post('/:product_id/import-stock/:id/update-info', async (req, res) => {
     }
 });
 
-
-
-
-
 router.put('/:product_id/import-stock/:id/update-status', async (req, res) => {
     const { product_id, id } = req.params;
     const { status } = req.body;
@@ -931,13 +926,21 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
 
 
         const productTypes = JSON.parse(data.product_product_types);
-        if (!Array.isArray(productTypes) || productTypes.length === 0) {
-            throw new Error("Định dạng loại sản phẩm không hợp lệ!");
-        }
+        // if (!Array.isArray(productTypes) || productTypes.length === 0) {
+        //     throw new Error("Định dạng loại sản phẩm không hợp lệ!");
+        // }
 
         const productTypeData = productTypes.map(type => {
-            if (!type.type_id || !type.price || isNaN(type.price) || type.price <= 0) {
-                throw new Error("Thông tin loại sản phẩm không hợp lệ!");
+            if (!type.type_id) {
+                throw new Error("Thông tin loại sản phẩm không hợp lệ! Thiếu ID loại sản phẩm.");
+            }
+
+            if (!type.price) {
+                throw new Error("Vui lòng nhập giá bán cho loại sản phẩm!");
+            }
+
+            if (isNaN(type.price) || type.price <= 0) {
+                throw new Error("Giá bán của sản phẩm phải là một số hợp lệ và lớn hơn 0!");
             }
             return {
                 product_id: savedProduct._id,
@@ -952,21 +955,21 @@ router.post('/add', Uploads.array('images', 10), async (req, res) => {
             const uniqueSections = new Set();
 
             for (const section of sections) {
-                if (!section.section_id) throw new Error("Thiếu ID section!");
+                if (!section.section_id) throw new Error("Thiếu ID Mục nội dung!");
                 if (uniqueSections.has(section.section_id)) {
-                    throw new Error(`Section ${section.section_id} đã tồn tại!`);
+                    throw new Error(`Mục nội dung ${section.section_id} đã tồn tại!`);
                 }
                 uniqueSections.add(section.section_id);
 
                 if (!section.details || !Array.isArray(section.details)) {
-                    throw new Error("Thông tin details không hợp lệ!");
+                    throw new Error("Thông tin chi tiết không hợp lệ!");
                 }
 
                 const sectionDetails = section.details.map(detail => {
                     const title = detail.title?.trim();
                     const content = detail.content?.trim();
                     if (!title || !content) {
-                        throw new Error("Tiêu đề và nội dung detail không được để trống!");
+                        throw new Error("Tiêu đề và nội dung chi tiết không được để trống!");
                     }
                     return { title, content };
                 });
@@ -1029,15 +1032,21 @@ router.delete('/delete/:id', async (req, res) => {
         }
 
         const productTypes = await ProductProductTypes.find({ product_id: id });
-        for (const productType of productTypes) {
-            const stockEntries = await StockEntries.find({ product_product_type_id: productType._id });
-            if (stockEntries.length > 0) {
-                return res.status(400).json({
-                    status: 400,
-                    message: "Không thể xóa sản phẩm vì nó có mục nhập kho."
-                });
-            }
+        if (productTypes.length > 0) {
+            return res.status(400).json({
+                status: 400,
+                message: "Không thể xóa sản phẩm này."
+            });
         }
+        // for (const productType of productTypes) {
+        //     const stockEntries = await StockEntries.find({ product_product_type_id: productType._id });
+        //     if (stockEntries.length > 0) {
+        //         return res.status(400).json({
+        //             status: 400,
+        //             message: "Không thể xóa sản phẩm vì nó có mục nhập kho."
+        //         });
+        //     }
+        // }
 
         const images = await ProductImages.find({ product_id: id });
 
@@ -1074,8 +1083,6 @@ router.delete('/delete/:id', async (req, res) => {
         res.status(500).json({ status: 500, message: "Lỗi máy chủ nội bộ!", error: error.message });
     }
 });
-
-
 
 router.get('/all', async function (req, res, next) {
     try {
@@ -1127,8 +1134,13 @@ router.get('/id/:id', async function (req, res, next) {
         const productProductTypes = await ProductProductTypes.find({ product_id: id })
             .populate('product_type_id', 'name')
             .lean();
-        product.product_product_types = productProductTypes;
 
+        for (const productType of productProductTypes) {
+            const stockEntries = await StockEntries.find({ product_product_type_id: productType._id }).lean();
+            productType.isDelete = stockEntries.length > 0 ? false : true;
+        }
+
+        product.product_product_types = productProductTypes;
         res.json(product);
     } catch (error) {
         console.error("Error:", error)
@@ -1182,19 +1194,19 @@ router.put('/edit/:id', Uploads.array('images', 10), async (req, res) => {
         }
 
 
-        if (existingProduct.status === 'discontinued' && data.status !== 'discontinued') {
-            return res.status(400).json({
-                status: 400,
-                message: "Không thể thay đổi trạng thái của sản phẩm đã ngừng bán vĩnh viễn."
-            });
-        }
+        // if (existingProduct.status === 'discontinued' && data.status !== 'discontinued') {
+        //     return res.status(400).json({
+        //         status: 400,
+        //         message: "Không thể thay đổi trạng thái của sản phẩm đã ngừng bán vĩnh viễn."
+        //     });
+        // }
 
-        if (['active', 'paused', 'out_of_stock'].includes(existingProduct.status) && data.status === 'not_started') {
-            return res.status(400).json({
-                status: 400,
-                message: "Không thể thay đổi trạng thái về 'not_started' từ 'active', 'paused' hoặc 'out_of_stock'."
-            });
-        }
+        // if (['active', 'paused', 'out_of_stock'].includes(existingProduct.status) && data.status === 'not_started') {
+        //     return res.status(400).json({
+        //         status: 400,
+        //         message: "Không thể thay đổi trạng thái về 'not_started' từ 'active', 'paused' hoặc 'out_of_stock'."
+        //     });
+        // }
 
 
         session = await mongoose.startSession();
@@ -1346,7 +1358,7 @@ router.put('/edit/:id/status', async (req, res) => {
         if (['active', 'paused', 'out_of_stock'].includes(product.status) && status === 'not_started') {
             return res.status(400).json({
                 status: 400,
-                message: "Không thể chuyển trạng thái về 'Chưa bắt đầu bán'."
+                message: "Không thể chuyển trạng thái về 'Chưa bắt đầu bán'"
             });
         }
 
@@ -1355,21 +1367,26 @@ router.put('/edit/:id/status', async (req, res) => {
             if (productTypesCount === 0) {
                 return res.status(400).json({
                     status: 400,
-                    message: "Sản phẩm phải có ít nhất 1 loại sản phẩm để chuyển trạng thái thành 'Đang bán'."
+                    message: "Vui lòng thêm ít nhất một loại sản phẩm trước khi chuyển trạng thái sang 'Đang bán'"
                 });
             }
 
+            const productTypes = await ProductProductTypes.find({ product_id: productId }, '_id');
+
+            const productTypeIds = productTypes.map(pt => pt._id);
+
             const validStock = await StockEntries.findOne({
-                product_product_type_id: { $in: product.product_types },
+                product_product_type_id: { $in: productTypeIds },
                 status: 'active',
                 remaining_quantity: { $gt: 0 },
                 expiry_date: { $gte: new Date() }
             });
 
+
             if (!validStock) {
                 return res.status(400).json({
                     status: 400,
-                    message: "Sản phẩm phải có ít nhất 1 lô hàng đang bán và còn hàng."
+                    message: "Không thể chuyển sang trạng thái 'Đang bán' vì chưa có lô hàng nào hoạt động."
                 });
             }
         }
@@ -1383,7 +1400,7 @@ router.put('/edit/:id/status', async (req, res) => {
             data: { product }
         });
     } catch (error) {
-        console.error("Error updating product status:", error);
+        console.error("Lỗi khi cập nhật trạng thái sản phẩm:", error);
         res.status(500).json({ status: 500, message: "Lỗi server!", error: error.message });
     }
 });
@@ -1440,12 +1457,6 @@ async function uploadFileToFirebase(file) {
 module.exports = router;
 
 
-
-
-
-
-
-
 async function checkInvalidProductImages() {
     try {
         const productImages = await ProductImages.find({});
@@ -1490,7 +1501,20 @@ async function fixBrokenProductImage() {
     }
 }
 
-// Gọi hàm luôn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // fixBrokenProductImage();
 
 

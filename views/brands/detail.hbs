@@ -1,0 +1,58 @@
+<style>
+    .text-truncate-two-lines {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+       .text-truncate-three-lines {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+
+<div class="container mt-5">
+    <!-- Thông tin thương hiệu -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <h1>{{brand.name}}</h1>
+            <p>{{brand.description}}</p>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Danh sách sản phẩm -->
+    <div class="row">
+        <h2 class="col-12">Sản phẩm của {{brand.name}}</h2>
+
+        {{#if products.length}}
+        {{#each products}}
+        <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+            <div class="card shadow-sm">
+                {{#if this.primaryImage}}
+                <img src="{{this.primaryImage}}" class="card-img-top" alt="{{this.name}}">
+                {{else}}
+                <img src="https://via.placeholder.com/150" class="card-img-top" alt="No image">
+                {{/if}}
+                <div class="card-body">
+                    <h6 class="card-title text-truncate-two-lines mb-2"
+                        style="-webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;">
+                        <a href="/products/{{this._id}}/detail">{{this.name}}</a>
+                    </h6>
+                    <p class="mb-1 small text-muted">Quy cách: {{this.specification}}</p>
+                    <p class="mb-1 small text-muted">Xuất xứ: {{this.origin_country}}</p>
+                    <p class="small text-muted text-truncate-three-lines mb-2">Mô tả ngắn gọn: 
+                        {{this.short_description}}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {{/each}}
+        {{else}}
+        <p>Không có sản phẩm nào thuộc thương hiệu này.</p>
+        {{/if}}
+    </div>
+</div>

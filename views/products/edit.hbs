@@ -89,7 +89,7 @@
                                             <td>
                                                 <div id="priceInput_{{this._id}}" class="d-none">
                                                     <input type="number" class="form-control" id="price_{{this._id}}"
-                                                        name="price_{{this._id}}" placeholder="Nhập giá" min="1">
+                                                        name="price_{{this._id}}" placeholder="Nhập giá bán" min="1">
                                                 </div>
                                             </td>
 
@@ -99,6 +99,7 @@
                                 </table>
                             </div>
                         </div>
+
 
 
 
@@ -135,7 +136,7 @@
                         </div>
 
 
-                        <div class="mb-3" id="editProductStatusWrapper">
+                        {{!-- <div class="mb-3" id="editProductStatusWrapper">
                             <label for="editProductStatus" class="form-label">
                                 <span data-lang="product_status">Trạng thái sản phẩm</span>
                             </label>
@@ -153,7 +154,7 @@
                                 style="display: none;">
                                 Ngừng bán vĩnh viễn
                             </p>
-                        </div>
+                        </div> --}}
 
 
 
@@ -443,25 +444,25 @@
                     document.getElementById("editProductOriginCountry").value = product.origin_country;
                     document.getElementById("editProductManufacturer").value = product.manufacturer;
 
-                    const statusSelect = document.getElementById("editProductStatus");
-                    const statusText = document.getElementById("readonlyProductStatus");
+                    //const statusSelect = document.getElementById("editProductStatus");
+                    //const statusText = document.getElementById("readonlyProductStatus");
 
-                    if (product.status === "discontinued") {
-                        statusSelect.style.display = "none";
-                        statusText.textContent = "Ngừng bán vĩnh viễn";
-                        statusText.style.display = "block";
-                    } else {
-                        statusSelect.style.display = "block";
-                        statusText.style.display = "none";
-                        statusSelect.value = product.status;
+                    //if (product.status === "discontinued") {
+                        //statusSelect.style.display = "none";
+                        //statusText.textContent = "Ngừng bán vĩnh viễn";
+                        //statusText.style.display = "block";
+                    //} else {
+                        //statusSelect.style.display = "block";
+                        //statusText.style.display = "none";
+                        //statusSelect.value = product.status;
 
-                        if (product.status !== "not_started") {
-                            const notStartedOption = statusSelect.querySelector('option[value="not_started"]');
-                            if (notStartedOption) {
-                                notStartedOption.style.display = "none";
-                            }
-                        }
-                    }
+                        //if (product.status !== "not_started") {
+                            //const notStartedOption = statusSelect.querySelector('option[value="not_started"]');
+                            //if (notStartedOption) {
+                                //notStartedOption.style.display = "none";
+                            //}
+                        //}
+                    //}
 
                     const productTypesTableBody = document.getElementById('productTypesTableBody');
 
@@ -481,6 +482,11 @@
                         } else {
                             priceInputDiv.classList.add('d-none');
                             checkbox.checked = false;
+                        }
+
+                        if (selectedProductType && selectedProductType.isDelete === false) {
+                            checkbox.disabled = true; // Khóa checkbox nếu isDelete là false
+                            checkbox.classList.add('disabled'); // Thêm lớp 'disabled' để giao diện khóa checkbox
                         }
                     });
 
@@ -793,7 +799,7 @@
             formData.append('specification', document.getElementById('editProductSpecification').value);
             formData.append('origin_country', document.getElementById('editProductOriginCountry').value);
             formData.append('manufacturer', document.getElementById('editProductManufacturer').value);
-            formData.append('status', document.getElementById('editProductStatus').value);
+            //formData.append('status', document.getElementById('editProductStatus').value);
 
 
             const imageContainers = editImagePreview.querySelectorAll('.image-container');
@@ -867,8 +873,6 @@
             });
 
             formData.append('product_product_types', JSON.stringify(productTypePrices));
-
-
 
             try {
                 showLoadingModal("edit");

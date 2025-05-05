@@ -4,18 +4,17 @@ const { authenticateToken, authorizeAdmin } = require("../middlewares/authentica
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const Notifications = require("../models/notifications");
+const Orders = require("../models/orders");
 const Users = require("../models/users");
 const { db } = require('../firebase/firebaseAdmin');
 
-
-/* GET home page. */
 router.get('/', (req, res) => {
     const token = req.cookies.token || req.header("Authorization")?.split(" ")[1];
 
     if (token) {
         jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
             if (!err) {
-                return res.redirect('/dashboards');
+                return res.redirect('/dashboards/revenue');
             }
         });
     }
@@ -28,9 +27,39 @@ router.get('/login', function (req, res) {
     res.render('login/login', { layout: false });
 });
 
+router.get('/admin/refresh-token', async (req, res) => {
+    try {
+        const token = req.cookies.refreshToken;
+        if (!token) {
+            return res.status(401).json({ message: "Không có refresh token" });
+        }
+
+        jwt.verify(token, process.env.JWT_REFRESH_SECRET, async (err, user) => {
+            if (err) return res.status(403).json({ message: "Refresh token không hợp lệ" });
+
+            const newAccessToken = jwt.sign(
+                { _id: user._id, phone_number: user.phone_number, role: user.role },
+                process.env.JWT_SECRET,
+                { expiresIn: '1h' }
+            );
+
+            res.cookie("token", newAccessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "Strict",
+                maxAge: 60 * 60 * 1000,
+            });
+
+            res.status(200).json({ message: "Token mới đã được cấp" });
+        });
+    } catch (error) {
+        console.error("Lỗi khi làm mới token:", error);
+        res.status(500).json({ message: "Lỗi máy chủ" });
+    }
+});
 
 
-router.post('/api/login', async (req, res) => {
+router.post('/admin/login', async (req, res) => {
     try {
         const { phone_number, password } = req.body;
 
@@ -98,6 +127,20 @@ router.post('/api/login', async (req, res) => {
             message: "Lỗi máy chủ nội bộ!"
         });
     }
+});
+router.get('/logout', (req, res) => {
+    res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Strict"
+    });
+    res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Strict"
+    });
+
+    return res.redirect('/login');
 });
 
 
@@ -171,8 +214,15 @@ router.put('/admin/notifications/read/:id', authenticateToken, authorizeAdmin, a
         notification.is_read = true;
         await notification.save();
 
-        const ref = db.ref(`admin_notifications/${orderId}`);
-        await ref.remove();
+        const orderIdMatch = notification.message.match(/IDS-([a-f0-9]{24})-IDE/);
+        const order_id = orderIdMatch ? orderIdMatch[1] : null;
+
+        const order = await Orders.findById(order_id)
+
+        if (order && order.status === 'canceled') {
+            const ref = db.ref(`admin_notifications/${order_id}`);
+            await ref.remove();   
+        }
 
         res.status(200).json({
             status: 200,

@@ -9,7 +9,10 @@ function authenticateToken(req, res, next) {
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            return res.redirect("/login");
+            if (err.name === "TokenExpiredError") {
+                return res.status(401).json({ message: "Token hết hạn!" });
+            }
+            return res.status(403).json({ message: "Token không hợp lệ!" });
         }
         req.user = user;
         next();

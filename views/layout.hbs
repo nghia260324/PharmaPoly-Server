@@ -39,15 +39,17 @@
 </head>
 
 <style>
-  .toast-title, .toast-message {
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* Giới hạn 2 dòng */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+  .toast-title,
+  .toast-message {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    /* Giới hạn 2 dòng */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 </style>
+
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary sidebar-open app-loaded">
   <div class="app-wrapper">
     <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">{{> sidebar}}</aside>
@@ -66,7 +68,7 @@
 
   <!-- Notification Button -->
   <!-- Notification Button -->
-  <div id="notification-btn" style="position: fixed; bottom: 96px; right: 20px; z-index: 9999; cursor: pointer;">
+  <div id="notification-btn" style="position: fixed; bottom: 24px; right: 20px; z-index: 9999; cursor: pointer;">
     <div
       style="background-color: #0d6efd; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative;">
       <i class="bi bi-bell-fill fs-4"></i>
@@ -97,7 +99,7 @@
   </div>
 
 
-  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1055;" id="toast-container">
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;" id="toast-container">
     <!-- Toasts sẽ được thêm vào ở đây -->
     <div style="z-index:9999" id="${toastId}" class="toast align-items-center text-white bg-primary border-0">
       <div class="d-flex">
@@ -354,9 +356,9 @@
 
 
 
-   function showToast(title, message) {
-  const toastId = `toast-${Date.now()}`;
-  const toastHTML = `
+    function showToast(title, message) {
+      const toastId = `toast-${Date.now()}`;
+      const toastHTML = `
     <div style="z-index:9999" id="${toastId}" class="toast align-items-center text-white bg-primary border-0" role="alert"
       aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
@@ -369,11 +371,11 @@
       </div>
     </div>
   `;
-  document.getElementById('toast-container').innerHTML += toastHTML;
-  const toastElement = document.getElementById(toastId);
-  const toastInstance = new bootstrap.Toast(toastElement, { delay: 5000 });
-  toastInstance.show();
-}
+      document.getElementById('toast-container').innerHTML += toastHTML;
+      const toastElement = document.getElementById(toastId);
+      const toastInstance = new bootstrap.Toast(toastElement, { delay: 5000 });
+      toastInstance.show();
+    }
 
 
   });

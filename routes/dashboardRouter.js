@@ -694,6 +694,7 @@ router.get('/products', async function (req, res, next) {
                         .lean(),
                     Products.countDocuments(productFilter),
                 ]);
+                console.log(products);
 
                 const productIds = products.map(p => p._id.toString());
 
@@ -728,7 +729,7 @@ router.get('/products', async function (req, res, next) {
                     const ppt = productTypeMap[p._id.toString()];
                     return {
                         ...p,
-                        _id: ppt?._id,
+                        _id: p?._id,
                         sold_quantity: 0,
                         total_revenue: 0,
                         product_type_name: ppt?.product_type_id?.name || '',
@@ -736,7 +737,6 @@ router.get('/products', async function (req, res, next) {
                         price: ppt?.price || 0,
                     };
                 });
-
                 const categories = await Categories.find().collation({ locale: 'vi', strength: 1 }).sort({ name: 1 });
                 const brands = await Brands.find().collation({ locale: 'vi', strength: 1 }).sort({ name: 1 });
 
