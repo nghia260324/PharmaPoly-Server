@@ -15,91 +15,96 @@ const { startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, p
 const { format } = require('date-fns');
 const viLocale = require('date-fns/locale/vi');
 
+
 router.get('/revenue', async function (req, res, next) {
     const { timePeriod, startDate, paymentMethod, endDate } = req.query;
     try {
         const now = new Date();
+        const offsetMs = 7 * 60 * 60 * 1000;
 
         let matchStageDelivered = { status: 'delivered' };
         if (paymentMethod) {
             matchStageDelivered.payment_method = paymentMethod;
         }
         let matchStageAll = {};
+        let dateFilter = {};
 
         if (timePeriod) {
-            let dateFilter = {};
 
-            if (timePeriod) {
-                const now = new Date();
+            switch (timePeriod) {
+                case 'last_week': {
+                    const now = new Date();
+                    const day = now.getUTCDay();
+                    const diffToLastWeekStart = 7 + day;
+                    const start = new Date(now);
+                    start.setUTCDate(start.getUTCDate() - diffToLastWeekStart);
+                    start.setUTCHours(0, 0, 0, 0);
 
-                switch (timePeriod) {
-                    case 'last_week': {
-                        const start = subWeeks(now, 1);
-                        const end = now;
-                        dateFilter.created_at = {
-                            $gte: new Date(startOfWeek(start).getTime() - 7 * 60 * 60 * 1000),
-                            $lte: new Date(endOfWeek(start).getTime() - 7 * 60 * 60 * 1000)
-                        };
-                        break;
+                    const end = new Date(start);
+                    end.setUTCDate(end.getUTCDate() + 6);
+                    end.setUTCHours(23, 59, 59, 999);
+
+                    dateFilter.created_at = {
+                        $gte: new Date(start.getTime() + offsetMs),
+                        $lte: new Date(end.getTime() + offsetMs)
+                    };
+                    break;
+                }
+
+                case 'last_month': {
+                    const now = new Date();
+                    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+                    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                    dateFilter.created_at = {
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
+                    };
+                    break;
+                }
+
+                case 'this_month': {
+                    const now = new Date();
+                    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    dateFilter.created_at = {
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
+                    };
+                    break;
+                }
+
+                case 'last_3_months': {
+                    const now = new Date();
+                    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    dateFilter.created_at = {
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
+                    };
+                    break;
+                }
+
+                case 'custom': {
+                    if (startDate && endDate) {
+                        const start = new Date(startDate + "T00:00:00+07:00");
+                        const end = new Date(endDate + "T23:59:59+07:00");
+                        dateFilter.created_at = { $gte: start, $lte: end };
+                    } else if (startDate) {
+                        const start = new Date(startDate + "T00:00:00+07:00");
+                        dateFilter.created_at = { $gte: start };
+                    } else if (endDate) {
+                        const end = new Date(endDate + "T23:59:59+07:00");
+                        dateFilter.created_at = { $lte: end };
                     }
-
-                    case 'last_month': {
-                        const start = startOfMonth(subMonths(now, 1));
-                        const end = endOfMonth(subMonths(now, 1));
-                        dateFilter.created_at = {
-                            $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                            $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
-                        };
-                        break;
-                    }
-
-                    case 'this_month': {
-                        const start = startOfMonth(now);
-                        const end = now;
-                        dateFilter.created_at = {
-                            $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                            $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
-                        };
-                        break;
-                    }
-
-                    case 'last_3_months': {
-                        const start = subMonths(now, 3);
-                        const end = now;
-                        dateFilter.created_at = {
-                            $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                            $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
-                        };
-                        break;
-                    }
-
-                    case 'custom': {
-                        if (startDate || endDate) {
-                            const filter = {};
-
-                            if (startDate) {
-                                const start = new Date(`${startDate}T00:00:00`);
-                                filter.$gte = new Date(start.getTime() - 7 * 60 * 60 * 1000);
-                            }
-
-                            if (endDate) {
-                                const end = new Date(`${endDate}T23:59:59`);
-                                filter.$lte = new Date(end.getTime() - 7 * 60 * 60 * 1000);
-                            }
-                            dateFilter.created_at = filter;
-                        }
-                        break;
-                    }
+                    break;
 
                 }
             }
-
             if (dateFilter) {
-                matchStageDelivered.created_at = dateFilter;
-                matchStageAll.created_at = dateFilter;
+                matchStageDelivered.created_at = dateFilter.created_at;
+                matchStageAll.created_at = dateFilter.created_at;
             }
         }
-
 
         const revenueData = await Orders.aggregate([
             { $match: matchStageDelivered },
@@ -112,7 +117,7 @@ router.get('/revenue', async function (req, res, next) {
                 }
             },
             { $unwind: "$items" },
-            { $unwind: "$items.batches" }, // ✅ Unwind mảng batches
+            { $unwind: "$items.batches" },
             {
                 $lookup: {
                     from: "stockEntries",
@@ -176,7 +181,7 @@ router.get('/revenue', async function (req, res, next) {
             },
             { $sort: { _id: 1 } }
         ]);
-        
+
 
         const revenueLabels = revenueData.map(r => format(new Date(r._id), 'dd/MM/yyyy', { locale: viLocale.vi }));
         const revenueValues = revenueData.map(r => r.totalRevenue);
@@ -564,7 +569,7 @@ router.get('/products', async function (req, res, next) {
                     const end = now;
                     dateFilter.created_at = {
                         $gte: new Date(startOfWeek(start).getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(endOfWeek(start).getTime() - 7 * 60 * 60 * 1000)
+                        $lte: new Date(endOfWeek(end).getTime() - 7 * 60 * 60 * 1000)
                     };
                     break;
                 }
@@ -641,7 +646,6 @@ router.get('/products', async function (req, res, next) {
 
         if (sortBy === 'unsold') {
             if (sortBy === 'unsold') {
-                // Lấy danh sách product_id đã từng bán
                 const soldProductIdsResult = await OrderItems.aggregate([
                     {
                         $lookup: {
@@ -821,17 +825,17 @@ router.get('/products', async function (req, res, next) {
                 },
             },
             ...(filterField && filterField === 'revenue' && (minValue || maxValue)
-            ? [
-                {
-                    $match: {
-                        'total_revenue': {
-                            ...(minValue && { $gte: parseFloat(minValue) }),
-                            ...(maxValue && { $lte: parseFloat(maxValue) }),
+                ? [
+                    {
+                        $match: {
+                            'total_revenue': {
+                                ...(minValue && { $gte: parseFloat(minValue) }),
+                                ...(maxValue && { $lte: parseFloat(maxValue) }),
+                            },
                         },
                     },
-                },
-            ]
-            : []),
+                ]
+                : []),
             {
                 $lookup: {
                     from: 'products',
@@ -953,17 +957,17 @@ router.get('/products', async function (req, res, next) {
                     },
                 },
                 ...(filterField && filterField === 'revenue' && (minValue || maxValue)
-                ? [
-                    {
-                        $match: {
-                            'total_revenue': {
-                                ...(minValue && { $gte: parseFloat(minValue) }),
-                                ...(maxValue && { $lte: parseFloat(maxValue) }),
+                    ? [
+                        {
+                            $match: {
+                                'total_revenue': {
+                                    ...(minValue && { $gte: parseFloat(minValue) }),
+                                    ...(maxValue && { $lte: parseFloat(maxValue) }),
+                                },
                             },
                         },
-                    },
-                ]
-                : []),
+                    ]
+                    : []),
                 {
                     $lookup: {
                         from: 'products',

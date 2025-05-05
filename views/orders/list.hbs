@@ -342,7 +342,7 @@
         </div>
     </div>
 </div>
-<script src="/socket.io/socket.io.js"></script>
+{{!-- <script src="/socket.io/socket.io.js"></script> --}}
 <script>
     function goToPage(newPage) {
         const url = new URL(window.location.href);
@@ -355,17 +355,17 @@
         formatDates();
 
 
-        const socket = io();
-        socket.on("new_order", function (order) {
-            showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");
-        });
-        socket.on("cancel_request", function (order) {
-            showToast("⚠️ Có yêu cầu hủy đơn hàng!", "bg-warning");
-        });
+        //const socket = io();
+        //socket.on("new_order", function (order) {
+            //showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");
+        //});
+        //socket.on("cancel_request", function (order) {
+            //showToast("⚠️ Có yêu cầu hủy đơn hàng!", "bg-warning");
+        //});
 
-        socket.on("return_request", function (order) {
-            showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
-        });
+        //socket.on("return_request", function (order) {
+            //showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
+        //});
 
         function formatDates() {
             document.querySelectorAll(".date-format").forEach(element => {

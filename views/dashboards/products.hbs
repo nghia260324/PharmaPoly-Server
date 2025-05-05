@@ -282,7 +282,7 @@
         </ul>
       </nav>
 
-      <nav>
+      {{!-- <nav>
         <ul class="pagination justify-content-center">
           {{#if (gt currentPage 1)}}
           <li class="page-item">
@@ -300,33 +300,57 @@
           </li>
           {{/if}}
         </ul>
+      </nav> --}}
+
+      <nav>
+        <ul class="pagination justify-content-center">
+          {{#if (gt currentPage 1)}}
+          <li class="page-item">
+            <a class="page-link" href="javascript:void(0);" onclick="goToPage({{sub currentPage 1}})">Trang
+              trước</a>
+          </li>
+          {{/if}}
+
+          <li class="page-item disabled">
+            <span class="page-link">Trang {{currentPage}} / {{totalPages}}</span>
+          </li>
+
+          {{#if (lt currentPage totalPages)}}
+          <li class="page-item">
+            <a class="page-link" href="javascript:void(0);" onclick="goToPage({{add currentPage 1}})">Trang
+              sau</a>
+          </li>
+          {{/if}}
+        </ul>
       </nav>
+
+
+
     </div>
   </div>
 </div>
 
 <div class="toast-container position-fixed top-0 end-0 p-3">
-    <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
-        aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-            <div class="toast-body" id="toastBody">
-                <!-- Message will be inserted here -->
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
-                aria-label="Close"></button>
-        </div>
+  <div id="toastMessage" class="toast align-items-center text-white bg-success border-0" role="alert"
+    aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody">
+        <!-- Message will be inserted here -->
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+        aria-label="Close"></button>
     </div>
+  </div>
 </div>
 
-<!-- Script xử lý filter -->
 <script>
-  document.getElementById('filterForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const params = new URLSearchParams(formData);
-    window.location.search = params.toString();
-  });
+    function goToPage(newPage) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', newPage);
+        window.location.href = url.toString();
+    }
 </script>
+
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const toggleBtn = document.getElementById("toggleFilter");
@@ -346,61 +370,11 @@
       });
     }
 
-    // Initial check
     toggleCustomDates();
 
-    // Update on change
     timeSelect.addEventListener('change', toggleCustomDates);
   });
 </script>
-{{!--
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-
-    function formatCurrency(value) {
-      if (!value) return '0 VND';
-      return parseInt(value).toLocaleString('vi-VN') + ' VND';
-    }
-
-    const minValueInput = document.getElementById('minValue');
-    const maxValueInput = document.getElementById('maxValue');
-
-    const minValueLabel = document.getElementById('minValueLabel');
-    const maxValueLabel = document.getElementById('maxValueLabel');
-
-    minValueInput.addEventListener('input', function () {
-      const minValueValue = minValueInput.value;
-      minValueLabel.textContent = formatCurrency(minValueValue);
-    });
-
-    maxValueInput.addEventListener('input', function () {
-      const maxValueValue = maxValueInput.value;
-      maxValueLabel.textContent = formatCurrency(maxValueValue);
-    });
-
-    minValueLabel.textContent = formatCurrency(minValueInput.value);
-    maxValueLabel.textContent = formatCurrency(maxValueInput.value);
-
-
-    function togglePriceFilter() {
-      var priceFields = document.querySelectorAll(".price-filter-fields");
-      var checkbox = document.getElementById("priceFilterCheckbox");
-      if (checkbox.checked) {
-        priceFields.forEach(function (field) {
-          field.style.display = "block";
-        });
-      } else {
-        priceFields.forEach(function (field) {
-          field.style.display = "none";
-        });
-      }
-    }
-    togglePriceFilter();
-    document.getElementById("priceFilterCheckbox").addEventListener("change", togglePriceFilter);
-
-  });
-</script> --}}
-
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -452,6 +426,78 @@
 </script>
 
 <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const filterForm = document.getElementById("filterForm");
+    const searchForm = document.getElementById("searchForm");
+    const filterField = document.getElementById("filterField");
+    const minValueInput = document.getElementById("minValue");
+    const maxValueInput = document.getElementById("maxValue");
+    const startDateInput = document.getElementById("startDate");
+    const endDateInput = document.getElementById("endDate");
+
+
+    filterForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+
+      const filterFieldValue = filterField.value;
+      const minValue = minValueInput.value.trim();
+      const maxValue = maxValueInput.value.trim();
+      const startDate = startDateInput?.value;
+      const endDate = endDateInput?.value;
+
+      let fieldLabel = "Giá";
+      if (filterFieldValue === "price") fieldLabel = "Giá nhập";
+      if (filterFieldValue === "revenue") fieldLabel = "Doanh thu";
+
+      if (filterFieldValue && filterFieldValue !== '' && minValue && Number(minValue) < 0) {
+        showToast(`${fieldLabel} tối thiểu phải là số dương.`, "bg-danger");
+        return;
+      }
+
+      if (filterFieldValue && filterFieldValue !== '' && maxValue && Number(maxValue) < 0) {
+        showToast(`${fieldLabel} tối đa phải là số dương.`, "bg-danger");
+        return;
+      }
+
+      if (filterFieldValue && filterFieldValue !== '' && minValue && maxValue && Number(minValue) >= Number(maxValue)) {
+        showToast(`${fieldLabel} tối đa phải lớn hơn tối thiểu.`, "bg-danger");
+        return;
+      }
+
+      if (filterFieldValue && filterFieldValue !== '' && startDate && endDate && new Date(startDate) > new Date(endDate)) {
+        showToast("Vui lòng chọn ngày kết thúc lớn hơn ngày bắt đầu.", "bg-danger");
+        return;
+      }
+
+      const searchParams = new URLSearchParams(new FormData(searchForm));
+
+      if (filterForm) {
+        const filterParams = new FormData(filterForm);
+        for (const [key, value] of filterParams.entries()) {
+          if (!searchParams.has(key)) {
+            searchParams.append(key, value);
+          }
+        }
+      }
+      window.location.href = `?${searchParams.toString()}`;
+    });
+    function showToast(message, bgClass = "bg-success") {
+      const toastElement = document.getElementById("toastMessage");
+      const toastBody = document.getElementById("toastBody");
+
+      toastBody.textContent = message;
+      toastElement.classList.remove("bg-success", "bg-danger");
+      toastElement.classList.add(bgClass);
+
+      const toast = new bootstrap.Toast(toastElement);
+      toast.show();
+    }
+  });
+
+</script>
+
+<script>
   document.getElementById('btnResetFilter').addEventListener('click', function () {
     const form = document.getElementById('filterForm');
     form.reset();
@@ -464,77 +510,4 @@
 
     document.getElementById('priceFilterCheckbox').checked = false;
   });
-</script>
-
-
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const filterForm = document.getElementById("filterForm");
-        const filterField = document.getElementById("filterField");
-        const minValueInput = document.getElementById("minValue");
-        const maxValueInput = document.getElementById("maxValue");
-        const startDateInput = document.getElementById("startDate");
-        const endDateInput = document.getElementById("endDate");
-
-
-        filterForm.addEventListener("submit", function (e) {
-            e.preventDefault();
-
-            const filterFieldValue = filterField.value;
-            const minValue = minValueInput.value.trim();
-            const maxValue = maxValueInput.value.trim();
-            const startDate = startDateInput?.value;
-            const endDate = endDateInput?.value;
-
-            let fieldLabel = "Giá";
-            if (filterFieldValue === "price") fieldLabel = "Giá nhập";
-            if (filterFieldValue === "revenue") fieldLabel = "Doanh thu";
-
-            if (filterFieldValue && filterFieldValue !== '' && minValue && Number(minValue) < 0) {
-                showToast(`${fieldLabel} tối thiểu phải là số dương.`, "bg-danger");
-                return;
-            }
-
-            if (filterFieldValue && filterFieldValue !== '' && maxValue && Number(maxValue) < 0) {
-                showToast(`${fieldLabel} tối đa phải là số dương.`, "bg-danger");
-                return;
-            }
-
-            if (filterFieldValue && filterFieldValue !== '' && minValue && maxValue && Number(minValue) >= Number(maxValue)) {
-                showToast(`${fieldLabel} tối đa phải lớn hơn tối thiểu.`, "bg-danger");
-                return;
-            }
-
-            if (filterFieldValue && filterFieldValue !== '' && startDate && endDate && new Date(startDate) > new Date(endDate)) {
-                showToast("Vui lòng chọn ngày kết thúc lớn hơn ngày bắt đầu.", "bg-danger");
-                return;
-            }
-
-
-
-            const searchParams = new URLSearchParams(new FormData(searchForm));
-
-            if (filterForm) {
-                const filterParams = new FormData(filterForm);
-                for (const [key, value] of filterParams.entries()) {
-                    if (!searchParams.has(key)) {
-                        searchParams.append(key, value);
-                    }
-                }
-            }
-            window.location.href = `?${searchParams.toString()}`;
-        });
-        function showToast(message, bgClass = "bg-success") {
-            const toastElement = document.getElementById("toastMessage");
-            const toastBody = document.getElementById("toastBody");
-
-            toastBody.textContent = message;
-            toastElement.classList.remove("bg-success", "bg-danger");
-            toastElement.classList.add(bgClass);
-
-            const toast = new bootstrap.Toast(toastElement);
-            toast.show();
-        }
-    });
-
 </script>

@@ -528,6 +528,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         const filterForm = document.getElementById("filterForm");
+        const searchForm = document.getElementById("searchForm");
         const filterField = document.getElementById("filterField");
         const minValueInput = document.getElementById("minValue");
         const maxValueInput = document.getElementById("maxValue");
@@ -562,7 +563,6 @@
             if (filterFieldValue === "quantity") fieldLabel = "Số lượng nhập";
             if (filterFieldValue === "remaining_quantity") fieldLabel = "Số lượng còn lại";
 
-            // Validate theo loại
             if (minValue && Number(minValue) < 0) {
                 showToast(`${fieldLabel} tối thiểu phải là số dương.`, "bg-danger");
                 return;
