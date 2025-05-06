@@ -12,12 +12,12 @@
                                 data-id="{{this._id}}" data-user-id="{{this.user_id}}"
                                 data-full-chat='{{json this.fullChat}}' data-last-message="{{this.lastMessage}}"
                                 data-user-avatar='{{lookup (lookup ../userMap this.user_id) "avatar"}}'
-                                data-user-name="{{lookup (lookup ../userMap this.user_id) "name"}}"
+                                data-user-name="{{lookup (lookup ../userMap this.user_id) " name"}}"
                                 onclick="loadChat(this)">
 
                                 {{!-- <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="avatar"
                                     class="rounded-circle me-3" width="45"> --}}
-                                <img src="{{lookup (lookup ../userMap this.user_id) "avatar"}}" alt="avatar"
+                                <img src="{{lookup (lookup ../userMap this.user_id) " avatar"}}" alt="avatar"
                                     class="rounded-circle me-3" width="45"
                                     style="aspect-ratio: 1/1; object-fit: cover;">
                                 <span style="display: none;">
@@ -69,8 +69,8 @@
                                     </ul>
                                 </div>
 
-                                <div class="chat-message clearfix border-top p-3 bg-light" style="padding-right: 56px;">
-                                    <div class="input-group">
+                                <div class="chat-message clearfix border-top p-3 bg-light">
+                                    <div class="input-group" style="padding-right: 56px;">
                                         <input type="text" class="form-control" placeholder="Enter text here...">
                                         <button class="btn btn-primary" type="button" onclick="sendMessage()">
                                             <i class="bi bi-send-fill"></i>
@@ -95,6 +95,7 @@
             window.socket = io(socketHost, { query: { userId: adminId } });
 
             socket.on("receiveMessage", (data) => {
+                console.log(data);
                 if (data.status === "success") {
                     const chatHistory = document.querySelector('.chat-history ul');
                     const message = data.data;

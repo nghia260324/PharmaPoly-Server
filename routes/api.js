@@ -431,6 +431,14 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
         }
 
         const user = await Users.findById(req.user_id);
+        const isSamePassword = await bcrypt.compare(new_password, user.password);
+        if (isSamePassword) {
+            return res.status(400).json({
+                status: 406,
+                message: "Mật khẩu mới không được trùng với mật khẩu hiện tại!"
+            });
+        }
+
         if (!user) {
             return res.status(404).json({
                 status: 404,

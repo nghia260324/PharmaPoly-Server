@@ -20,7 +20,7 @@ const io = socketIo(server, {
     methods: ["GET", "POST"]
   }
 });
-app.set('io', io); 
+app.set('io', io);
 
 
 
@@ -30,8 +30,9 @@ io.on("connection", async (socket) => {
   console.log("Socket query:", socket.handshake.query);
 
   // xử lý kết nối của người dùng
-  const userId = socket.handshake.query.userId; 
+  const userId = socket.handshake.query.userId;
   console.log("🔍 userId nhận được:", userId);
+
   if (!userId) {
     console.log(" Kết nối thất bại: Không có userId");
     socket.disconnect();
@@ -47,10 +48,8 @@ io.on("connection", async (socket) => {
   );
   socket.emit("oldMessages", chat ? chat.fullChat : []);
 
-  // xử lý user gửi tin nhắn
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
     console.log(`📩 Tin nhắn từ ${senderId} đến ${receiverId}: ${message}`);
-
     if (!message.trim()) return;
 
     const newMessage = {
@@ -58,7 +57,6 @@ io.on("connection", async (socket) => {
       senderId: senderId,
       timestamp: new Date(),
     };
-
     let chat = await Chats.findOne({ user_id: senderId });
     if (!chat) {
       chat = new Chats({
@@ -77,16 +75,14 @@ io.on("connection", async (socket) => {
 
     await chat.save();
 
-    // Gửi phản hồi về user gửi tin nhắn
     socket.emit("messageSentSuccess", { status: "success", message: "Tin nhắn gửi thành công!", data: newMessage });
-
-    // Gửi tin nhắn mới đến admin nếu đang online
-    if (users[receiverId]) {
+    if (receiverId === '67b344c3744eaa2ff0f0ce7d') {
+      console.log(`📤 Đang gửi tin nhắn tới ${receiverId} qua socketId ${users[receiverId]}`);
+      console.log(users);
       io.to(users[receiverId]).emit("receiveMessage", { status: "success", message: "Tin nhắn gửi thành công!", data: newMessage });
     }
   });
 
-  // xử lý user gửi tin nhắn admin
   socket.on("sendMessageByAdmin", async ({ adminId, userId, message }) => {
     console.log(`📩 Tin nhắn từ ${adminId} đến ${userId}: ${message}`);
 
