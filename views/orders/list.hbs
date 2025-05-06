@@ -259,9 +259,20 @@
                     {{#if (and this.cancel_request (neq this.status "canceled"))}}
                     <span class="badge bg-warning text-dark ms-2">Yêu cầu hủy đơn</span>
                     {{/if}}
-                    {{#if (and (eq this.payment_method "ONLINE") (neq this.payment_status "refunded"))}}
+                    {{!-- {{#if (and (eq this.payment_method "ONLINE") (neq this.payment_status "refunded") (eq
+                    this.status "returned"))}}
+                    <span class="badge bg-danger ms-2">Chưa hoàn tiền</span>
+                    {{/if}} --}}
+
+                    {{#if (and (eq this.payment_method "ONLINE")
+                    (or
+                    (and (eq this.status "returned") (neq this.payment_status "refunded"))
+                    (and this.cancel_request (neq this.payment_status "refunded"))
+                    )
+                    )}}
                     <span class="badge bg-danger ms-2">Chưa hoàn tiền</span>
                     {{/if}}
+
                 </td>
 
 

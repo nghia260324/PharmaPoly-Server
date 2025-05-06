@@ -49,7 +49,7 @@
 
             <p><strong>Tổng tiền:</strong> {{formatPrice order.total_price}} VND</p>
 
-            <p><strong>Trạng thái:</strong>
+            {{!-- <p><strong>Trạng thái:</strong>
                 <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
 
                 {{#if (eq order.payment_status "refunded")}}
@@ -58,7 +58,24 @@
                 "returned"))}}
                 <span class="badge bg-danger ms-2">Chưa hoàn tiền</span>
                 {{/if}}
-            </p>
+            </p> --}}
+
+            <p><strong>Trạng thái:</strong>
+    <span class="status-badge bg-warning">{{getStatusText order.status}}</span>
+
+    {{#if (eq order.payment_status "refunded")}}
+        <span class="badge bg-info ms-2">Đã hoàn tiền</span>
+    {{else if (and 
+                (eq order.payment_method "ONLINE") 
+                (or 
+                    (and (eq order.status "returned") (neq order.payment_status "refunded")) 
+                    (and order.cancel_request (neq order.payment_status "refunded"))
+                )
+             )}}
+        <span class="badge bg-danger ms-2">Chưa hoàn tiền</span>
+    {{/if}}
+</p>
+
 
             <div class="mt-3">
                 {{#if (eq order.status "pending")}}
