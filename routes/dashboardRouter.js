@@ -149,7 +149,12 @@ router.get('/revenue', async function (req, res, next) {
                         $ifNull: [{ $arrayElemAt: ["$stock_info.import_price", 0] }, 0]
                     },
                     date: {
-                        $dateToString: { format: "%Y-%m-%d", date: "$created_at" }
+                        // $dateToString: { format: "%Y-%m-%d", date: "$created_at" }
+                        $dateToString: {
+                            format: "%Y-%m-%d",
+                            date: "$created_at",
+                            timezone: "+07:00"
+                          }                          
                     }
                 }
             },

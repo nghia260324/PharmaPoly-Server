@@ -265,7 +265,8 @@
                 </td>
 
 
-                <td class="date-format" data-created-at="{{this.created_at}}">{{this.created_at}}</td>
+                {{!-- <td class="date-format" data-created-at="{{this.created_at}}">{{this.created_at}}</td> --}}
+                <td class="date-format" data-created-at="{{this.created_at}}">{{formatDate this.created_at}}</td>
                 <td>
                     <span class="badge {{getPaymentClass this.payment_method}}">{{this.payment_method}}</span>
                     {{#if (eq this.payment_method "ONLINE")}}
