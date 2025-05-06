@@ -434,7 +434,7 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 status: 404,
-                message: "User not found!"
+                message: "Không tìm thấy người dùng!"
             });
         }
 
@@ -442,21 +442,21 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
         if (!isPasswordValid) {
             return res.status(401).json({
                 status: 403,
-                message: "Incorrect current password!"
+                message: "Mật khẩu hiện tại không chính xác!"
             });
         }
 
         if (!passwordPattern.test(new_password)) {
             return res.status(400).json({
                 status: 402,
-                message: "New password must be at least 8 characters long, contain at least one uppercase letter, one number, and one special character."
+                message: "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm ít nhất một chữ cái viết hoa, một chữ số và một ký tự đặc biệt."
             });
         }
 
         if (new_password !== confirm_password) {
             return res.status(400).json({
                 status: 401,
-                message: "New password and confirm password do not match!"
+                message: "Mật khẩu mới và xác nhận mật khẩu không khớp!"
             });
         }
 
@@ -466,14 +466,14 @@ router.put('/user/change-password', authenticateToken, async (req, res) => {
 
         res.status(200).json({
             status: 200,
-            message: "Password changed successfully!"
+            message: "Đổi mật khẩu thành công!"
         });
 
     } catch (error) {
-        console.error("Error changing password:", error);
+        console.error("Lỗi khi đổi mật khẩu:", error);
         res.status(500).json({
             status: 500,
-            message: "Internal server error"
+            message: "Lỗi máy chủ nội bộ"
         });
     }
 });
@@ -3395,7 +3395,33 @@ router.get("/provinces", authenticateToken, async (req, res) => {
         const response = await axios.get(`${GHN_API}/master-data/province`, {
             headers: { Token: TOKEN_GHN }
         });
-        res.json(response.data);
+        // res.json(response.data);
+
+
+        let provinces = response.data.data || [];
+
+        // Xóa item đầu tiên nếu có
+        if (provinces.length > 0) {
+            provinces.shift();
+        }
+
+        // Lọc danh sách
+        const filtered = provinces
+            .filter(item => {
+                const nameInvalid = item.ProvinceName?.toLowerCase().includes("test");
+                const notEnabled = item.IsEnable === undefined || item.IsEnable !== 1;
+                return !nameInvalid && !notEnabled;
+            })
+            .map(item => ({
+                ProvinceID: item.ProvinceID,
+                ProvinceName: item.ProvinceName
+            }));
+
+        res.json({
+            code: 200,
+            message: "Success",
+            data: filtered
+        });
     } catch (error) {
         res.status(500).json({ message: "Error fetching provinces", error: error.response?.data || error.message });
     }
