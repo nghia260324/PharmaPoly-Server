@@ -259,7 +259,9 @@
                     {{#if (and this.cancel_request (neq this.status "canceled"))}}
                     <span class="badge bg-warning text-dark ms-2">Yêu cầu hủy đơn</span>
                     {{/if}}
-
+                    {{#if (and (eq this.payment_method "ONLINE") (neq this.payment_status "refunded"))}}
+                    <span class="badge bg-danger ms-2">Chưa hoàn tiền</span>
+                    {{/if}}
                 </td>
 
 
@@ -278,7 +280,6 @@
                     {{/if}}
                 </td>
                 <td><a href="/orders/{{this._id}}/detail" class="btn btn-primary btn-sm">Chi tiết</a></td>
-
             </tr>
             {{/each}}
         </tbody>
@@ -342,7 +343,8 @@
         </div>
     </div>
 </div>
-{{!-- <script src="/socket.io/socket.io.js"></script> --}}
+{{!--
+<script src="/socket.io/socket.io.js"></script> --}}
 <script>
     function goToPage(newPage) {
         const url = new URL(window.location.href);
@@ -353,19 +355,6 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         formatDates();
-
-
-        //const socket = io();
-        //socket.on("new_order", function (order) {
-            //showToast("📢 Bạn vừa có một đơn hàng mới!", "bg-info");
-        //});
-        //socket.on("cancel_request", function (order) {
-            //showToast("⚠️ Có yêu cầu hủy đơn hàng!", "bg-warning");
-        //});
-
-        //socket.on("return_request", function (order) {
-            //showToast("🔄 Có yêu cầu trả hàng!", "bg-danger");
-        //});
 
         function formatDates() {
             document.querySelectorAll(".date-format").forEach(element => {

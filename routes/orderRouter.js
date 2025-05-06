@@ -17,6 +17,7 @@ const SHOP_ID = process.env.GHN_SHOP_ID;
 
 const binMap = {
     "01203001": "970436",
+    "01204001": "970405",
 };
 
 const REJECT_REASONS = [

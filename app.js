@@ -324,7 +324,7 @@ app.post("/webhook/payment", async (req, res) => {
     if (["canceled", "rejected"].includes(order.status)) {
       console.log(`Đơn hàng ${orderId} đã bị huỷ hoặc từ chối, bỏ qua thanh toán.`);
       return res.status(200).json({ status: 200, message: "Đơn hàng đã được xử lý" });
-    } 
+    }
 
     const paidAmount = Number(amount);
     if (order.total_price !== paidAmount) {
@@ -346,8 +346,11 @@ app.post("/webhook/payment", async (req, res) => {
         break;
 
       case 'REFUND':
+        if (order.status !== 'returned') {
+          order.status = 'canceled';
+        }
+        
         order.payment_status = 'refunded';
-        order.status = 'canceled';
 
         const orderItems = await OrderItems.find({ order_id: order._id })
           .populate({

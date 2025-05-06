@@ -54,6 +54,9 @@
 
                 {{#if (eq order.payment_status "refunded")}}
                 <span class="badge bg-info ms-2">Đã hoàn tiền</span>
+                {{else if (and (eq order.payment_method "ONLINE") (neq order.payment_status "refunded") (eq order.status
+                "returned"))}}
+                <span class="badge bg-danger ms-2">Chưa hoàn tiền</span>
                 {{/if}}
             </p>
 
@@ -61,7 +64,7 @@
                 {{#if (eq order.status "pending")}}
 
                 {{#if (or (eq order.payment_method "COD") (eq order.payment_status "paid"))}}
-                  {{#if (not order.cancel_request)}}
+                {{#if (not order.cancel_request)}}
                 <button class="btn btn-primary" onclick="confirmOrder('{{order._id}}')">Xác nhận đơn hàng</button>
                 {{/if}}
 
@@ -87,9 +90,14 @@
                 {{#if (and order.cancel_request (neq order.status "canceled") (neq order.payment_status "refunded"))}}
                 <button class="btn btn-danger" onclick="approveCancel('{{order._id}}')">Đồng ý hủy đơn</button>
                 {{/if}}
+
+                {{#if (and
+                (neq order.payment_status "refunded")
+                (eq order.status "returned")
+                (eq order.payment_method "ONLINE"))}}
+                <button class="btn btn-warning" onclick="approveCancel('{{order._id}}')">Hoàn tiền</button>
+                {{/if}}
             </div>
-
-
 
         </div>
     </div>
@@ -122,7 +130,7 @@
                             {{#each this.batches}}
                             <div class="mb-2">
                                 <div><strong>Mã lô hàng: <a
-                                            href="/products/{{this.product_product_type_id.product_id._id}}/import-stock">{{batch_number}}</a></strong>
+                                            href="/products/{{../product_product_type_id.product_id._id}}/import-stock">{{batch_number}}</a></strong>
                                 </div>
                                 <div>Số lượng: <strong>{{quantity}}</strong></div>
                                 <small class="text-muted">
@@ -323,6 +331,7 @@
 
     function approveCancel(orderId) {
         const isOnlinePaid = "{{order.payment_method}}" === "ONLINE" && "{{order.payment_status}}" === "paid";
+        const isOnlineNotRefunded = "{{order.payment_method}}" === "ONLINE" && "{{order.payment_status}}" !== "refunded" && "{{order.status}}" !== "returned";
 
         if (isOnlinePaid) {
             showRefundModal(orderId);

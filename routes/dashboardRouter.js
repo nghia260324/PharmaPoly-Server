@@ -698,7 +698,6 @@ router.get('/products', async function (req, res, next) {
                         .lean(),
                     Products.countDocuments(productFilter),
                 ]);
-                console.log(products);
 
                 const productIds = products.map(p => p._id.toString());
 
@@ -1030,7 +1029,7 @@ router.get('/products', async function (req, res, next) {
 
         const finalProducts = products.map((p) => ({
             ...p.product,
-            _id: p._id,
+            _id: p.product._id,
             sold_quantity: p.sold_quantity,
             total_revenue: p.total_revenue,
             product_type_name: p.product_type_name,

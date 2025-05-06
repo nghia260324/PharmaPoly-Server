@@ -69,7 +69,7 @@
                                     </ul>
                                 </div>
 
-                                <div class="chat-message clearfix border-top p-3 bg-light">
+                                <div class="chat-message clearfix border-top p-3 bg-light" style="padding-right: 56px;">
                                     <div class="input-group">
                                         <input type="text" class="form-control" placeholder="Enter text here...">
                                         <button class="btn btn-primary" type="button" onclick="sendMessage()">
@@ -159,7 +159,7 @@
             document.addEventListener("DOMContentLoaded", function () {
                 const firstChatItem = document.querySelector("#list-chats li");
                 if (firstChatItem) {
-                    firstChatItem.click(); // Kích hoạt sự kiện onclick để gọi loadChat()
+                    firstChatItem.click();
                 }
             });
             async function loadChat(e) {
