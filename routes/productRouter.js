@@ -307,31 +307,33 @@ router.post('/:product_id/import-stock/add', async (req, res) => {
     try {
         const { product_product_type_id, batch_number, quantity, import_price, expiry_date } = req.body;
 
-        const productProductType = await ProductProductTypes.findById(product_product_type_id);
-        if (!productProductType) {
-            return res.status(404).json({
-                status: 404,
-                message: "Product product type not found!"
+        const containsUnicode = /[^\u0000-\u007f]/.test(batch_number);
+        const containsSpace = /\s/.test(batch_number);
+
+        if (containsUnicode || containsSpace) {
+            return res.status(400).json({
+                status: 400,
+                message: "Mã lô hàng không được chứa dấu hoặc khoảng trắng!"
             });
         }
 
         if (!batch_number || !quantity || !import_price) {
             return res.status(400).json({
                 status: 400,
-                message: "Missing required fields!"
+                message: "Thiếu các trường bắt buộc!"
             });
         }
 
         if (isNaN(quantity) || quantity <= 0) {
             return res.status(400).json({
                 status: 400,
-                message: "Invalid quantity! It must be a positive number."
+                message: "Số lượng không hợp lệ! Phải là số lớn hơn 0."
             });
         }
         if (isNaN(import_price) || import_price <= 0) {
             return res.status(400).json({
                 status: 400,
-                message: "Invalid import price! It must be a positive number."
+                message: "Giá nhập không hợp lệ! Phải là số lớn hơn 0."
             });
         }
 
@@ -341,23 +343,30 @@ router.post('/:product_id/import-stock/add', async (req, res) => {
             if (isNaN(expiryDateObj.getTime())) {
                 return res.status(400).json({
                     status: 400,
-                    message: "Invalid expiry date format! Please use YYYY-MM-DD"
+                    message: "Định dạng ngày hết hạn không hợp lệ! Vui lòng dùng định dạng YYYY-MM-DD."
                 });
             }
             const importDateObj = new Date();
             if (expiryDateObj <= importDateObj) {
                 return res.status(400).json({
                     status: 400,
-                    message: "Expiry date must be greater than import date!"
+                    message: "Ngày hết hạn phải lớn hơn ngày nhập hàng!"
                 });
             }
         }
-
+        const productProductType = await ProductProductTypes.findById(product_product_type_id);
+        if (!productProductType) {
+            return res.status(404).json({
+                status: 404,
+                message: "Không tìm thấy loại sản phẩm tương ứng!"
+            });
+        }
+        
         const existingStockEntry = await StockEntries.findOne({ batch_number });
         if (existingStockEntry) {
             return res.status(400).json({
                 status: 400,
-                message: `Batch number ${batch_number} already exists! Please use a unique batch number.`
+                message: `Số lô ${batch_number} đã tồn tại!`
             });
         }
 
@@ -374,24 +383,24 @@ router.post('/:product_id/import-stock/add', async (req, res) => {
 
         res.status(200).json({
             status: 200,
-            message: `Stock entry for product product type added successfully!`,
+            message: `Thêm lô hàng cho loại sản phẩm thành công!`,
             data: savedEntry
         });
 
     } catch (error) {
-        console.error("Error adding stock entry:", error);
+        console.error("Lỗi khi thêm lô hàng:", error);
 
         if (error.name === 'ValidationError') {
             return res.status(400).json({
                 status: 400,
-                message: "Validation Error",
+                message: "Lỗi xác thực dữ liệu!",
                 error: error.message
             });
         }
 
         res.status(500).json({
             status: 500,
-            message: "Internal Server Error!",
+            message: "Lỗi máy chủ nội bộ!",
             error: error.message
         });
     }

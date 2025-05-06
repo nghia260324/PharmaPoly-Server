@@ -354,7 +354,7 @@
 
 
         const batchNumberInput = document.getElementById('batch_number');
-        batchNumberInput.value = generateBatchNumber();
+        //batchNumberInput.value = generateBatchNumber();
         document.getElementById("importStockForm")?.addEventListener("submit", async function (event) {
             event.preventDefault();
             loadingModal.show();
@@ -383,8 +383,8 @@
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(errorText || 'Request failed');
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || "Đã có lỗi xảy ra");
                 }
                 const result = await response.json();
 
@@ -395,7 +395,7 @@
 
             } catch (error) {
                 console.error("Lỗi:", error);
-                showToast('Có lỗi xảy ra, vui lòng thử lại!', false);
+                showToast(error.message, false);
             } finally {
                 window.loadingModal.hide();
 
@@ -501,12 +501,12 @@
             return `${prefix}-${year}${month}${day}-${randomNum}`;
         }
 
-        const batchNumbers = [];
-        for (let i = 0; i < 200; i++) {
-            batchNumbers.push(generateBatchNumber());
-        }
+        //const batchNumbers = [];
+        //for (let i = 0; i < 200; i++) {
+        //batchNumbers.push(generateBatchNumber());
+        //}
 
-        console.log(batchNumbers);
+        //console.log(batchNumbers);
 
         document.querySelectorAll('td:nth-child(6), td:nth-child(7)').forEach(td => {
             if (td.textContent) {

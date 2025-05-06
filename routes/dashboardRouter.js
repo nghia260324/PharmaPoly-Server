@@ -1719,7 +1719,7 @@ router.get('/inventory', async (req, res) => {
 
 
         const chartData = await StockEntries.aggregate([
-            ...(Object.keys(dateFilter).length > 0 ? [{ $match: dateFilter }] : []),
+            // ...(Object.keys(dateFilter).length > 0 ? [{ $match: dateFilter }] : []),
             {
                 $group: {
                     _id: "$status",
@@ -1767,7 +1767,7 @@ router.get('/inventory', async (req, res) => {
             }
         });
         const stockData = await StockEntries.aggregate([
-            ...(Object.keys(dateFilter).length > 0 ? [{ $match: dateFilter }] : []),
+            // ...(Object.keys(dateFilter).length > 0 ? [{ $match: dateFilter }] : []),
             {
                 $group: {
                     _id: {

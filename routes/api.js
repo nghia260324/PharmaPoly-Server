@@ -535,6 +535,8 @@ router.post('/refresh-token', async (req, res) => {
     }
 });
 
+
+
 router.get('/user/cart', authenticateToken, async (req, res) => {
     try {
         const user_id = req.user_id;
@@ -547,8 +549,18 @@ router.get('/user/cart', authenticateToken, async (req, res) => {
         let cartItems = await CartItems.find({ cart_id: cart._id })
             .populate('product_product_type_id')
             .lean();
+
         const updatedCartItems = await Promise.all(cartItems.map(async (item) => {
+            const stock = await StockEntries.findOne({
+                product_product_type_id: item.product_product_type_id,
+                status: 'active'
+            }).lean();
+
             const product = await getProductDetails(item.product_product_type_id.product_id);
+
+            if (!stock) {
+                product.status = 'out_of_stock';
+            }
 
             item.productType = item.product_product_type_id;
             item.product_product_type_id = item.product_product_type_id._id;
@@ -722,13 +734,69 @@ router.get('/product/top-rated', authenticateToken, async (req, res) => {
 
         const skip = (pageNumber - 1) * limitNumber;
 
-        const products = await Products.find({ status: 'active' })
-            .sort({ average_rating: -1 })
-            .skip(skip)
-            .limit(limitNumber)
-            .populate('category_id', '_id name')
-            .populate('brand_id', '_id name description')
-            .lean();
+        // const products = await Products.find({ status: 'active' })
+        //     .sort({ average_rating: -1 })
+        //     .skip(skip)
+        //     .limit(limitNumber)
+        //     .populate('category_id', '_id name')
+        //     .populate('brand_id', '_id name description')
+        //     .lean();
+        const products = await Products.aggregate([
+            {
+                $match: {
+                    status: 'active'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'productProductTypes',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'product_types'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'stockEntries',
+                    localField: 'product_types._id',
+                    foreignField: 'product_product_type_id',
+                    as: 'stock_entries'
+                }
+            },
+            {
+                $match: {
+                    'stock_entries.status': 'active',
+                }
+            },
+            {
+                $sort: { average_rating: -1 }
+            },
+            {
+                $project: {
+                    name: 1,
+                    short_description: 1,
+                    specification: 1,
+                    origin_country: 1,
+                    manufacturer: 1,
+                    average_rating: 1,
+                    review_count: 1,
+                    category_id: 1,
+                    brand_id: 1,
+                    category: 1,
+                    brand: 1,
+                    status: 1,
+                    created_at: 1,
+                    updated_at: 1
+                }
+            },
+            {
+                $skip: skip
+            },
+            {
+                $limit: limitNumber
+            }
+        ]).exec();
+
 
         const totalProducts = await Products.countDocuments();
         const totalPages = Math.ceil(totalProducts / limitNumber);
@@ -768,6 +836,7 @@ router.get('/product/related', authenticateToken, async (req, res) => {
             .select('brand_id category_id')
             .lean();
 
+
         if (!currentProduct) {
             return res.status(404).json({ status: 404, message: 'Product not found or inactive' });
         }
@@ -776,46 +845,269 @@ router.get('/product/related', authenticateToken, async (req, res) => {
 
         let relatedProducts = [];
 
-        relatedProducts = await Products.find({
-            _id: { $ne: product_id },
-            status: 'active',
-            brand_id,
-            category_id
-        })
-            .limit(limitNumber)
-            .lean();
+        relatedProducts =
+            // await Products.find({
+            //     _id: { $ne: product_id },
+            //     status: 'active',
+            //     brand_id,
+            //     category_id
+            // })
+            //     .limit(limitNumber)
+            //     .lean();
+            await Products.aggregate([
+                {
+                    $match: {
+                        status: 'active',
+                        brand_id,
+                        category_id,
+                        _id: { $ne: new mongoose.Types.ObjectId(product_id) }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'productProductTypes',
+                        localField: '_id',
+                        foreignField: 'product_id',
+                        as: 'product_types'
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'stockEntries',
+                        localField: 'product_types._id',
+                        foreignField: 'product_product_type_id',
+                        as: 'stock_entries'
+                    }
+                },
+                {
+                    $match: {
+                        'stock_entries.status': 'active',
+                    }
+                },
+                {
+                    $sort: { average_rating: -1 }
+                },
+                {
+                    $project: {
+                        name: 1,
+                        short_description: 1,
+                        specification: 1,
+                        origin_country: 1,
+                        manufacturer: 1,
+                        average_rating: 1,
+                        review_count: 1,
+                        category_id: 1,
+                        brand_id: 1,
+                        category: 1,
+                        brand: 1,
+                        status: 1,
+                        created_at: 1,
+                        updated_at: 1
+                    }
+                },
+                {
+                    $limit: limitNumber
+                }
+            ]).exec();
+
+
+
+
 
         if (relatedProducts.length < limitNumber) {
-            const brandProducts = await Products.find({
-                _id: { $ne: product_id },
-                status: 'active',
-                brand_id,
-                category_id: { $ne: category_id }
-            })
-                .limit(limitNumber - relatedProducts.length)
-                .lean();
+            const brandProducts =
+                // await Products.find({
+                //     _id: { $ne: product_id },
+                //     status: 'active',
+                //     brand_id,
+                //     category_id: { $ne: category_id }
+                // })
+                //     .limit(limitNumber - relatedProducts.length)
+                //     .lean();
+                await Products.aggregate([
+                    {
+                        $match: {
+                            status: 'active',
+                            brand_id,
+                            category_id: { $ne: category_id },
+                            _id: { $ne: new mongoose.Types.ObjectId(product_id) }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: 'productProductTypes',
+                            localField: '_id',
+                            foreignField: 'product_id',
+                            as: 'product_types'
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: 'stockEntries',
+                            localField: 'product_types._id',
+                            foreignField: 'product_product_type_id',
+                            as: 'stock_entries'
+                        }
+                    },
+                    {
+                        $match: {
+                            'stock_entries.status': 'active',
+                        }
+                    },
+                    {
+                        $sort: { average_rating: -1 }
+                    },
+                    {
+                        $project: {
+                            name: 1,
+                            short_description: 1,
+                            specification: 1,
+                            origin_country: 1,
+                            manufacturer: 1,
+                            average_rating: 1,
+                            review_count: 1,
+                            category_id: 1,
+                            brand_id: 1,
+                            category: 1,
+                            brand: 1,
+                            status: 1,
+                            created_at: 1,
+                            updated_at: 1
+                        }
+                    },
+                    {
+                        $limit: limitNumber - relatedProducts.length
+                    }
+                ]).exec();
 
             relatedProducts = relatedProducts.concat(brandProducts);
         }
 
         if (relatedProducts.length < limitNumber) {
-            const categoryProducts = await Products.find({
-                _id: { $ne: product_id },
-                status: 'active',
-                brand_id: { $ne: brand_id },
-                category_id
-            })
-                .limit(limitNumber - relatedProducts.length)
-                .lean();
+            const categoryProducts =
+                // await Products.find({
+                //     _id: { $ne: product_id },
+                //     status: 'active',
+                //     brand_id: { $ne: brand_id },
+                //     category_id
+                // })
+                //     .limit(limitNumber - relatedProducts.length)
+                //     .lean();
+                await Products.aggregate([
+                    {
+                        $match: {
+                            status: 'active',
+                            brand_id: { $ne: brand_id },
+                            category_id,
+                            _id: { $ne: new mongoose.Types.ObjectId(product_id) }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: 'productProductTypes',
+                            localField: '_id',
+                            foreignField: 'product_id',
+                            as: 'product_types'
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: 'stockEntries',
+                            localField: 'product_types._id',
+                            foreignField: 'product_product_type_id',
+                            as: 'stock_entries'
+                        }
+                    },
+                    {
+                        $match: {
+                            'stock_entries.status': 'active',
+                        }
+                    },
+                    {
+                        $sort: { average_rating: -1 }
+                    },
+                    {
+                        $project: {
+                            name: 1,
+                            short_description: 1,
+                            specification: 1,
+                            origin_country: 1,
+                            manufacturer: 1,
+                            average_rating: 1,
+                            review_count: 1,
+                            category_id: 1,
+                            brand_id: 1,
+                            category: 1,
+                            brand: 1,
+                            status: 1,
+                            created_at: 1,
+                            updated_at: 1
+                        }
+                    },
+                    {
+                        $limit: limitNumber - relatedProducts.length
+                    }
+                ]).exec();
 
             relatedProducts = relatedProducts.concat(categoryProducts);
         }
 
         if (relatedProducts.length < limitNumber) {
+            // const randomProducts = await Products.aggregate([
+            //     { $match: { _id: { $ne: new mongoose.Types.ObjectId(product_id) }, status: 'active' } },
+            //     { $sample: { size: limitNumber - relatedProducts.length } }
+            // ]);
             const randomProducts = await Products.aggregate([
-                { $match: { _id: { $ne: new mongoose.Types.ObjectId(product_id) }, status: 'active' } },
-                { $sample: { size: limitNumber - relatedProducts.length } }
-            ]);
+                {
+                    $match: {
+                        status: 'active',
+                        _id: { $ne: new mongoose.Types.ObjectId(product_id) }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'productProductTypes',
+                        localField: '_id',
+                        foreignField: 'product_id',
+                        as: 'product_types'
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'stockEntries',
+                        localField: 'product_types._id',
+                        foreignField: 'product_product_type_id',
+                        as: 'stock_entries'
+                    }
+                },
+                {
+                    $match: {
+                        'stock_entries.status': 'active',
+                    }
+                },
+                {
+                    $sample: { size: limitNumber - relatedProducts.length }
+                },
+                {
+                    $project: {
+                        name: 1,
+                        short_description: 1,
+                        specification: 1,
+                        origin_country: 1,
+                        manufacturer: 1,
+                        average_rating: 1,
+                        review_count: 1,
+                        category_id: 1,
+                        brand_id: 1,
+                        category: 1,
+                        brand: 1,
+                        status: 1,
+                        created_at: 1,
+                        updated_at: 1
+                    }
+                }
+            ]).exec();
+
 
             relatedProducts = relatedProducts.concat(randomProducts);
         }
@@ -848,6 +1140,27 @@ router.get('/product/random', authenticateToken, async (req, res) => {
 
         const products = await Products.aggregate([
             { $match: { status: 'active' } },
+            {
+                $lookup: {
+                    from: 'productProductTypes',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'product_types'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'stockEntries',
+                    localField: 'product_types._id',
+                    foreignField: 'product_product_type_id',
+                    as: 'stock_entries'
+                }
+            },
+            {
+                $match: {
+                    'stock_entries.status': 'active',
+                }
+            },
             { $sample: { size: limitNumber } }
         ]);
 
@@ -887,9 +1200,9 @@ const getProductDetails = async (product_id) => {
         }
 
         const availableProductTypes = await getAvailableProductTypes(product_id);
-        if (availableProductTypes.length === 0) {
-            return null;
-        }
+        // if (availableProductTypes.length === 0) {
+        //     return null;
+        // }
 
         const primaryImage = await ProductImages.findOne({
             product_id: product._id,
@@ -910,7 +1223,9 @@ const getProductDetails = async (product_id) => {
             category: product.category_id,
             brand: product.brand_id,
             // product_type: product.product_type_id,
-            status: product.status,
+            status: (!availableProductTypes || availableProductTypes.length === 0)
+                ? 'out_of_stock'
+                : product.status,
             images: primaryImage ? [primaryImage] : [],
             product_types: availableProductTypes,
             created_at: product.created_at,
@@ -2454,6 +2769,13 @@ router.delete('/cart-item/remove', authenticateToken, async (req, res) => {
         return res.status(500).json({ status: 500, message: 'Internal Server Error' });
     }
 });
+function normalizeText(text) {
+    return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+}
 
 router.get('/search', authenticateToken, async (req, res) => {
     try {
@@ -2472,29 +2794,111 @@ router.get('/search', authenticateToken, async (req, res) => {
 
         const skip = (pageNumber - 1) * limitNumber;
 
-        const normalizedKeyword = removeDiacritics(keyword.toLocaleLowerCase());
+        const normalizedKeyword = normalizeText(keyword);
         const words = normalizedKeyword.trim().split(/\s+/);
 
         const sortOrder = order === 'desc' ? -1 : 1;
-        const sortOption = { price: sortOrder };
+        // const sortOption = { price: sortOrder };
 
-        const products = await Products.find({
-            $and: words.map(word => ({
-                normalized_name: { $regex: word, $options: 'i' }
-            }))
-        })
-            .sort(sortOption)
-            .populate('category_id', '_id name')
-            .populate('brand_id', '_id name description')
-            .lean();
+        // const products = await Products.find({
+        //     $and: [
+        //         { status: 'active' },
+        //         ...words.map(word => ({
+        //             normalized_name: { $regex: word, $options: 'i' }
+        //         }))
+        //     ]
+        // })
+        //     // .sort(sortOption)
+        //     .populate('category_id', '_id name')
+        //     .populate('brand_id', '_id name description')
+        //     .lean();
+
+        const products = await Products.aggregate([
+            {
+                $match: {
+                    status: 'active',
+                    ...words.reduce((acc, word) => {
+                        acc['normalized_name'] = { $regex: word, $options: 'i' };
+                        return acc;
+                    }, {})
+                }
+            },
+            {
+                $lookup: {
+                    from: 'categories', // Tên bảng 'categories' trong MongoDB
+                    localField: 'category_id',
+                    foreignField: '_id',
+                    as: 'category_id'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'brands', // Tên bảng 'brands' trong MongoDB
+                    localField: 'brand_id',
+                    foreignField: '_id',
+                    as: 'brand_id'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'productProductTypes',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'product_types'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'stockEntries',
+                    localField: 'product_types._id',
+                    foreignField: 'product_product_type_id',
+                    as: 'stock_entries'
+                }
+            },
+            {
+                $match: {
+                    'stock_entries.status': 'active',
+                }
+            },
+            {
+                $project: {
+                    name: 1,
+                    normalized_name: 1,
+                    short_description: 1,
+                    specification: 1,
+                    origin_country: 1,
+                    manufacturer: 1,
+                    average_rating: 1,
+                    review_count: 1,
+                    category_id: { $arrayElemAt: ['$category_id', 0] }, // Lấy 1 phần tử từ mảng category_id
+                    brand_id: { $arrayElemAt: ['$brand_id', 0] }, // Lấy 1 phần tử từ mảng brand_id
+                    category: 1,
+                    brand: 1,
+                    status: 1,
+                    created_at: 1,
+                    updated_at: 1
+                }
+            }
+        ]).exec(); // Sử dụng lean() để trả về kết quả dạng plain object
+        
 
 
-        const totalProducts = products.length;
 
-        const filteredProducts = products.filter(product => {
-            const normalizedProductName = product.normalized_name.toLowerCase();
-            return words.every(word => normalizedProductName.includes(word));
-        });
+
+        const filteredProducts = products
+            .map(product => {
+                const normalizedProductName = product.normalized_name.toLowerCase();
+                const matchCount = words.reduce((count, word) => {
+                    return count + (normalizedProductName.includes(word) ? 1 : 0);
+                }, 0);
+                return { ...product, matchCount };
+            })
+            .filter(p => p.matchCount === words.length || p.matchCount > 0)
+            .sort((a, b) => {
+                if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
+                return sortOrder === 1 ? a.price - b.price : b.price - a.price;
+            });
+
 
         const totalFiltered = filteredProducts.length;
         const totalPages = Math.ceil(totalFiltered / limitNumber);
@@ -2508,13 +2912,14 @@ router.get('/search', authenticateToken, async (req, res) => {
         const categories = await Categories.find().lean();
         const brands = await Brands.find().lean();
 
+
         const filteredCategories = categories.filter(category => {
-            const normalizedCategoryName = removeDiacritics(category.name.toLowerCase());
+            const normalizedCategoryName = normalizeText(category.name.toLowerCase());
             return words.every(word => normalizedCategoryName.includes(word));
         });
 
         const filteredBrands = brands.filter(brand => {
-            const normalizedBrandName = removeDiacritics(brand.name.toLowerCase());
+            const normalizedBrandName = normalizeText(brand.name.toLowerCase());
             return words.every(word => normalizedBrandName.includes(word));
         });
 
