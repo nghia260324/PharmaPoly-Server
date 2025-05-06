@@ -38,17 +38,18 @@ router.get("/", async (req, res) => {
 
     let cleanedSearch = "";
     if (search && typeof search === "string") {
-        // cleanedSearch = normalizeText(search);
-        cleanedSearch = removeVietnameseTones(cleanedSearch);
+        cleanedSearch = removeVietnameseTones(search);
+    
         if (cleanedSearch.startsWith("#")) {
             cleanedSearch = cleanedSearch.substring(1);
         }
-
+    
         query.$or = [
             { order_code: { $regex: cleanedSearch, $options: "i" } },
-            { to_name: { $regex: cleanedSearch, $options: "i" } } 
+            { to_name: { $regex: search.trim(), $options: "i" } }
         ];
     }
+    
 
     if (status) {
         if (status === "cancel_request_pending") {
