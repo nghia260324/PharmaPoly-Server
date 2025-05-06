@@ -602,7 +602,7 @@ router.get('/products', async function (req, res, next) {
 
                 case 'this_month': {
                     const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-                    const end = new Date(); // tới thời điểm hiện tại
+                    const end = new Date();
                     dateFilter.created_at = {
                         $gte: new Date(start.getTime() - offsetMs),
                         $lte: new Date(end.getTime() - offsetMs)
@@ -1772,7 +1772,7 @@ router.get('/inventory', async (req, res) => {
                 $group: {
                     _id: {
                         $dateToString: {
-                            format: "%d-%m-%Y",
+                            format: "%Y-%m-%d",
                             date: "$import_date",
                             timezone: "+07:00"
                         }
@@ -1785,7 +1785,7 @@ router.get('/inventory', async (req, res) => {
                     formattedDate: {
                         $dateFromString: {
                             dateString: "$_id",
-                            format: "%d-%m-%Y",
+                            format: "%Y-%m-%d",
                             timezone: "+07:00"
                         }
                     }
