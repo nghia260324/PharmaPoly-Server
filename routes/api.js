@@ -53,11 +53,11 @@ const statusGroups = {
     processing: ["pending", "confirmed", "ready_to_pick"],
     shipping: [
         "picking", "picked", "delivering", "money_collect_delivering",
-        "delivery_fail", "waiting_to_return", "return", "returned", "return_fail"
+        "delivery_fail", "waiting_to_return", "return", "return_fail"
     ],
     delivered: ["delivered"],
     //returning: ["waiting_to_return", "return", "returned", "return_fail"],
-    canceled: ["canceled", "delivery_fail", "rejected"],
+    canceled: ["canceled", "delivery_fail", "rejected", "returned"],
 };
 
 

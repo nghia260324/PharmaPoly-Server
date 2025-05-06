@@ -354,12 +354,25 @@ async function getBankFromVietQR(bin) {
 
     return bank;
 }
+// function generateVietQRQuickLink(order, bankId, accountNo) {
+//     const template = process.env.TEMPLATE || "compact";
+//     const addInfo = `REFUND${order._id}END`;
+
+//     return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
+// }
+
 function generateVietQRQuickLink(order, bankId, accountNo) {
     const template = process.env.TEMPLATE || "compact";
     const addInfo = `REFUND${order._id}END`;
 
-    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${order.total_price}&addInfo=${addInfo}`;
+    const amount = order.status === "returned"
+        ? order.total_price - order.shipping_fee
+        : order.total_price;
+
+    return `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png?amount=${amount}&addInfo=${addInfo}`;
 }
+
+
 function generateRejectQRLink(order, bankId, accountNo) {
     const template = process.env.TEMPLATE || "compact";
     const addInfo = `REJECT${order._id}END`;

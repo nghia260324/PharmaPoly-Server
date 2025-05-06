@@ -326,9 +326,16 @@ app.post("/webhook/payment", async (req, res) => {
     }
 
     const paidAmount = Number(amount);
-    if (order.total_price !== paidAmount) {
-      console.log(`Số tiền không chính xác cho đơn hàng ${orderId}`);
-      return res.status(200).json({ status: 200, message: "Số tiền thanh toán không chính xác, đã bỏ qua" });
+    if (order.status === 'returned') {
+      if (order.total_price - order.shipping_fee !== paidAmount) {
+        console.log(`Số tiền không chính xác cho đơn hàng ${orderId}`);
+        return res.status(200).json({ status: 200, message: "Số tiền thanh toán không chính xác, đã bỏ qua" });
+      }
+    } else {
+      if (order.total_price !== paidAmount) {
+        console.log(`Số tiền không chính xác cho đơn hàng ${orderId}`);
+        return res.status(200).json({ status: 200, message: "Số tiền thanh toán không chính xác, đã bỏ qua" });
+      }
     }
 
     let message = "Đã xử lý thành công";
@@ -481,7 +488,7 @@ const sendRefundNotification = async (order) => {
   const productSummary =
     otherCount > 0 ? `${shortName} và ${otherCount} sản phẩm khác` : shortName;
 
-  const title = 'Yêu cầu hủy đơn hàng đã được xác nhận và hoàn tiền';
+  let title = 'Yêu cầu hủy đơn hàng đã được xác nhận và hoàn tiền';
 
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, '0');
@@ -498,10 +505,20 @@ const sendRefundNotification = async (order) => {
 
   const stk = transaction_data.data["Số tài khoản đối ứng"];
 
-  const message = `- Yêu cầu hủy đơn hàng (${productSummary}) của bạn đã được xác nhận và hoàn tiền thành công.\n` +
+  let message = `- Yêu cầu hủy đơn hàng (${productSummary}) của bạn đã được xác nhận và hoàn tiền thành công.\n` +
     `- Số tiền hoàn lại: ${formattedPrice}.\n` +
     `- Tiền đã được hoàn về STK ${stk} tại ngân hàng ${bank.shortName}.\n` +
     `- Thời gian hoàn tiền: ${formattedTime}.`;
+
+  if (order.status === "returned") {
+    title = 'Đơn hàng bị trả lại và đã hoàn tiền';
+
+    message =
+      `- Đơn hàng (${productSummary}) của bạn đã bị trả lại do không nhận hàng.\n` +
+      `- Số tiền được hoàn lại (không bao gồm phí vận chuyển): ${formattedPrice}.\n` +
+      `- Tiền đã được hoàn về STK ${stk} tại ngân hàng ${bank.shortName}.\n` +
+      `- Thời gian hoàn tiền: ${formattedTime}.`;
+  }
 
   await sendNotification({
     user_id: order.user_id,
@@ -616,7 +633,7 @@ async function getBankFromVietQR(bin) {
 
 
 // const testNotification = async () => {
-//   const order = await Orders.findById("68118923c42e43956614039d")
+//   const order = await Orders.findById("681733b250f229660edb194a")
 //   sendRefundNotification(order);
 // };
 
