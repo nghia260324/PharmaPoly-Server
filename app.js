@@ -8,7 +8,7 @@ const axios = require("axios");
 require("dotenv").config();
 const crypto = require("crypto");
 require("./utils/cronJobs");
-
+const { Types } = require("mongoose");
 const { firebaseAdmin, db } = require('./firebase/firebaseAdmin');
 const SHOP_ID = Number(process.env.GHN_SHOP_ID);
 
@@ -291,7 +291,7 @@ app.post('/webhook/ghn', async (req, res) => {
 app.post("/webhook/payment", async (req, res) => {
   try {
     const { error, data } = req.body;
-
+    console.log(data)
     if (error !== 0 || !data) {
       console.log("Dữ liệu Casso không hợp lệ:", req.body);
       return res.status(200).json({ status: 200, message: "Dữ liệu Casso không hợp lệ, đã bỏ qua" });
@@ -314,8 +314,7 @@ app.post("/webhook/payment", async (req, res) => {
     }
 
     const [, type, orderId] = match;
-
-    const order = await Orders.findById(orderId);
+    const order = await Orders.findById(Types.ObjectId("681997c2c7e5d7e5a4932569"));
     if (!order) {
       console.log(`Không tìm thấy đơn hàng: ${orderId}`);
       return res.status(200).json({ status: 200, message: "Không tìm thấy đơn hàng, đã bỏ qua" });
@@ -349,7 +348,7 @@ app.post("/webhook/payment", async (req, res) => {
         if (order.status !== 'returned') {
           order.status = 'canceled';
         }
-        
+
         order.payment_status = 'refunded';
 
         const orderItems = await OrderItems.find({ order_id: order._id })
