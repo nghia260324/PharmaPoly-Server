@@ -14,13 +14,13 @@ const { startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, p
 
 const { format } = require('date-fns');
 const viLocale = require('date-fns/locale/vi');
+const offsetMs = 7 * 60 * 60 * 1000;
 
 
 router.get('/revenue', async function (req, res, next) {
     const { timePeriod, startDate, paymentMethod, endDate } = req.query;
     try {
         const now = new Date();
-        const offsetMs = 7 * 60 * 60 * 1000;
 
         let matchStageDelivered = { status: 'delivered' };
         if (paymentMethod) {
@@ -35,9 +35,10 @@ router.get('/revenue', async function (req, res, next) {
                 case 'last_week': {
                     const now = new Date();
                     const day = now.getUTCDay();
-                    const diffToLastWeekStart = 7 + day;
+                    const diff = (day === 0 ? 7 : day);
+
                     const start = new Date(now);
-                    start.setUTCDate(start.getUTCDate() - diffToLastWeekStart);
+                    start.setUTCDate(start.getUTCDate() - diff - 6);
                     start.setUTCHours(0, 0, 0, 0);
 
                     const end = new Date(start);
@@ -50,6 +51,7 @@ router.get('/revenue', async function (req, res, next) {
                     };
                     break;
                 }
+
 
                 case 'last_month': {
                     const now = new Date();
@@ -565,64 +567,69 @@ router.get('/products', async function (req, res, next) {
 
             switch (timePeriod) {
                 case 'last_week': {
-                    const start = subWeeks(now, 1);
-                    const end = now;
+                    const day = now.getUTCDay();
+                    const diff = day === 0 ? 7 : day;
+
+                    const start = new Date(now);
+                    start.setUTCDate(now.getUTCDate() - diff - 6);
+                    start.setUTCHours(0, 0, 0, 0);
+
+                    const end = new Date(start);
+                    end.setUTCDate(start.getUTCDate() + 6);
+                    end.setUTCHours(23, 59, 59, 999);
+
                     dateFilter.created_at = {
-                        $gte: new Date(startOfWeek(start).getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(endOfWeek(end).getTime() - 7 * 60 * 60 * 1000)
+                        $gte: new Date(start.getTime() + offsetMs),
+                        $lte: new Date(end.getTime() + offsetMs)
                     };
                     break;
                 }
 
                 case 'last_month': {
-                    const start = startOfMonth(subMonths(now, 1));
-                    const end = endOfMonth(subMonths(now, 1));
+                    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+                    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
                     dateFilter.created_at = {
-                        $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
                     };
                     break;
                 }
 
                 case 'this_month': {
-                    const start = startOfMonth(now);
-                    const end = now;
+                    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+                    const end = new Date(); // tới thời điểm hiện tại
                     dateFilter.created_at = {
-                        $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
                     };
                     break;
                 }
 
                 case 'last_3_months': {
-                    const start = subMonths(now, 3);
-                    const end = now;
+                    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
                     dateFilter.created_at = {
-                        $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
                     };
                     break;
                 }
 
-
                 case 'custom': {
-                    if (startDate || endDate) {
-                        const filter = {};
-
-                        if (startDate) {
-                            const start = new Date(`${startDate}T00:00:00`);
-                            filter.$gte = new Date(start.getTime() - 7 * 60 * 60 * 1000);
-                        }
-
-                        if (endDate) {
-                            const end = new Date(`${endDate}T23:59:59`);
-                            filter.$lte = new Date(end.getTime() - 7 * 60 * 60 * 1000);
-                        }
+                    const filter = {};
+                    if (startDate) {
+                        const start = new Date(startDate + "T00:00:00+07:00");
+                        filter.$gte = start;
+                    }
+                    if (endDate) {
+                        const end = new Date(endDate + "T23:59:59+07:00");
+                        filter.$lte = end;
+                    }
+                    if (Object.keys(filter).length) {
                         dateFilter.created_at = filter;
                     }
                     break;
                 }
-
             }
         }
 
@@ -1463,76 +1470,93 @@ router.get('/inventory', async (req, res) => {
             const now = toVietnamTime(new Date());
 
             switch (timePeriod) {
-                case 'last_week': {
-                    const start = subWeeks(now, 1);
-                    const end = now;
+                case "last_week": {
+                    const now = new Date();
+                    const day = now.getUTCDay();
+                    const diff = day === 0 ? 7 : day;
+
+                    const start = new Date(now);
+                    start.setUTCDate(now.getUTCDate() - diff - 6);
+                    start.setUTCHours(0, 0, 0, 0);
+
+                    const end = new Date(start);
+                    end.setUTCDate(start.getUTCDate() + 6);
+                    end.setUTCHours(23, 59, 59, 999);
+
                     dateFilter.import_date = {
-                        $gte: new Date(startOfWeek(start).getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(endOfWeek(start).getTime() - 7 * 60 * 60 * 1000)
+                        $gte: new Date(start.getTime() + offsetMs),
+                        $lte: new Date(end.getTime() + offsetMs)
                     };
                     break;
                 }
 
-                case 'last_month': {
-                    const start = startOfMonth(subMonths(now, 1));
-                    const end = endOfMonth(subMonths(now, 1));
+                case "last_month": {
+                    const now = new Date();
+                    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+                    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
                     dateFilter.import_date = {
-                        $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
                     };
                     break;
                 }
 
-                case 'this_month': {
-                    const start = startOfMonth(now);
-                    const end = now;
+                case "this_month": {
+                    const now = new Date();
+                    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
                     dateFilter.import_date = {
-                        $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
                     };
                     break;
                 }
 
-                case 'last_3_months': {
-                    const start = subMonths(now, 3);
-                    const end = now;
+                case "last_3_months": {
+                    const now = new Date();
+                    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
                     dateFilter.import_date = {
-                        $gte: new Date(start.getTime() - 7 * 60 * 60 * 1000),
-                        $lte: new Date(end.getTime() - 7 * 60 * 60 * 1000)
+                        $gte: new Date(start.getTime() - offsetMs),
+                        $lte: new Date(end.getTime() - offsetMs)
                     };
                     break;
                 }
 
-                case 'custom_import_date': {
+                case "custom_import_date": {
                     const filter = {};
                     if (startDate) {
-                        const start = new Date(`${startDate}T00:00:00`);
-                        filter.$gte = new Date(start.getTime() - 7 * 60 * 60 * 1000);
+                        const start = new Date(`${startDate}T00:00:00+07:00`);
+                        filter.$gte = start;
                     }
                     if (endDate) {
-                        const end = new Date(`${endDate}T23:59:59`);
-                        filter.$lte = new Date(end.getTime() - 7 * 60 * 60 * 1000);
+                        const end = new Date(`${endDate}T23:59:59+07:00`);
+                        filter.$lte = end;
                     }
                     dateFilter.import_date = filter;
                     break;
                 }
-                case 'custom_expiry_date': {
+
+                case "custom_expiry_date": {
                     const filter = {};
                     if (startDate) {
-                        const start = new Date(`${startDate}T00:00:00`);
-                        filter.$gte = new Date(start.getTime() - 7 * 60 * 60 * 1000);
+                        const start = new Date(`${startDate}T00:00:00+07:00`);
+                        filter.$gte = start;
                     }
                     if (endDate) {
-                        const end = new Date(`${endDate}T23:59:59`);
-                        filter.$lte = new Date(end.getTime() - 7 * 60 * 60 * 1000);
+                        const end = new Date(`${endDate}T23:59:59+07:00`);
+                        filter.$lte = end;
                     }
                     dateFilter.expiry_date = filter;
                     break;
                 }
 
-                case 'expiring_soon': {
+                case "expiring_soon": {
                     if (expiryDate) {
-                        const nowUTC = new Date(now.getTime() - 7 * 60 * 60 * 1000);
+                        const nowUTC = new Date(now.getTime() - offsetMs);
                         const expiryLimit = new Date(nowUTC);
                         expiryLimit.setDate(expiryLimit.getDate() + parseInt(expiryDate));
                         dateFilter.expiry_date = {

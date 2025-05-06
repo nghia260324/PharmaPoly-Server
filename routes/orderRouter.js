@@ -101,16 +101,17 @@ router.get("/", async (req, res) => {
         }
         case "last_week": {
             const now = new Date();
-            const day = now.getUTCDay(); // Sunday = 0
-            const diffToLastWeekStart = 7 + day;
+            const day = now.getUTCDay();
+            const diff = day === 0 ? 7 : day;
+        
             const start = new Date(now);
-            start.setUTCDate(start.getUTCDate() - diffToLastWeekStart);
+            start.setUTCDate(now.getUTCDate() - diff - 6);
             start.setUTCHours(0, 0, 0, 0);
-
+        
             const end = new Date(start);
-            end.setUTCDate(end.getUTCDate() + 6);
+            end.setUTCDate(start.getUTCDate() + 6);
             end.setUTCHours(23, 59, 59, 999);
-
+        
             query.created_at = {
                 $gte: new Date(start.getTime() + offsetMs),
                 $lte: new Date(end.getTime() + offsetMs)
