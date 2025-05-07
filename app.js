@@ -298,8 +298,9 @@ app.post("/webhook/payment", async (req, res) => {
     }
 
     const { reference, description, amount } = data;
+    console.log(data);
     console.log(description);
-    console.log(amount)
+    console.log("Check Price: " + amount);
     if (!reference || !description || !amount) {
       console.log("Thiếu trường dữ liệu bắt buộc:", data);
       return res.status(200).json({ status: 200, message: "Thiếu trường dữ liệu, đã bỏ qua" });
