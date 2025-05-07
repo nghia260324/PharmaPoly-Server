@@ -308,7 +308,8 @@ app.post("/webhook/payment", async (req, res) => {
       return res.json({ status: 200, message: "Đã nhận giao dịch thử nghiệm thành công" });
     }
 
-    const match = description.match(/^(REJECT|REFUND|OID)([a-f0-9]{24})END$/);
+    //const match = description.match(/^(REJECT|REFUND|OID)([a-f0-9]{24})END$/);
+    const match = description.match(/(REJECT|REFUND|OID)([a-f0-9]{24})END/);
     if (!match) {
       return res.status(200).json({ status: 200, message: "Mẫu giao dịch không hợp lệ, đã bỏ qua" });
     }
