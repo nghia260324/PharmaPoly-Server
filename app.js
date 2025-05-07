@@ -299,6 +299,7 @@ app.post("/webhook/payment", async (req, res) => {
 
     const { reference, description, amount } = data;
     console.log(description);
+    console.log(amount)
     if (!reference || !description || !amount) {
       console.log("Thiếu trường dữ liệu bắt buộc:", data);
       return res.status(200).json({ status: 200, message: "Thiếu trường dữ liệu, đã bỏ qua" });
@@ -328,17 +329,29 @@ app.post("/webhook/payment", async (req, res) => {
     }
 
     const paidAmount = Number(amount);
+
     if (order.status === 'returned') {
-      if (order.total_price - order.shipping_fee !== paidAmount) {
+      const expectedAmount = order.total_price - order.shipping_fee;
+      console.log(`Trạng thái đơn hàng: ${order.status}`);
+      console.log(`Số tiền nhận được: ${paidAmount}`);
+      console.log(`Số tiền kỳ vọng (total - ship): ${expectedAmount}`);
+
+      if (expectedAmount !== paidAmount) {
         console.log(`Số tiền không chính xác cho đơn hàng ${orderId}`);
         return res.status(200).json({ status: 200, message: "Số tiền thanh toán không chính xác, đã bỏ qua" });
       }
     } else {
-      if (order.total_price !== paidAmount) {
+      const expectedAmount = order.total_price;
+      console.log(`Trạng thái đơn hàng: ${order.status}`);
+      console.log(`Số tiền nhận được: ${paidAmount}`);
+      console.log(`Số tiền kỳ vọng (total): ${expectedAmount}`);
+
+      if (expectedAmount !== paidAmount) {
         console.log(`Số tiền không chính xác cho đơn hàng ${orderId}`);
         return res.status(200).json({ status: 200, message: "Số tiền thanh toán không chính xác, đã bỏ qua" });
       }
     }
+
 
     let message = "Đã xử lý thành công";
 
