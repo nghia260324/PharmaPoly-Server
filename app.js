@@ -298,9 +298,9 @@ app.post("/webhook/payment", async (req, res) => {
     }
 
     const { reference, description, amount } = data;
-    console.log(data);
-    console.log(description);
-    console.log("Check Price: " + amount);
+    // console.log(data);
+    // console.log(description);
+    // console.log("Check Price: " + amount);
     if (!reference || !description || !amount) {
       console.log("Thiếu trường dữ liệu bắt buộc:", data);
       return res.status(200).json({ status: 200, message: "Thiếu trường dữ liệu, đã bỏ qua" });
@@ -317,7 +317,6 @@ app.post("/webhook/payment", async (req, res) => {
     }
 
     const [, type, orderId] = match;
-    console.log(`Loại giao dịch nhận được: ${type}, đơn hàng: ${orderId}`);
     const order = await Orders.findById(new mongoose.Types.ObjectId(orderId));
     if (!order) {
       console.log(`Không tìm thấy đơn hàng: ${orderId}`);
@@ -329,7 +328,7 @@ app.post("/webhook/payment", async (req, res) => {
       return res.status(200).json({ status: 200, message: "Đơn hàng đã được xử lý" });
     }
 
-    const paidAmount = Number(amount);
+    const paidAmount = Math.abs(Number(amount));
 
     if (order.status === 'returned') {
       const expectedAmount = order.total_price - order.shipping_fee;
