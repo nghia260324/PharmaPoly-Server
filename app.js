@@ -298,7 +298,7 @@ app.post("/webhook/payment", async (req, res) => {
     }
 
     const { reference, description, amount } = data;
-
+    console.log(description);
     if (!reference || !description || !amount) {
       console.log("Thiếu trường dữ liệu bắt buộc:", data);
       return res.status(200).json({ status: 200, message: "Thiếu trường dữ liệu, đã bỏ qua" });
@@ -314,6 +314,7 @@ app.post("/webhook/payment", async (req, res) => {
     }
 
     const [, type, orderId] = match;
+    console.log(`Loại giao dịch nhận được: ${type}, đơn hàng: ${orderId}`);
     const order = await Orders.findById(new mongoose.Types.ObjectId(orderId));
     if (!order) {
       console.log(`Không tìm thấy đơn hàng: ${orderId}`);
@@ -342,6 +343,7 @@ app.post("/webhook/payment", async (req, res) => {
 
     switch (type) {
       case 'REJECT':
+        console.log(`==> Đã vào case REJECT cho đơn hàng ${orderId}`);
         order.payment_status = 'refunded';
         order.status = 'rejected';
         await order.save();
@@ -352,31 +354,34 @@ app.post("/webhook/payment", async (req, res) => {
         break;
 
       case 'REFUND':
+        console.log(`==> Đã vào case REFUND cho đơn hàng ${orderId}, trạng thái hiện tại: ${order.status}`);
         if (order.status !== 'returned') {
           order.status = 'canceled';
         }
 
         order.payment_status = 'refunded';
 
-        const orderItems = await OrderItems.find({ order_id: order._id })
-          .populate({
-            path: "product_product_type_id",
-            model: "productProductType",
-            populate: {
-              path: "product_id",
-              model: "product",
-              select: "name"
-            }
-          });
-        for (const item of orderItems) {
-          for (const batch of item.batches) {
-            const stockEntry = await StockEntries.findOne({ batch_number: batch.batch_number });
-            if (stockEntry) {
-              stockEntry.remaining_quantity += batch.quantity;
-              if (stockEntry.status === "sold_out" && stockEntry.remaining_quantity > 0) {
-                stockEntry.status = "active";
+        if (order.status === 'confirmed' || order.status === 'ready_to_pick') {
+          const orderItems = await OrderItems.find({ order_id: order._id })
+            .populate({
+              path: "product_product_type_id",
+              model: "productProductType",
+              populate: {
+                path: "product_id",
+                model: "product",
+                select: "name"
               }
-              await stockEntry.save();
+            });
+          for (const item of orderItems) {
+            for (const batch of item.batches) {
+              const stockEntry = await StockEntries.findOne({ batch_number: batch.batch_number });
+              if (stockEntry) {
+                stockEntry.remaining_quantity += batch.quantity;
+                if (stockEntry.status === "sold_out" && stockEntry.remaining_quantity > 0) {
+                  stockEntry.status = "active";
+                }
+                await stockEntry.save();
+              }
             }
           }
         }
@@ -392,6 +397,7 @@ app.post("/webhook/payment", async (req, res) => {
         break;
 
       case 'OID':
+        console.log(`==> Đã vào case OID cho đơn hàng ${orderId}`);
         if (order.payment_status === "paid") {
           return res.json({ status: 200, message: "Đơn hàng đã được thanh toán" });
         }
